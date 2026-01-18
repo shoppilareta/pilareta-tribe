@@ -46,16 +46,23 @@ interface OpenIDConfig {
   end_session_endpoint?: string;
 }
 
+let cachedConfig: OpenIDConfig | null = null;
+
 export async function discoverEndpoints(): Promise<OpenIDConfig> {
-  const shopId = await getShopId();
-  const discoveryUrl = `https://shopify.com/${shopId}/.well-known/openid-configuration`;
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  // Use the store domain to discover OpenID configuration
+  const discoveryUrl = `https://${SHOPIFY_STORE_DOMAIN}/.well-known/openid-configuration`;
 
   const res = await fetch(discoveryUrl);
   if (!res.ok) {
     throw new Error(`Failed to discover OpenID configuration: ${res.statusText}`);
   }
 
-  return res.json();
+  cachedConfig = await res.json();
+  return cachedConfig;
 }
 
 // Build authorization URL for OAuth2 + PKCE (New Customer Accounts)
@@ -63,7 +70,7 @@ export async function buildAuthorizationUrl(
   codeVerifier: string,
   state: string
 ): Promise<string> {
-  const shopId = await getShopId();
+  const config = await discoverEndpoints();
   const codeChallenge = generateCodeChallenge(codeVerifier);
   const redirectUri = `${APP_URL}/api/auth/callback`;
 
@@ -77,8 +84,8 @@ export async function buildAuthorizationUrl(
     code_challenge_method: 'S256',
   });
 
-  // For new customer accounts, use Shopify's auth endpoint
-  return `https://shopify.com/${shopId}/auth/oauth/authorize?${params.toString()}`;
+  // Use discovered authorization endpoint
+  return `${config.authorization_endpoint}?${params.toString()}`;
 }
 
 // Exchange authorization code for tokens
