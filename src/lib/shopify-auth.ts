@@ -61,8 +61,9 @@ export async function discoverEndpoints(): Promise<OpenIDConfig> {
     throw new Error(`Failed to discover OpenID configuration: ${res.statusText}`);
   }
 
-  cachedConfig = await res.json();
-  return cachedConfig;
+  const config: OpenIDConfig = await res.json();
+  cachedConfig = config;
+  return config;
 }
 
 // Build authorization URL for OAuth2 + PKCE (New Customer Accounts)
