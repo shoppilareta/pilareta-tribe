@@ -59,6 +59,16 @@ jobs:
             echo ">>> Running database migrations..."
             pnpm prisma migrate deploy
 
+            # Seed database if empty (check if exercises table is empty)
+            echo ">>> Checking if database needs seeding..."
+            EXERCISE_COUNT=$(pnpm prisma db execute --stdin <<< "SELECT COUNT(*) FROM \"Exercise\";" 2>/dev/null | grep -oP '\d+' | head -1 || echo "0")
+            if [ "$EXERCISE_COUNT" = "0" ] || [ -z "$EXERCISE_COUNT" ]; then
+              echo ">>> Database is empty, running seed..."
+              pnpm db:seed
+            else
+              echo ">>> Database already seeded ($EXERCISE_COUNT exercises found)"
+            fi
+
             # Build the application
             echo ">>> Building application..."
             pnpm build

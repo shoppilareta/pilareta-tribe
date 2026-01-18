@@ -7,45 +7,386 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// EXISTING MODELS
+// ============================================
+
 model User {
-  id              String    @id @default(cuid())
-  shopifyId       String    @unique
-  email           String    @unique
-  firstName       String?
-  lastName        String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  sessions        Session[]
-  ugcPosts        UgcPost[]
+  id                    String                   @id @default(cuid())
+  shopifyId             String                   @unique
+  email                 String                   @unique
+  firstName             String?
+  lastName              String?
+  isAdmin               Boolean                  @default(false)
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  sessions              Session[]
+  ugcPosts              UgcPost[]
+  pilatesSessions       PilatesSession[]
+  sessionCompletions    UserSessionCompletion[]
+  programProgress       UserProgramProgress[]
+  exerciseCompletions   UserExerciseCompletion[]
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken  String
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-}
-
-model UgcPost {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String?
-  mediaUrl    String?
-  status      String   @default("pending")
+  accessToken String
+  expiresAt   DateTime
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+}
+
+model UgcPost {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  mediaUrl  String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Studio {
-  id          String   @id @default(cuid())
-  name        String
-  city        String
-  address     String?
-  latitude    Float?
-  longitude   Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  city      String
+  address   String?
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// LEARN PILATES - EXERCISE LIBRARY
+// ============================================
+
+model Exercise {
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  name              String
+  description       String   @db.Text
+
+  // Classification
+  equipment         String   // "reformer" | "mat" | "both"
+  difficulty        String   // "beginner" | "intermediate" | "advanced"
+  focusAreas        String[] // ["core", "glutes", "legs", "arms", "back", "posture", "mobility"]
+
+  // Execution details
+  setupSteps        String[] // Array of setup instructions
+  executionSteps    String[] // Array of execution steps
+  cues              String[] // Key coaching cues
+  commonMistakes    String[] // Common errors to avoid
+  modifications     Json     // { easier: string[], harder: string[] }
+
+  // Safety & contraindications
+  contraindications String[] // ["knee_sensitive", "wrist_sensitive", "shoulder_sensitive", "lower_back_sensitive"]
+  safetyNotes       String?  @db.Text
+
+  // Muscles targeted
+  primaryMuscles    String[] // Primary muscles worked
+  secondaryMuscles  String[] // Secondary muscles worked
+
+  // Session building parameters
+  defaultReps       Int?     // Default rep count (null for time-based)
+  defaultDuration   Int?     // Default duration in seconds (null for rep-based)
+  defaultSets       Int      @default(1)
+  defaultTempo      String?  // e.g., "2-1-2" (eccentric-pause-concentric)
+  rpeTarget         Int      @default(5) // 1-10 scale
+
+  // Reformer specific
+  springSuggestion  String?  // e.g., "1 red, 1 blue" or "medium tension"
+
+  // Media (Phase 2 scaffold)
+  imageUrl          String?
+  videoUrl          String?
+  videoTimestamps   Json?    // { cues: [{ time: number, text: string }] }
+  multiAngleVideos  Json?    // { front: url, side: url, top: url }
+  animation3dId     String?  // Future: reference to 3D animation asset
+
+  // Meta
+  instructorNotes   String?  @db.Text // TODO items or review notes
+  isVerified        Boolean  @default(false) // Instructor reviewed
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  sessionItems      PilatesSessionItem[]
+  templateItems     SessionTemplateItem[]
+}
+
+// ============================================
+// LEARN PILATES - SESSION BUILDER & PLAYER
+// ============================================
+
+model PilatesSession {
+  id              String   @id @default(cuid())
+  userId          String?  // Null for guest preview sessions
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session metadata
+  name            String
+  description     String?  @db.Text
+
+  // Builder inputs
+  goal            String   // "core_stability" | "glutes" | "legs" | "posture" | "mobility" | "full_body"
+  equipment       String   // "reformer" | "mat"
+  level           String   // "beginner" | "intermediate" | "advanced"
+  durationMinutes Int
+  focusAreas      String[]
+  constraints     String[] // ["knee_sensitive", "wrist_sensitive", etc.]
+
+  // Session metrics
+  totalSets       Int
+  totalReps       Int?
+  totalDuration   Int      // Total time in seconds
+  rpeTarget       Int      // 1-10 scale
+  tempoGuidance   String?
+
+  // Generated rationale
+  rationale       String[] // "Why these moves" bullet points
+
+  // Status
+  isTemplate      Boolean  @default(false) // Used by programs
+  status          String   @default("created") // "created" | "in_progress" | "completed"
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  items           PilatesSessionItem[]
+  completions     UserSessionCompletion[]
+  programSessions ProgramSession[]
+}
+
+model PilatesSessionItem {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         PilatesSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exerciseId      String
+  exercise        Exercise @relation(fields: [exerciseId], references: [id])
+
+  // Order and section
+  orderIndex      Int
+  section         String   // "warmup" | "activation" | "main" | "cooldown"
+
+  // Exercise parameters for this instance
+  sets            Int
+  reps            Int?     // Null for time-based
+  duration        Int?     // Seconds, null for rep-based
+  tempo           String?
+  restSeconds     Int      @default(30)
+
+  // Reformer specific
+  springSetting   String?
+
+  // RPE for this specific item
+  rpeTarget       Int
+
+  // Cues to show (can override exercise defaults)
+  showCues        String[]
+  showMistakes    String[]
+
+  createdAt       DateTime @default(now())
+
+  // Relations
+  completions     UserExerciseCompletion[]
+}
+
+// ============================================
+// LEARN PILATES - PROGRAMS
+// ============================================
+
+model Program {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  description     String   @db.Text
+
+  // Program details
+  durationWeeks   Int
+  sessionsPerWeek Int
+  equipment       String   // "reformer" | "mat"
+  level           String   // "beginner" | "intermediate" | "advanced"
+  focusAreas      String[]
+
+  // Progression rules
+  progressionType String   // "reps" | "time_under_tension" | "range_of_motion"
+  progressionNotes String? @db.Text
+
+  // Content
+  benefits        String[]
+  prerequisites   String?  @db.Text
+
+  // Media
+  imageUrl        String?
+
+  // Status
+  isPublished     Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  weeks           ProgramWeek[]
+  userProgress    UserProgramProgress[]
+}
+
+model ProgramWeek {
+  id              String   @id @default(cuid())
+  programId       String
+  program         Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  weekNumber      Int
+  title           String?
+  focus           String?  @db.Text
+
+  // Progression for this week
+  repsMultiplier  Float    @default(1.0) // e.g., 1.0, 1.1, 1.2, 1.3 for weeks 1-4
+  intensityNotes  String?
+
+  createdAt       DateTime @default(now())
+
+  // Relations
+  sessions        ProgramSession[]
+
+  @@unique([programId, weekNumber])
+}
+
+model ProgramSession {
+  id              String   @id @default(cuid())
+  weekId          String
+  week            ProgramWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
+
+  dayNumber       Int      // 1, 2, 3, etc.
+  title           String?
+
+  // Link to session template
+  sessionId       String?
+  session         PilatesSession? @relation(fields: [sessionId], references: [id])
+
+  // Or use a template definition
+  templateId      String?
+  template        SessionTemplate? @relation(fields: [templateId], references: [id])
+
+  createdAt       DateTime @default(now())
+
+  @@unique([weekId, dayNumber])
+}
+
+// Session templates for programs (reusable)
+model SessionTemplate {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  description     String?  @db.Text
+
+  goal            String
+  equipment       String
+  level           String
+  durationMinutes Int
+  focusAreas      String[]
+
+  rpeTarget       Int      @default(5)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  items           SessionTemplateItem[]
+  programSessions ProgramSession[]
+}
+
+model SessionTemplateItem {
+  id              String   @id @default(cuid())
+  templateId      String
+  template        SessionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  exerciseId      String
+  exercise        Exercise @relation(fields: [exerciseId], references: [id])
+
+  orderIndex      Int
+  section         String
+
+  sets            Int
+  reps            Int?
+  duration        Int?
+  tempo           String?
+  restSeconds     Int      @default(30)
+  springSetting   String?
+  rpeTarget       Int      @default(5)
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// LEARN PILATES - USER PROGRESS TRACKING
+// ============================================
+
+model UserSessionCompletion {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId       String
+  session         PilatesSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Completion details
+  startedAt       DateTime
+  completedAt     DateTime?
+
+  // User feedback
+  rpeAchieved     Int?     // 1-10 scale, user reported
+  notes           String?  @db.Text
+  difficulty      String?  // "too_easy" | "just_right" | "too_hard"
+
+  // Progress
+  exercisesCompleted Int   @default(0)
+  totalExercises  Int
+
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, sessionId, startedAt])
+}
+
+model UserExerciseCompletion {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionItemId   String
+  sessionItem     PilatesSessionItem @relation(fields: [sessionItemId], references: [id], onDelete: Cascade)
+
+  completedAt     DateTime @default(now())
+  setsCompleted   Int
+  repsCompleted   Int?
+  durationCompleted Int?   // Seconds
+
+  // User feedback per exercise
+  rpeAchieved     Int?
+  notes           String?
+
+  @@unique([userId, sessionItemId])
+}
+
+model UserProgramProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId       String
+  program         Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  // Progress tracking
+  startedAt       DateTime @default(now())
+  currentWeek     Int      @default(1)
+  completedWeeks  Int[]    // Array of completed week numbers
+  completedSessionIds String[] // Array of completed session IDs
+
+  // Status
+  status          String   @default("in_progress") // "in_progress" | "completed" | "paused"
+  completedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, programId])
 }
