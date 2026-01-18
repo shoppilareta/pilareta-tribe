@@ -3,6 +3,32 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Dynamically import 3D viewer to avoid SSR issues and reduce initial bundle
+const Exercise3DViewer = dynamic(
+  () => import('@/components/Exercise3DViewer').then((mod) => mod.Exercise3DViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{
+        height: '320px',
+        background: '#1a1a1a',
+        borderRadius: '0.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'rgba(246, 237, 221, 0.5)',
+        fontSize: '0.875rem'
+      }}>
+        Loading 3D viewer...
+      </div>
+    ),
+  }
+);
+
+// Exercises that have 3D animations available
+const EXERCISES_WITH_3D = ['bridging'];
 
 interface Exercise {
   id: string;
@@ -133,6 +159,16 @@ export default function ExerciseDetailPage() {
             {exercise.description}
           </p>
         </div>
+
+        {/* 3D Animation Viewer (if available) */}
+        {EXERCISES_WITH_3D.includes(exercise.slug) && (
+          <div className="card" style={{ marginBottom: '1.5rem', padding: 0, overflow: 'hidden' }}>
+            <Exercise3DViewer
+              exerciseSlug={exercise.slug}
+              showReformer={exercise.equipment === 'reformer'}
+            />
+          </div>
+        )}
 
         {/* Quick Info Card */}
         <div className="card" style={{ marginBottom: '1.5rem' }}>
