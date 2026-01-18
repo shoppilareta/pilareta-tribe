@@ -11,9 +11,9 @@ export default async function HomePage() {
   return (
     <div className="container py-8 md:py-12">
       {/* Hero Section */}
-      <section className="text-center mb-12 md:mb-16">
-        <h1 className="mb-4">Welcome to the Tribe</h1>
-        <p className="text-muted max-w-xl mx-auto">
+      <section style={{ textAlign: 'center', marginBottom: '3rem' }}>
+        <h1 style={{ marginBottom: '1rem' }}>Welcome to the Tribe</h1>
+        <p style={{ color: 'rgba(246, 237, 221, 0.6)', maxWidth: '36rem', margin: '0 auto' }}>
           Your Pilates community. Find studios, learn new techniques,
           and share your journey with fellow enthusiasts.
         </p>
@@ -117,8 +117,8 @@ export default async function HomePage() {
 
       {/* Bottom CTA - only show when not logged in */}
       {!isLoggedIn && (
-        <section className="text-center mt-16 md:mt-20">
-          <p className="text-muted mb-4">
+        <section style={{ textAlign: 'center', marginTop: '4rem' }}>
+          <p style={{ color: 'rgba(246, 237, 221, 0.6)', marginBottom: '1rem' }}>
             Already a Pilareta customer?
           </p>
           <a href="/api/auth/login" className="btn btn-primary">

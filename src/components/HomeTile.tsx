@@ -18,20 +18,20 @@ export function HomeTile({
 }: HomeTileProps) {
   return (
     <section className="card">
-      <div className="flex items-start justify-between mb-4">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div>
-          <h2 className="text-xl font-medium mb-1">{title}</h2>
-          <p className="text-muted text-sm">{description}</p>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 500, marginBottom: '0.25rem' }}>{title}</h2>
+          <p style={{ color: 'rgba(246, 237, 221, 0.6)', fontSize: '0.875rem' }}>{description}</p>
         </div>
         {comingSoon && (
           <span className="badge-coming-soon">Coming Soon</span>
         )}
       </div>
 
-      <div className="mt-6">{children}</div>
+      <div style={{ marginTop: '1.5rem' }}>{children}</div>
 
-      <div className="mt-6 pt-4 border-t border-[rgba(246,237,221,0.1)]">
-        <Link href={href} className="btn btn-outline w-full text-sm py-3">
+      <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(246, 237, 221, 0.1)' }}>
+        <Link href={href} className="btn btn-outline" style={{ width: '100%', fontSize: '0.875rem', padding: '0.75rem' }}>
           Explore {title}
         </Link>
       </div>
