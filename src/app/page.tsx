@@ -1,6 +1,9 @@
 import { HomeTile } from '@/components/HomeTile';
 import { getSession } from '@/lib/session';
 
+// Force dynamic rendering to check session state
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   const session = await getSession();
   const isLoggedIn = !!session.userId;

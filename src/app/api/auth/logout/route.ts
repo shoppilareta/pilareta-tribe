@@ -8,6 +8,7 @@ export async function GET() {
 
   try {
     const session = await getSession();
+    const idToken = session.idToken;
 
     // Delete session from database if exists
     if (session.userId) {
@@ -20,15 +21,19 @@ export async function GET() {
     session.destroy();
 
     // Redirect to Shopify's logout endpoint to fully end the session
-    try {
-      const config = await discoverEndpoints();
-      if (config.end_session_endpoint) {
-        const logoutUrl = new URL(config.end_session_endpoint);
-        logoutUrl.searchParams.set('post_logout_redirect_uri', appUrl);
-        return NextResponse.redirect(logoutUrl.toString());
+    // Only if we have the id_token to pass as hint
+    if (idToken) {
+      try {
+        const config = await discoverEndpoints();
+        if (config.end_session_endpoint) {
+          const logoutUrl = new URL(config.end_session_endpoint);
+          logoutUrl.searchParams.set('id_token_hint', idToken);
+          logoutUrl.searchParams.set('post_logout_redirect_uri', appUrl);
+          return NextResponse.redirect(logoutUrl.toString());
+        }
+      } catch {
+        // If discovery fails, just redirect home
       }
-    } catch {
-      // If discovery fails, just redirect home
     }
 
     return NextResponse.redirect(appUrl);

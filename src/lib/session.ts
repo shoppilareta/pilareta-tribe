@@ -10,6 +10,7 @@ export interface SessionData {
   lastName?: string;
   codeVerifier?: string;
   state?: string;
+  idToken?: string;
 }
 
 const sessionOptions: SessionOptions = {

@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
     session.shopifyAccessToken = tokens.access_token;
     session.shopifyCustomerId = shopifyId;
     session.email = customerInfo.email;
+    session.idToken = tokens.id_token; // Store for logout
     // Clear PKCE params
     session.codeVerifier = undefined;
     session.state = undefined;
