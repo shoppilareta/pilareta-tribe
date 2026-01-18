@@ -53,16 +53,16 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const rightShinRef = useRef<THREE.Group>(null);
 
   // Calculate base angles to position feet on footbar
-  // Person lies with head at X=-0.5, feet at footbar X=0.55
-  const SHOULDER_X = -0.35;
+  // Person lies with head toward left, feet at footbar on right
+  const SHOULDER_X = -0.22;
   const SHOULDER_Y = CARRIAGE_TOP + 0.04;
 
-  // Distance from shoulders to footbar
-  const totalDist = FOOTBAR_X - SHOULDER_X;
-
-  // Base hip angle (pointing toward feet/footbar)
-  const baseHipAngle = 0.6; // Slight upward angle for bent knees
-  const baseShinAngle = -1.2; // Shin angles down toward footbar
+  // Leg angles calculated to reach footbar
+  // Footbar is at X=0.55, Y=0.52
+  // Hip is at approximately X=0.26 after torso chain
+  // Need thigh+shin to reach from hip to footbar
+  const baseHipAngle = 0.45; // Thigh angles upward toward knee
+  const baseShinAngle = -0.9; // Shin angles down toward footbar
 
   useFrame((_, delta) => {
     if (animation !== 'bridging') return;
@@ -111,15 +111,15 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
 
   return (
     <group position={[SHOULDER_X, SHOULDER_Y, 0]}>
-      {/* === HEAD (behind shoulders) === */}
-      <mesh position={[-0.12, 0.02, 0]}>
+      {/* === HEAD (behind shoulders, resting on headrest) === */}
+      <mesh position={[-0.14, 0.02, 0]}>
         <sphereGeometry args={[0.055, 16, 16]} />
         <meshStandardMaterial color={SKIN} />
       </mesh>
 
       {/* === NECK === */}
-      <mesh position={[-0.06, 0.01, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <capsuleGeometry args={[0.018, 0.04, 4, 8]} />
+      <mesh position={[-0.07, 0.01, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.018, 0.05, 4, 8]} />
         <meshStandardMaterial color={SKIN} />
       </mesh>
 
