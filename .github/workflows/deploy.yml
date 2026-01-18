@@ -55,9 +55,9 @@ jobs:
             echo ">>> Generating Prisma client..."
             pnpm prisma generate
 
-            # Run database migrations
-            echo ">>> Running database migrations..."
-            pnpm prisma migrate deploy
+            # Sync database schema (using db push for schemaless setup)
+            echo ">>> Syncing database schema..."
+            pnpm prisma db push --skip-generate
 
             # Seed database if empty (check if exercises table is empty)
             echo ">>> Checking if database needs seeding..."
