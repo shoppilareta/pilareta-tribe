@@ -5,23 +5,22 @@ import { useRef } from 'react';
 import * as THREE from 'three';
 
 /**
- * Human Model for Pilates Bridging
+ * Human Model for Pilates Bridging - HIERARCHICAL SKELETON
  *
- * SHARED COORDINATES (must match ReformerModel.tsx):
- * - CARRIAGE_TOP = 0.37 (where person lies)
- * - FOOTBAR_X = 0.55
- * - FOOTBAR_Y = 0.52
+ * The body is built as a SINGLE connected chain where each part
+ * is a CHILD of the previous part. This guarantees connection.
  *
- * BODY CONSTRUCTION:
- * All body parts are built as a SINGLE connected chain.
- * Each joint is placed EXACTLY where the previous segment ends.
+ * HIERARCHY:
+ * Root (at shoulders - fixed on carriage)
+ * └── Shoulders
+ *     └── Upper Torso
+ *         └── Lower Torso (animates rotation for bridge)
+ *             └── Pelvis
+ *                 ├── Left Hip → Thigh → Knee → Shin → Foot
+ *                 └── Right Hip → Thigh → Knee → Shin → Foot
  *
- * VERIFICATION:
- * - Pelvis center at (0.15, CARRIAGE_TOP + 0.03, 0)
- * - Hip joints at pelvis edges
- * - Thigh attaches at hip, ends at knee
- * - Shin attaches at knee, ends at foot
- * - Foot positioned at FOOTBAR
+ * ANIMATION: Lower torso rotates upward, lifting the pelvis while
+ * shoulders stay fixed and feet stay on footbar.
  */
 
 interface HumanModelProps {
@@ -32,22 +31,38 @@ interface HumanModelProps {
 const SKIN = '#d4a574';
 const CLOTHING = '#2a3d4f';
 
-// === SHARED CONSTANTS (must match ReformerModel) ===
+// Shared constants (must match ReformerModel)
 const CARRIAGE_TOP = 0.37;
 const FOOTBAR_X = 0.55;
 const FOOTBAR_Y = 0.52;
 
-// Body dimensions
-const THIGH_LEN = 0.28;
-const SHIN_LEN = 0.26;
+// Body segment lengths
+const TORSO_LEN = 0.22;
+const PELVIS_LEN = 0.08;
+const THIGH_LEN = 0.26;
+const SHIN_LEN = 0.24;
 
 const CYCLE = 5.0;
 
 export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const timeRef = useRef(0);
-  const pelvisLiftRef = useRef<THREE.Group>(null);
-  const torsoRef = useRef<THREE.Mesh>(null);
-  const lowerBackRef = useRef<THREE.Mesh>(null);
+  const lowerTorsoRef = useRef<THREE.Group>(null);
+  const leftThighRef = useRef<THREE.Group>(null);
+  const rightThighRef = useRef<THREE.Group>(null);
+  const leftShinRef = useRef<THREE.Group>(null);
+  const rightShinRef = useRef<THREE.Group>(null);
+
+  // Calculate base angles to position feet on footbar
+  // Person lies with head at X=-0.5, feet at footbar X=0.55
+  const SHOULDER_X = -0.35;
+  const SHOULDER_Y = CARRIAGE_TOP + 0.04;
+
+  // Distance from shoulders to footbar
+  const totalDist = FOOTBAR_X - SHOULDER_X;
+
+  // Base hip angle (pointing toward feet/footbar)
+  const baseHipAngle = 0.6; // Slight upward angle for bent knees
+  const baseShinAngle = -1.2; // Shin angles down toward footbar
 
   useFrame((_, delta) => {
     if (animation !== 'bridging') return;
@@ -55,40 +70,35 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     timeRef.current += delta;
     const t = timeRef.current % CYCLE;
 
+    // Animation progress (0 to 1 and back)
     let p = 0;
     if (t < 1.5) p = ease(t / 1.5);
     else if (t < 3) p = 1;
     else if (t < 4.5) p = 1 - ease((t - 3) / 1.5);
 
-    const pelvisLift = p * 0.12;  // How much the pelvis lifts
+    const maxLift = 0.35; // Maximum rotation in radians
 
-    // Animate pelvis lift
-    if (pelvisLiftRef.current) {
-      pelvisLiftRef.current.position.y = pelvisLift;
+    // Animate lower torso rotation (creates the bridge lift)
+    if (lowerTorsoRef.current) {
+      lowerTorsoRef.current.rotation.z = p * maxLift;
     }
 
-    // Animate torso to connect fixed shoulders to moving pelvis
-    // Shoulders are fixed at (SHOULDER_X, CARRIAGE_TOP + 0.03)
-    // Pelvis moves from (PELVIS_X, PELVIS_Y) to (PELVIS_X, PELVIS_Y + lift)
-    if (torsoRef.current) {
-      // Calculate dynamic connection from shoulders to pelvis
-      const shoulderY = CARRIAGE_TOP + 0.03;
-      const currentPelvisY = CARRIAGE_TOP + 0.03 + pelvisLift;
-
-      // Torso midpoint and angle
-      const midY = (shoulderY + currentPelvisY) / 2;
-      const dy = currentPelvisY - shoulderY;
-      const dx = 0.28; // Distance from shoulder to pelvis in X
-      const angle = Math.atan2(dy, dx);
-
-      torsoRef.current.position.y = midY;
-      torsoRef.current.rotation.z = Math.PI / 2 + angle;
+    // Counter-rotate thighs to keep feet relatively stable
+    const thighCompensation = -p * maxLift * 0.7;
+    if (leftThighRef.current) {
+      leftThighRef.current.rotation.z = baseHipAngle + thighCompensation;
+    }
+    if (rightThighRef.current) {
+      rightThighRef.current.rotation.z = baseHipAngle + thighCompensation;
     }
 
-    // Animate lower back segment for smoother curve
-    if (lowerBackRef.current) {
-      const lowerBackLift = pelvisLift * 0.6; // Lower back lifts less than pelvis
-      lowerBackRef.current.position.y = CARRIAGE_TOP + 0.025 + lowerBackLift;
+    // Counter-rotate shins to keep feet on footbar
+    const shinCompensation = p * maxLift * 0.5;
+    if (leftShinRef.current) {
+      leftShinRef.current.rotation.z = baseShinAngle + shinCompensation;
+    }
+    if (rightShinRef.current) {
+      rightShinRef.current.rotation.z = baseShinAngle + shinCompensation;
     }
 
     if (onCarriageMove) onCarriageMove(0.02);
@@ -99,181 +109,136 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   }
 
-  // === CALCULATE POSITIONS FROM FOOTBAR BACKWARDS ===
-  // Foot is at footbar
-  const FOOT_X = FOOTBAR_X;
-  const FOOT_Y = FOOTBAR_Y;
-
-  // Work backwards: shin angle to reach foot from knee
-  // Knee should be above and behind foot
-  const KNEE_X = FOOT_X - 0.08;
-  const KNEE_Y = FOOT_Y + SHIN_LEN * 0.85;
-
-  // Verify shin reaches foot
-  const shinDist = Math.sqrt((FOOT_X - KNEE_X) ** 2 + (FOOT_Y - KNEE_Y) ** 2);
-  const SHIN_ANGLE = Math.atan2(FOOT_Y - KNEE_Y, FOOT_X - KNEE_X);
-
-  // Hip should be behind and below knee (person lying down)
-  const HIP_X = KNEE_X - THIGH_LEN * 0.75;
-  const HIP_Y = CARRIAGE_TOP + 0.04;
-
-  // Verify thigh reaches knee
-  const thighDist = Math.sqrt((KNEE_X - HIP_X) ** 2 + (KNEE_Y - HIP_Y) ** 2);
-  const THIGH_ANGLE = Math.atan2(KNEE_Y - HIP_Y, KNEE_X - HIP_X);
-
-  // Pelvis is at hip level
-  const PELVIS_X = HIP_X - 0.04;
-  const PELVIS_Y = CARRIAGE_TOP + 0.03;
-
-  // Torso extends from pelvis toward head
-  const SHOULDER_X = PELVIS_X - 0.28;
-  const HEAD_X = SHOULDER_X - 0.10;
-
-  // Hip offset from pelvis center
-  const HIP_OFFSET_X = HIP_X - PELVIS_X;
-  const HIP_OFFSET_Z = 0.07;
-
   return (
-    <group>
-      {/* === HEAD === */}
-      <mesh position={[HEAD_X, CARRIAGE_TOP + 0.06, 0]}>
+    <group position={[SHOULDER_X, SHOULDER_Y, 0]}>
+      {/* === HEAD (behind shoulders) === */}
+      <mesh position={[-0.12, 0.02, 0]}>
         <sphereGeometry args={[0.055, 16, 16]} />
         <meshStandardMaterial color={SKIN} />
       </mesh>
 
       {/* === NECK === */}
-      <mesh position={[HEAD_X + 0.06, CARRIAGE_TOP + 0.05, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <capsuleGeometry args={[0.018, 0.03, 4, 8]} />
+      <mesh position={[-0.06, 0.01, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.018, 0.04, 4, 8]} />
         <meshStandardMaterial color={SKIN} />
       </mesh>
 
-      {/* === SHOULDERS (fixed) === */}
-      <group position={[SHOULDER_X, CARRIAGE_TOP + 0.03, 0]}>
-        <mesh>
-          <boxGeometry args={[0.08, 0.04, 0.22]} />
+      {/* === SHOULDERS (root anchor - fixed on carriage) === */}
+      <mesh>
+        <boxGeometry args={[0.08, 0.05, 0.24]} />
+        <meshStandardMaterial color={CLOTHING} />
+      </mesh>
+
+      {/* Arms (fixed, resting on carriage) */}
+      {[-0.10, 0.10].map((z, i) => (
+        <group key={`arm-${i}`} position={[0.02, -0.01, z]}>
+          <mesh position={[0.08, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.018, 0.12, 4, 8]} />
+            <meshStandardMaterial color={SKIN} />
+          </mesh>
+          <mesh position={[0.18, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.015, 0.10, 4, 8]} />
+            <meshStandardMaterial color={SKIN} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* === UPPER TORSO (connected to shoulders) === */}
+      <group position={[0.04, 0, 0]}>
+        <mesh position={[TORSO_LEN / 2 - 0.02, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <capsuleGeometry args={[0.045, TORSO_LEN - 0.04, 4, 8]} />
           <meshStandardMaterial color={CLOTHING} />
         </mesh>
 
-        {/* Arms */}
-        {[-0.09, 0.09].map((z, i) => (
-          <group key={`arm-${i}`} position={[0.02, 0, z]}>
-            <mesh position={[0.07, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.016, 0.10, 4, 8]} />
-              <meshStandardMaterial color={SKIN} />
-            </mesh>
-            <mesh position={[0.16, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.014, 0.08, 4, 8]} />
-              <meshStandardMaterial color={SKIN} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-
-      {/* === TORSO (connects shoulders to pelvis - animates to stay connected) === */}
-      <mesh
-        ref={torsoRef}
-        position={[(SHOULDER_X + PELVIS_X) / 2, CARRIAGE_TOP + 0.025, 0]}
-        rotation={[0, 0, Math.PI / 2]}
-      >
-        <capsuleGeometry args={[0.038, Math.abs(PELVIS_X - SHOULDER_X) - 0.04, 4, 8]} />
-        <meshStandardMaterial color={CLOTHING} />
-      </mesh>
-
-      {/* === LOWER BACK (additional segment for smoother curve) === */}
-      <mesh
-        ref={lowerBackRef}
-        position={[PELVIS_X - 0.06, CARRIAGE_TOP + 0.025, 0]}
-        rotation={[0, 0, Math.PI / 2]}
-      >
-        <capsuleGeometry args={[0.042, 0.08, 4, 8]} />
-        <meshStandardMaterial color={CLOTHING} />
-      </mesh>
-
-      {/* === PELVIS GROUP (animates up) === */}
-      {/* Outer group: fixed base position on carriage */}
-      <group position={[PELVIS_X, PELVIS_Y, 0]}>
-        {/* Inner group: animates lift only (starts at 0, lifts up) */}
-        <group ref={pelvisLiftRef}>
-          {/* Pelvis mesh */}
-          <mesh>
-            <boxGeometry args={[0.10, 0.05, 0.18]} />
+        {/* === LOWER TORSO (animates - creates bridge lift) === */}
+        <group ref={lowerTorsoRef} position={[TORSO_LEN, 0, 0]}>
+          <mesh position={[TORSO_LEN / 2 - 0.02, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.048, TORSO_LEN - 0.02, 4, 8]} />
             <meshStandardMaterial color={CLOTHING} />
           </mesh>
 
-        {/* === LEFT LEG (connected chain) === */}
-        <group position={[HIP_OFFSET_X, 0.01, -HIP_OFFSET_Z]}>
-          {/* Hip joint */}
-          <mesh>
-            <sphereGeometry args={[0.025, 8, 8]} />
-            <meshStandardMaterial color={SKIN} />
-          </mesh>
-
-          {/* Thigh */}
-          <group rotation={[0, 0, THIGH_ANGLE]}>
-            <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.032, THIGH_LEN - 0.03, 4, 8]} />
-              <meshStandardMaterial color={SKIN} />
+          {/* === PELVIS (at end of lower torso) === */}
+          <group position={[TORSO_LEN, 0, 0]}>
+            <mesh>
+              <boxGeometry args={[0.10, 0.06, 0.20]} />
+              <meshStandardMaterial color={CLOTHING} />
             </mesh>
 
-            {/* Knee (at end of thigh) */}
-            <group position={[THIGH_LEN, 0, 0]}>
+            {/* === LEFT LEG === */}
+            <group position={[0.04, 0, -0.08]}>
+              {/* Hip joint */}
               <mesh>
                 <sphereGeometry args={[0.028, 8, 8]} />
                 <meshStandardMaterial color={SKIN} />
               </mesh>
 
-              {/* Shin */}
-              <group rotation={[0, 0, SHIN_ANGLE - THIGH_ANGLE]}>
-                <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                  <capsuleGeometry args={[0.025, SHIN_LEN - 0.03, 4, 8]} />
+              {/* Thigh (rotates at hip) */}
+              <group ref={leftThighRef} rotation={[0, 0, baseHipAngle]}>
+                <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <capsuleGeometry args={[0.035, THIGH_LEN - 0.04, 4, 8]} />
                   <meshStandardMaterial color={SKIN} />
                 </mesh>
 
-                {/* Foot (at end of shin) */}
-                <mesh position={[SHIN_LEN, 0, 0]} rotation={[0, 0, -SHIN_ANGLE + 0.3]}>
-                  <boxGeometry args={[0.07, 0.02, 0.035]} />
-                  <meshStandardMaterial color={SKIN} />
-                </mesh>
+                {/* Knee joint */}
+                <group position={[THIGH_LEN, 0, 0]}>
+                  <mesh>
+                    <sphereGeometry args={[0.030, 8, 8]} />
+                    <meshStandardMaterial color={SKIN} />
+                  </mesh>
+
+                  {/* Shin (rotates at knee) */}
+                  <group ref={leftShinRef} rotation={[0, 0, baseShinAngle]}>
+                    <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                      <capsuleGeometry args={[0.028, SHIN_LEN - 0.04, 4, 8]} />
+                      <meshStandardMaterial color={SKIN} />
+                    </mesh>
+
+                    {/* Foot */}
+                    <mesh position={[SHIN_LEN, 0, 0]}>
+                      <boxGeometry args={[0.08, 0.025, 0.04]} />
+                      <meshStandardMaterial color={SKIN} />
+                    </mesh>
+                  </group>
+                </group>
               </group>
             </group>
-          </group>
-        </group>
 
-        {/* === RIGHT LEG (mirror of left) === */}
-        <group position={[HIP_OFFSET_X, 0.01, HIP_OFFSET_Z]}>
-          <mesh>
-            <sphereGeometry args={[0.025, 8, 8]} />
-            <meshStandardMaterial color={SKIN} />
-          </mesh>
-
-          <group rotation={[0, 0, THIGH_ANGLE]}>
-            <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.032, THIGH_LEN - 0.03, 4, 8]} />
-              <meshStandardMaterial color={SKIN} />
-            </mesh>
-
-            <group position={[THIGH_LEN, 0, 0]}>
+            {/* === RIGHT LEG (mirror) === */}
+            <group position={[0.04, 0, 0.08]}>
               <mesh>
                 <sphereGeometry args={[0.028, 8, 8]} />
                 <meshStandardMaterial color={SKIN} />
               </mesh>
 
-              <group rotation={[0, 0, SHIN_ANGLE - THIGH_ANGLE]}>
-                <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                  <capsuleGeometry args={[0.025, SHIN_LEN - 0.03, 4, 8]} />
+              <group ref={rightThighRef} rotation={[0, 0, baseHipAngle]}>
+                <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <capsuleGeometry args={[0.035, THIGH_LEN - 0.04, 4, 8]} />
                   <meshStandardMaterial color={SKIN} />
                 </mesh>
 
-                <mesh position={[SHIN_LEN, 0, 0]} rotation={[0, 0, -SHIN_ANGLE + 0.3]}>
-                  <boxGeometry args={[0.07, 0.02, 0.035]} />
-                  <meshStandardMaterial color={SKIN} />
-                </mesh>
+                <group position={[THIGH_LEN, 0, 0]}>
+                  <mesh>
+                    <sphereGeometry args={[0.030, 8, 8]} />
+                    <meshStandardMaterial color={SKIN} />
+                  </mesh>
+
+                  <group ref={rightShinRef} rotation={[0, 0, baseShinAngle]}>
+                    <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                      <capsuleGeometry args={[0.028, SHIN_LEN - 0.04, 4, 8]} />
+                      <meshStandardMaterial color={SKIN} />
+                    </mesh>
+
+                    <mesh position={[SHIN_LEN, 0, 0]}>
+                      <boxGeometry args={[0.08, 0.025, 0.04]} />
+                      <meshStandardMaterial color={SKIN} />
+                    </mesh>
+                  </group>
+                </group>
               </group>
             </group>
           </group>
         </group>
-        </group>  {/* Close inner pelvisLiftRef group */}
-      </group>  {/* Close outer base position group */}
+      </group>
     </group>
   );
 }
