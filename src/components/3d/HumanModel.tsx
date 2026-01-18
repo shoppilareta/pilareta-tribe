@@ -78,7 +78,7 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   }
 
-  const Y = 0.38; // Carriage surface
+  const Y = 0.40; // Carriage surface (HEIGHT 0.28 + carriage offset 0.065 + padding ~0.05)
 
   return (
     <group>
@@ -133,18 +133,33 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
             <meshStandardMaterial color={CLOTHING} />
           </mesh>
 
-          {/* PELVIS */}
+          {/* PELVIS - extends to connect with legs */}
           <group ref={pelvisRef} position={[0.12, 0, 0]}>
-            <mesh scale={[0.85, 0.55, 0.95]}>
-              <sphereGeometry args={[0.085, 12, 10]} />
+            {/* Main pelvis body - elongated to reach hip joints */}
+            <mesh position={[0.02, -0.01, 0]}>
+              <boxGeometry args={[0.14, 0.08, 0.22]} />
+              <meshStandardMaterial color={CLOTHING} />
+            </mesh>
+            {/* Lower back connection to spine */}
+            <mesh position={[-0.03, 0.01, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <capsuleGeometry args={[0.045, 0.06, 4, 8]} />
+              <meshStandardMaterial color={CLOTHING} />
+            </mesh>
+            {/* Hip bones - visible connectors to legs */}
+            <mesh position={[0.05, -0.02, -0.08]} rotation={[Math.PI / 2, 0, 0]}>
+              <capsuleGeometry args={[0.032, 0.04, 4, 8]} />
+              <meshStandardMaterial color={CLOTHING} />
+            </mesh>
+            <mesh position={[0.05, -0.02, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+              <capsuleGeometry args={[0.032, 0.04, 4, 8]} />
               <meshStandardMaterial color={CLOTHING} />
             </mesh>
 
             {/* === LEFT LEG === */}
-            <group position={[0.03, -0.01, -0.08]}>
-              {/* Hip joint */}
+            <group position={[0.05, -0.04, -0.08]}>
+              {/* Hip joint - directly attached to pelvis */}
               <mesh>
-                <sphereGeometry args={[0.028, 8, 8]} />
+                <sphereGeometry args={[0.032, 8, 8]} />
                 <meshStandardMaterial color={SKIN} />
               </mesh>
 
@@ -180,9 +195,10 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
             </group>
 
             {/* === RIGHT LEG === */}
-            <group position={[0.03, -0.01, 0.08]}>
+            <group position={[0.05, -0.04, 0.08]}>
+              {/* Hip joint - directly attached to pelvis */}
               <mesh>
-                <sphereGeometry args={[0.028, 8, 8]} />
+                <sphereGeometry args={[0.032, 8, 8]} />
                 <meshStandardMaterial color={SKIN} />
               </mesh>
 
