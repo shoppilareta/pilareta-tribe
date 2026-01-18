@@ -46,9 +46,8 @@ const CYCLE = 5.0;
 export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const timeRef = useRef(0);
   const pelvisLiftRef = useRef<THREE.Group>(null);
-
-  // Base pelvis Y position (on carriage)
-  const PELVIS_BASE_Y = CARRIAGE_TOP + 0.03;
+  const torsoRef = useRef<THREE.Mesh>(null);
+  const lowerBackRef = useRef<THREE.Mesh>(null);
 
   useFrame((_, delta) => {
     if (animation !== 'bridging') return;
@@ -61,10 +60,35 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     else if (t < 3) p = 1;
     else if (t < 4.5) p = 1 - ease((t - 3) / 1.5);
 
-    // Pelvis lifts UP from base position (adds to base, never overwrites)
-    // Base Y is set in JSX, animation only adds lift amount
+    const pelvisLift = p * 0.12;  // How much the pelvis lifts
+
+    // Animate pelvis lift
     if (pelvisLiftRef.current) {
-      pelvisLiftRef.current.position.y = p * 0.12;  // Lift amount (0 to 0.12)
+      pelvisLiftRef.current.position.y = pelvisLift;
+    }
+
+    // Animate torso to connect fixed shoulders to moving pelvis
+    // Shoulders are fixed at (SHOULDER_X, CARRIAGE_TOP + 0.03)
+    // Pelvis moves from (PELVIS_X, PELVIS_Y) to (PELVIS_X, PELVIS_Y + lift)
+    if (torsoRef.current) {
+      // Calculate dynamic connection from shoulders to pelvis
+      const shoulderY = CARRIAGE_TOP + 0.03;
+      const currentPelvisY = CARRIAGE_TOP + 0.03 + pelvisLift;
+
+      // Torso midpoint and angle
+      const midY = (shoulderY + currentPelvisY) / 2;
+      const dy = currentPelvisY - shoulderY;
+      const dx = 0.28; // Distance from shoulder to pelvis in X
+      const angle = Math.atan2(dy, dx);
+
+      torsoRef.current.position.y = midY;
+      torsoRef.current.rotation.z = Math.PI / 2 + angle;
+    }
+
+    // Animate lower back segment for smoother curve
+    if (lowerBackRef.current) {
+      const lowerBackLift = pelvisLift * 0.6; // Lower back lifts less than pelvis
+      lowerBackRef.current.position.y = CARRIAGE_TOP + 0.025 + lowerBackLift;
     }
 
     if (onCarriageMove) onCarriageMove(0.02);
@@ -145,9 +169,23 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
         ))}
       </group>
 
-      {/* === TORSO (connects shoulders to pelvis) === */}
-      <mesh position={[(SHOULDER_X + PELVIS_X) / 2, CARRIAGE_TOP + 0.025, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <capsuleGeometry args={[0.04, Math.abs(PELVIS_X - SHOULDER_X) - 0.06, 4, 8]} />
+      {/* === TORSO (connects shoulders to pelvis - animates to stay connected) === */}
+      <mesh
+        ref={torsoRef}
+        position={[(SHOULDER_X + PELVIS_X) / 2, CARRIAGE_TOP + 0.025, 0]}
+        rotation={[0, 0, Math.PI / 2]}
+      >
+        <capsuleGeometry args={[0.038, Math.abs(PELVIS_X - SHOULDER_X) - 0.04, 4, 8]} />
+        <meshStandardMaterial color={CLOTHING} />
+      </mesh>
+
+      {/* === LOWER BACK (additional segment for smoother curve) === */}
+      <mesh
+        ref={lowerBackRef}
+        position={[PELVIS_X - 0.06, CARRIAGE_TOP + 0.025, 0]}
+        rotation={[0, 0, Math.PI / 2]}
+      >
+        <capsuleGeometry args={[0.042, 0.08, 4, 8]} />
         <meshStandardMaterial color={CLOTHING} />
       </mesh>
 
