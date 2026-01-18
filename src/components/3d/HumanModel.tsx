@@ -75,15 +75,15 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     else if (t < 3) p = 1;
     else if (t < 4.5) p = 1 - ease((t - 3) / 1.5);
 
-    const maxLift = 0.35; // Maximum rotation in radians
+    const maxLift = 0.5; // Maximum rotation in radians (more pronounced)
 
     // Animate lower torso rotation (creates the bridge lift)
     if (lowerTorsoRef.current) {
       lowerTorsoRef.current.rotation.z = p * maxLift;
     }
 
-    // Counter-rotate thighs to keep feet relatively stable
-    const thighCompensation = -p * maxLift * 0.7;
+    // Counter-rotate thighs to keep feet on footbar as pelvis lifts
+    const thighCompensation = -p * maxLift * 0.8;
     if (leftThighRef.current) {
       leftThighRef.current.rotation.z = baseHipAngle + thighCompensation;
     }
@@ -91,8 +91,8 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
       rightThighRef.current.rotation.z = baseHipAngle + thighCompensation;
     }
 
-    // Counter-rotate shins to keep feet on footbar
-    const shinCompensation = p * maxLift * 0.5;
+    // Counter-rotate shins to maintain foot position on footbar
+    const shinCompensation = p * maxLift * 0.6;
     if (leftShinRef.current) {
       leftShinRef.current.rotation.z = baseShinAngle + shinCompensation;
     }
