@@ -1,8 +1,33 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+interface Stats {
+  exercises: number;
+  programs: number;
+  weeks: number;
+  sessions: number;
+}
+
 export default function LearnPage() {
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const response = await fetch('/api/learn/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    }
+    fetchStats();
+  }, []);
+
   return (
     <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
       <div style={{ maxWidth: '56rem', margin: '0 auto' }}>
@@ -120,7 +145,7 @@ export default function LearnPage() {
               </div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 500, marginBottom: '0.5rem' }}>Start a Program</h2>
               <p style={{ color: 'rgba(246, 237, 221, 0.6)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1rem' }}>
-                Follow a structured 4-week program with progressive sessions designed
+                Follow a structured multi-week program with progressive sessions designed
                 to build strength, stability, and control.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -130,7 +155,7 @@ export default function LearnPage() {
                   background: 'rgba(246, 237, 221, 0.1)',
                   borderRadius: '9999px',
                   color: 'rgba(246, 237, 221, 0.7)'
-                }}>4 weeks</span>
+                }}>{stats ? `${stats.programs} programs` : '...'}</span>
                 <span style={{
                   fontSize: '0.75rem',
                   padding: '0.25rem 0.5rem',
@@ -196,7 +221,7 @@ export default function LearnPage() {
                   background: 'rgba(246, 237, 221, 0.1)',
                   borderRadius: '9999px',
                   color: 'rgba(246, 237, 221, 0.7)'
-                }}>25+ exercises</span>
+                }}>{stats ? `${stats.exercises} exercises` : '...'}</span>
                 <span style={{
                   fontSize: '0.75rem',
                   padding: '0.25rem 0.5rem',
@@ -286,19 +311,27 @@ export default function LearnPage() {
           textAlign: 'center'
         }}>
           <div style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>25+</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>
+              {stats ? stats.exercises : '—'}
+            </div>
             <div style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exercises</div>
           </div>
           <div style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>2</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>
+              {stats ? stats.programs : '—'}
+            </div>
             <div style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Programs</div>
           </div>
           <div style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>4</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>
+              {stats ? stats.weeks : '—'}
+            </div>
             <div style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Weeks</div>
           </div>
           <div style={{ padding: '1rem' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>24</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 500, marginBottom: '0.25rem' }}>
+              {stats ? stats.sessions : '—'}
+            </div>
             <div style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sessions</div>
           </div>
         </div>
