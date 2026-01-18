@@ -44,15 +44,18 @@ export async function GET(request: NextRequest) {
     // Decode ID token to get customer info
     const customerInfo = decodeIdToken(tokens.id_token);
 
+    // Ensure shopifyId is a string (Shopify may return it as a number)
+    const shopifyId = String(customerInfo.sub);
+
     // Create or update user in database
     const user = await prisma.user.upsert({
-      where: { shopifyId: customerInfo.sub },
+      where: { shopifyId },
       update: {
         email: customerInfo.email,
         updatedAt: new Date(),
       },
       create: {
-        shopifyId: customerInfo.sub,
+        shopifyId,
         email: customerInfo.email,
       },
     });
@@ -69,7 +72,7 @@ export async function GET(request: NextRequest) {
     // Update session cookie
     session.userId = user.id;
     session.shopifyAccessToken = tokens.access_token;
-    session.shopifyCustomerId = customerInfo.sub;
+    session.shopifyCustomerId = shopifyId;
     session.email = customerInfo.email;
     // Clear PKCE params
     session.codeVerifier = undefined;
