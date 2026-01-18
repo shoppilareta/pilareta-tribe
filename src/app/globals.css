@@ -1,3 +1,6 @@
+/* Google Font Import - must be first */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
 /* Pilareta Tribe Design System - Quiet Luxury Aesthetic */
@@ -32,9 +35,6 @@
   --radius-lg: 1rem;
   --radius-full: 9999px;
 }
-
-/* Google Font Import */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
 
 :root {
   --background: #202219;
