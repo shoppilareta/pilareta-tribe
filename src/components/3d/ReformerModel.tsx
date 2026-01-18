@@ -35,7 +35,8 @@ export function ReformerModel({ carriagePosition = 0 }: ReformerProps) {
   const WIDTH = 0.58;
   const HEIGHT = 0.28;
 
-  const carriageX = -0.30 + carriagePosition * 0.4;
+  // Carriage positioned closer to footbar (springs pull it toward foot end)
+  const carriageX = 0.10 + carriagePosition * 0.3;
 
   return (
     <group>
