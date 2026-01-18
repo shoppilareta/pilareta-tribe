@@ -38,12 +38,12 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <div className="container py-12">
-        <div className="max-w-md mx-auto">
-          <div className="card animate-pulse">
-            <div className="h-8 bg-[rgba(246,237,221,0.1)] rounded mb-4 w-1/2" />
-            <div className="h-4 bg-[rgba(246,237,221,0.1)] rounded mb-2 w-3/4" />
-            <div className="h-4 bg-[rgba(246,237,221,0.1)] rounded w-1/2" />
+      <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
+        <div style={{ maxWidth: '28rem', margin: '0 auto' }}>
+          <div className="card" style={{ animation: 'pulse 2s infinite' }}>
+            <div style={{ height: '2rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', marginBottom: '1rem', width: '50%' }} />
+            <div style={{ height: '1rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', marginBottom: '0.5rem', width: '75%' }} />
+            <div style={{ height: '1rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', width: '50%' }} />
           </div>
         </div>
       </div>
@@ -55,37 +55,37 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="container py-12">
-      <div className="max-w-md mx-auto">
-        <h1 className="mb-8">Your Account</h1>
+    <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
+      <div style={{ maxWidth: '28rem', margin: '0 auto' }}>
+        <h1 style={{ marginBottom: '2rem' }}>Your Account</h1>
 
-        <div className="card mb-6">
-          <h2 className="text-lg font-medium mb-4">Profile</h2>
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginBottom: '1rem' }}>Profile</h2>
 
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
-              <label className="text-xs text-muted uppercase tracking-wider">
+              <label style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Email
               </label>
-              <p className="mt-1">{user.email}</p>
+              <p style={{ marginTop: '0.25rem' }}>{user.email}</p>
             </div>
 
             {(user.firstName || user.lastName) && (
               <div>
-                <label className="text-xs text-muted uppercase tracking-wider">
+                <label style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Name
                 </label>
-                <p className="mt-1">
+                <p style={{ marginTop: '0.25rem' }}>
                   {[user.firstName, user.lastName].filter(Boolean).join(' ')}
                 </p>
               </div>
             )}
 
             <div>
-              <label className="text-xs text-muted uppercase tracking-wider">
+              <label style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Member Since
               </label>
-              <p className="mt-1">
+              <p style={{ marginTop: '0.25rem' }}>
                 {new Date(user.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -96,64 +96,34 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="card mb-6">
-          <h2 className="text-lg font-medium mb-4">Quick Links</h2>
-          <div className="space-y-2">
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginBottom: '1rem' }}>Quick Links</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <Link
               href="/studio-locator"
-              className="flex items-center justify-between p-3 rounded-lg bg-[rgba(246,237,221,0.05)] hover:bg-[rgba(246,237,221,0.1)] transition-colors"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(246, 237, 221, 0.05)' }}
             >
               <span>Find Studios</span>
-              <svg
-                className="w-4 h-4 opacity-50"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
+              <svg style={{ width: '1rem', height: '1rem', opacity: 0.5 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
             <Link
               href="/learn"
-              className="flex items-center justify-between p-3 rounded-lg bg-[rgba(246,237,221,0.05)] hover:bg-[rgba(246,237,221,0.1)] transition-colors"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(246, 237, 221, 0.05)' }}
             >
               <span>Learn Pilates</span>
-              <svg
-                className="w-4 h-4 opacity-50"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
+              <svg style={{ width: '1rem', height: '1rem', opacity: 0.5 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
             <Link
               href="/ugc"
-              className="flex items-center justify-between p-3 rounded-lg bg-[rgba(246,237,221,0.05)] hover:bg-[rgba(246,237,221,0.1)] transition-colors"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(246, 237, 221, 0.05)' }}
             >
               <span>Community</span>
-              <svg
-                className="w-4 h-4 opacity-50"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
+              <svg style={{ width: '1rem', height: '1rem', opacity: 0.5 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
           </div>
@@ -161,7 +131,8 @@ export default function AccountPage() {
 
         <a
           href="/api/auth/logout"
-          className="btn btn-outline w-full"
+          className="btn btn-outline"
+          style={{ width: '100%' }}
         >
           Sign Out
         </a>

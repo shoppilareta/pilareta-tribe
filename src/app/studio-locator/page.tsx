@@ -2,26 +2,26 @@ import Link from 'next/link';
 
 export default function StudioLocatorPage() {
   return (
-    <div className="container py-12">
-      <div className="max-w-2xl mx-auto text-center">
-        <span className="badge-coming-soon mb-4">Coming Soon</span>
-        <h1 className="mb-4">Studio Locator</h1>
-        <p className="text-muted mb-8 max-w-md mx-auto">
+    <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
+      <div style={{ maxWidth: '42rem', margin: '0 auto', textAlign: 'center' }}>
+        <span className="badge-coming-soon" style={{ marginBottom: '1rem', display: 'inline-block' }}>Coming Soon</span>
+        <h1 style={{ marginBottom: '1rem' }}>Studio Locator</h1>
+        <p style={{ color: 'rgba(246, 237, 221, 0.6)', marginBottom: '2rem', maxWidth: '28rem', margin: '0 auto 2rem' }}>
           Find Pilates studios near you. Search by location, filter by
           amenities, and discover your perfect practice space.
         </p>
 
-        <div className="card mb-8">
-          <div className="space-y-4">
-            <div className="relative">
+        <div className="card" style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ position: 'relative' }}>
               <input
                 type="text"
                 placeholder="Enter your location..."
-                className="pr-10"
+                style={{ paddingRight: '2.5rem' }}
                 disabled
               />
               <svg
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50"
+                style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', width: '1rem', height: '1rem', opacity: 0.5 }}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -41,12 +41,12 @@ export default function StudioLocatorPage() {
               </svg>
             </div>
 
-            <div className="flex gap-2 flex-wrap justify-center">
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
               {['Reformer', 'Mat Classes', 'Private Sessions', 'Group Classes'].map(
                 (filter) => (
                   <span
                     key={filter}
-                    className="px-3 py-1.5 text-xs bg-[rgba(246,237,221,0.05)] rounded-full opacity-60"
+                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', background: 'rgba(246, 237, 221, 0.05)', borderRadius: '9999px', opacity: 0.6 }}
                   >
                     {filter}
                   </span>
@@ -56,22 +56,22 @@ export default function StudioLocatorPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card text-left opacity-50">
-              <div className="flex gap-4">
-                <div className="w-16 h-16 bg-[rgba(246,237,221,0.1)] rounded-lg flex-shrink-0" />
-                <div className="flex-1">
-                  <div className="h-4 bg-[rgba(246,237,221,0.1)] rounded w-3/4 mb-2" />
-                  <div className="h-3 bg-[rgba(246,237,221,0.1)] rounded w-1/2 mb-1" />
-                  <div className="h-3 bg-[rgba(246,237,221,0.1)] rounded w-2/3" />
+            <div key={i} className="card" style={{ textAlign: 'left', opacity: 0.5 }}>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ width: '4rem', height: '4rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.5rem', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ height: '1rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', width: '75%', marginBottom: '0.5rem' }} />
+                  <div style={{ height: '0.75rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', width: '50%', marginBottom: '0.25rem' }} />
+                  <div style={{ height: '0.75rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', width: '66%' }} />
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-8">
+        <div style={{ marginTop: '2rem' }}>
           <Link href="/" className="btn btn-outline">
             Back to Home
           </Link>
