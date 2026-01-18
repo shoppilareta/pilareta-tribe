@@ -139,23 +139,27 @@ a:hover {
   border-color: rgba(246, 237, 221, 0.2);
 }
 
-/* Container */
+/* Container - use !important to override Tailwind's container */
 .container {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
 }
 
 @media (min-width: 640px) {
   .container {
-    padding: 0 1.5rem;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
   }
 }
 
 @media (min-width: 1024px) {
   .container {
-    padding: 0 2rem;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
   }
 }
 
