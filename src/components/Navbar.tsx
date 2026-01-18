@@ -1,67 +1,127 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { AuthButton } from './AuthButton';
 
 export function Navbar() {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
+    { href: '/', label: 'Home' },
     { href: '/studio-locator', label: 'Studios' },
     { href: '/learn', label: 'Learn' },
     { href: '/ugc', label: 'Community' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[rgba(246,237,221,0.1)] bg-[#202219]/95 backdrop-blur-sm">
-      <nav className="container flex items-center justify-between h-16">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-lg font-semibold tracking-tight">
-            PILARETA TRIBE
-          </span>
-        </Link>
+    <header className="sticky top-0 z-50 bg-[#202219]">
+      <nav className="container">
+        {/* Main Navigation Bar */}
+        <div className="flex items-center justify-between h-[72px]">
+          {/* Logo */}
+          <Link href="/" className="flex items-center">
+            <Image
+              src="https://pilareta.com/cdn/shop/files/image.png?v=1749118441&width=500"
+              alt="Pilareta"
+              width={140}
+              height={48}
+              className="h-10 w-auto"
+              priority
+            />
+          </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`text-sm transition-opacity ${
-                pathname === link.href
-                  ? 'opacity-100'
-                  : 'opacity-60 hover:opacity-100'
-              }`}
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-10">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`text-sm tracking-wide transition-opacity hover:opacity-100 ${
+                  pathname === link.href
+                    ? 'opacity-100'
+                    : 'opacity-70'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+            {/* Link to main shop */}
+            <a
+              href="https://pilareta.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm tracking-wide opacity-70 hover:opacity-100 transition-opacity"
             >
-              {link.label}
-            </Link>
-          ))}
+              Shop
+            </a>
+          </div>
+
+          {/* Right Section - Auth & Mobile Menu */}
+          <div className="flex items-center gap-4">
+            {/* Auth Button - Desktop */}
+            <div className="hidden md:block">
+              <AuthButton />
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 -mr-2"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Auth Button */}
-        <AuthButton />
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-[rgba(246,237,221,0.1)] py-4">
+            <div className="flex flex-col gap-4">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`text-sm tracking-wide py-2 transition-opacity ${
+                    pathname === link.href
+                      ? 'opacity-100'
+                      : 'opacity-70'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <a
+                href="https://pilareta.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm tracking-wide py-2 opacity-70"
+              >
+                Shop
+              </a>
+              <div className="pt-2 border-t border-[rgba(246,237,221,0.1)]">
+                <AuthButton />
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* Mobile Navigation */}
-      <div className="md:hidden border-t border-[rgba(246,237,221,0.1)]">
-        <div className="container flex items-center justify-center gap-6 py-3">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`text-xs transition-opacity ${
-                pathname === link.href
-                  ? 'opacity-100'
-                  : 'opacity-60 hover:opacity-100'
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </div>
+      {/* Bottom border */}
+      <div className="h-px bg-[rgba(246,237,221,0.1)]" />
     </header>
   );
 }
