@@ -45,7 +45,10 @@ const CYCLE = 5.0;
 
 export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const timeRef = useRef(0);
-  const pelvisRef = useRef<THREE.Group>(null);
+  const pelvisLiftRef = useRef<THREE.Group>(null);
+
+  // Base pelvis Y position (on carriage)
+  const PELVIS_BASE_Y = CARRIAGE_TOP + 0.03;
 
   useFrame((_, delta) => {
     if (animation !== 'bridging') return;
@@ -58,9 +61,10 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     else if (t < 3) p = 1;
     else if (t < 4.5) p = 1 - ease((t - 3) / 1.5);
 
-    // Pelvis lifts UP only (min 0, max 0.12)
-    if (pelvisRef.current) {
-      pelvisRef.current.position.y = Math.max(0, p * 0.12);
+    // Pelvis lifts UP from base position (adds to base, never overwrites)
+    // Base Y is set in JSX, animation only adds lift amount
+    if (pelvisLiftRef.current) {
+      pelvisLiftRef.current.position.y = p * 0.12;  // Lift amount (0 to 0.12)
     }
 
     if (onCarriageMove) onCarriageMove(0.02);
@@ -148,12 +152,15 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
       </mesh>
 
       {/* === PELVIS GROUP (animates up) === */}
-      <group ref={pelvisRef} position={[PELVIS_X, PELVIS_Y, 0]}>
-        {/* Pelvis mesh */}
-        <mesh>
-          <boxGeometry args={[0.10, 0.05, 0.18]} />
-          <meshStandardMaterial color={CLOTHING} />
-        </mesh>
+      {/* Outer group: fixed base position on carriage */}
+      <group position={[PELVIS_X, PELVIS_Y, 0]}>
+        {/* Inner group: animates lift only (starts at 0, lifts up) */}
+        <group ref={pelvisLiftRef}>
+          {/* Pelvis mesh */}
+          <mesh>
+            <boxGeometry args={[0.10, 0.05, 0.18]} />
+            <meshStandardMaterial color={CLOTHING} />
+          </mesh>
 
         {/* === LEFT LEG (connected chain) === */}
         <group position={[HIP_OFFSET_X, 0.01, -HIP_OFFSET_Z]}>
@@ -227,7 +234,8 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
             </group>
           </group>
         </group>
-      </group>
+        </group>  {/* Close inner pelvisLiftRef group */}
+      </group>  {/* Close outer base position group */}
     </group>
   );
 }
