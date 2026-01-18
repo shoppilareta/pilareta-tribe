@@ -28,7 +28,7 @@ const Exercise3DViewer = dynamic(
 );
 
 // Exercises that have 3D animations available
-const EXERCISES_WITH_3D = ['bridging'];
+const EXERCISES_WITH_3D = ['bridging', 'arm-circles'];
 
 interface Exercise {
   id: string;

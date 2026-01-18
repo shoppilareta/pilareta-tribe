@@ -172,6 +172,46 @@ export function ReformerModel({ carriagePosition = 0 }: ReformerProps) {
         <boxGeometry args={[0.03, 0.08, WIDTH - 0.04]} />
         <meshStandardMaterial color={WOOD_LIGHT} />
       </mesh>
+
+      {/* === STRAPS/ROPES === */}
+      {/* Strap pulleys at the end of the reformer */}
+      {[-0.12, 0.12].map((z, i) => (
+        <group key={`strap-system-${i}`} position={[-LENGTH / 2 + 0.08, FRAME_HEIGHT + 0.06, z]}>
+          {/* Pulley wheel */}
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.025, 0.025, 0.015, 12]} />
+            <meshStandardMaterial color={METAL_DARK} />
+          </mesh>
+
+          {/* Rope from pulley going down and back toward carriage */}
+          <mesh position={[0.15, -0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.004, 0.004, 0.30, 6]} />
+            <meshStandardMaterial color="#4a4a4a" />
+          </mesh>
+
+          {/* Strap loop/handle */}
+          <group position={[0.32, -0.02, 0]}>
+            {/* Handle grip */}
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.012, 0.012, 0.06, 8]} />
+              <meshStandardMaterial color="#2a2a2a" />
+            </mesh>
+            {/* Strap fabric connecting to handle */}
+            <mesh position={[-0.03, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <boxGeometry args={[0.003, 0.04, 0.05]} />
+              <meshStandardMaterial color="#3d3d3d" />
+            </mesh>
+          </group>
+        </group>
+      ))}
+
+      {/* === ROPE RISERS (vertical posts for rope routing) === */}
+      {[-0.14, 0.14].map((z, i) => (
+        <mesh key={`riser-${i}`} position={[-LENGTH / 2 + 0.06, FRAME_HEIGHT + 0.03, z]}>
+          <boxGeometry args={[0.02, 0.06, 0.02]} />
+          <meshStandardMaterial color={METAL_DARK} />
+        </mesh>
+      ))}
     </group>
   );
 }

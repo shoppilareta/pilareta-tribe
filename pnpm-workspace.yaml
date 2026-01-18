@@ -1,8 +1,11 @@
 packages:
   - .
+
 ignoredBuiltDependencies:
+  - puppeteer
   - sharp
   - unrs-resolver
+
 onlyBuiltDependencies:
-  - "@prisma/engines"
+  - '@prisma/engines'
   - prisma

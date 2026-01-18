@@ -2598,6 +2598,59 @@ export const reformerExercises = [
     springSuggestion: "1-2 springs (light to medium)",
     instructorNotes: null
   },
+
+  // ============================================
+  // ARM/UPPER BODY EXERCISES
+  // ============================================
+  {
+    slug: "arm-circles",
+    name: "Arm Circles",
+    description: "Upper body exercise using straps to create circular arm movements, targeting shoulder mobility and stability while lying supine on the reformer.",
+    equipment: "reformer",
+    difficulty: "beginner",
+    focusAreas: ["shoulders", "arms", "core"],
+    setupSteps: [
+      "Lie supine on the carriage with head on headrest",
+      "Hold one strap handle in each hand",
+      "Arms extended toward ceiling, shoulder-width apart",
+      "Knees bent with feet flat on carriage or in tabletop position",
+      "Neutral spine with core engaged"
+    ],
+    executionSteps: [
+      "Inhale to prepare with arms reaching to ceiling",
+      "Exhale, open arms out to sides and down toward hips in a circular motion",
+      "Continue the circle, bringing arms down by sides",
+      "Inhale, sweep arms back up toward ceiling to complete the circle",
+      "Maintain tension on the straps throughout",
+      "Reverse direction after completing reps"
+    ],
+    cues: [
+      "Keep ribs anchored to carriage",
+      "Shoulder blades stay stable on carriage",
+      "Move from the shoulder joint, not just the arms",
+      "Control the movement, don't let straps pull you"
+    ],
+    commonMistakes: [
+      "Arching back as arms lower",
+      "Losing strap tension at top of circle",
+      "Shrugging shoulders toward ears",
+      "Moving too quickly without control"
+    ],
+    modifications: {
+      easier: ["Smaller circles", "Lighter springs", "Keep knees bent with feet on carriage"],
+      harder: ["Larger circles", "Legs in tabletop", "Single arm variation"]
+    },
+    contraindications: ["shoulder_injury", "rotator_cuff_issues"],
+    safetyNotes: "Keep movements controlled. Stop if any shoulder pain. Maintain neutral spine throughout.",
+    primaryMuscles: ["deltoids", "pectoralis_major"],
+    secondaryMuscles: ["latissimus_dorsi", "biceps", "triceps", "core_stabilizers"],
+    defaultReps: 8,
+    defaultSets: 2,
+    defaultTempo: "3-0-3",
+    rpeTarget: 4,
+    springSuggestion: "1 spring (light)",
+    instructorNotes: null
+  },
 ];
 
 // Export exercise count for verification
