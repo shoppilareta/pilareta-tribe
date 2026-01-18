@@ -1,0 +1,87 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Starting deployment ==="
+            cd /var/www/pilareta-tribe
+
+            # Pull latest code
+            echo ">>> Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Create/update .env file
+            echo ">>> Updating environment variables..."
+            cat > .env << 'ENV_EOF'
+            NEXT_PUBLIC_APP_URL=${{ secrets.APP_URL }}
+            NODE_ENV=production
+            SHOPIFY_STORE_DOMAIN=${{ secrets.SHOPIFY_STORE_DOMAIN }}
+            SHOPIFY_CLIENT_ID=${{ secrets.SHOPIFY_CLIENT_ID }}
+            SHOPIFY_SHOP_ID=${{ secrets.SHOPIFY_SHOP_ID }}
+            SHOPIFY_ACCOUNTS_MODE=${{ secrets.SHOPIFY_ACCOUNTS_MODE }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+            ENV_EOF
+
+            # Install dependencies
+            echo ">>> Installing dependencies..."
+            pnpm install --frozen-lockfile
+
+            # Generate Prisma client
+            echo ">>> Generating Prisma client..."
+            pnpm prisma generate
+
+            # Run database migrations
+            echo ">>> Running database migrations..."
+            pnpm prisma migrate deploy
+
+            # Build the application
+            echo ">>> Building application..."
+            pnpm build
+
+            # Restart the application
+            echo ">>> Restarting application..."
+            pm2 restart pilareta-tribe || pm2 start npm --name "pilareta-tribe" -- start
+            pm2 save
+
+            echo "=== Deployment complete ==="
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Wait for app to start
+            sleep 5
+
+            # Check if app is running
+            pm2 status pilareta-tribe
+
+            # Health check
+            curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200" && echo "Health check passed!" || echo "Health check failed!"
