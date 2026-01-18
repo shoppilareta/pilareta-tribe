@@ -57,12 +57,11 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const SHOULDER_X = -0.22;
   const SHOULDER_Y = CARRIAGE_TOP + 0.04;
 
-  // Leg angles calculated to reach footbar
-  // Footbar is at X=0.55, Y=0.52
-  // Hip is at approximately X=0.26 after torso chain
-  // Need thigh+shin to reach from hip to footbar
-  const baseHipAngle = 0.45; // Thigh angles upward toward knee
-  const baseShinAngle = -0.9; // Shin angles down toward footbar
+  // Leg angles calculated to reach footbar at (0.55, 0.52)
+  // Hip is at approximately X=0.30 after torso chain
+  // Legs need sharper bend so feet REST ON the footbar, not past it
+  const baseHipAngle = 0.75; // Thigh angles upward toward raised knee
+  const baseShinAngle = -1.6; // Shin angles sharply down to footbar
 
   useFrame((_, delta) => {
     if (animation !== 'bridging') return;
