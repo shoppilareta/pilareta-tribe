@@ -169,39 +169,36 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     // Arms make circles - one full rotation per cycle
     const angle = (t / CYCLE) * Math.PI * 2;
 
-    // Circular motion parameters
-    const radius = 0.4;
-
-    // Upper arm swings in a circle
-    const upperArmAngle = angle;
-
-    // Forearm follows with slight delay for natural motion
-    const forearmAngle = 0.3; // Slight bend at elbow
+    // Arm circle animation - more dramatic movement
+    // Z rotation: swings arm up/down (toward head/feet)
+    // X rotation: spreads arms out to sides
+    const armSwingZ = Math.sin(angle) * 1.3;  // Large swing
+    const armSpreadX = (1 - Math.cos(angle)) * 0.5;  // Opens arms to sides at bottom of circle
 
     if (leftUpperArmRef.current) {
-      leftUpperArmRef.current.rotation.z = Math.PI / 2 + Math.sin(angle) * 0.8;
-      leftUpperArmRef.current.rotation.x = Math.cos(angle) * 0.5;
+      // Start arms pointing up (z = 0), swing down and back up
+      leftUpperArmRef.current.rotation.z = armSwingZ;
+      leftUpperArmRef.current.rotation.x = armSpreadX;
     }
     if (rightUpperArmRef.current) {
-      rightUpperArmRef.current.rotation.z = Math.PI / 2 + Math.sin(angle) * 0.8;
-      rightUpperArmRef.current.rotation.x = Math.cos(angle) * 0.5;
+      rightUpperArmRef.current.rotation.z = armSwingZ;
+      rightUpperArmRef.current.rotation.x = -armSpreadX;  // Mirror for right arm
     }
 
+    // Forearms stay relatively straight with slight bend
+    const forearmBend = 0.2 + Math.abs(Math.sin(angle)) * 0.2;
     if (leftForearmRef.current) {
-      leftForearmRef.current.rotation.z = forearmAngle;
+      leftForearmRef.current.rotation.z = forearmBend;
     }
     if (rightForearmRef.current) {
-      rightForearmRef.current.rotation.z = forearmAngle;
+      rightForearmRef.current.rotation.z = forearmBend;
     }
 
-    // Keep legs in relaxed position for arm circles
-    const relaxedHipAngle = restIK.angle1;
-    const relaxedKneeAngle = restIK.angle2;
-
-    if (leftThighRef.current) leftThighRef.current.rotation.z = relaxedHipAngle;
-    if (rightThighRef.current) rightThighRef.current.rotation.z = relaxedHipAngle;
-    if (leftShinRef.current) leftShinRef.current.rotation.z = relaxedKneeAngle;
-    if (rightShinRef.current) rightShinRef.current.rotation.z = relaxedKneeAngle;
+    // Keep legs flat on carriage for arm circles (not on footbar)
+    if (leftThighRef.current) leftThighRef.current.rotation.z = 0.15;
+    if (rightThighRef.current) rightThighRef.current.rotation.z = 0.15;
+    if (leftShinRef.current) leftShinRef.current.rotation.z = 0.05;
+    if (rightShinRef.current) rightShinRef.current.rotation.z = 0.05;
   }
 
   // Initial angles for static pose
