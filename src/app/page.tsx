@@ -1,6 +1,10 @@
 import { HomeTile } from '@/components/HomeTile';
+import { getSession } from '@/lib/session';
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSession();
+  const isLoggedIn = !!session.userId;
+
   return (
     <div className="container py-8 md:py-12">
       {/* Hero Section */}
@@ -108,15 +112,17 @@ export default function HomePage() {
         </HomeTile>
       </div>
 
-      {/* Bottom CTA */}
-      <section className="text-center mt-16 md:mt-20">
-        <p className="text-muted mb-4">
-          Already a Pilareta customer?
-        </p>
-        <a href="/api/auth/login" className="btn btn-primary">
-          Sign in with your Pilareta account
-        </a>
-      </section>
+      {/* Bottom CTA - only show when not logged in */}
+      {!isLoggedIn && (
+        <section className="text-center mt-16 md:mt-20">
+          <p className="text-muted mb-4">
+            Already a Pilareta customer?
+          </p>
+          <a href="/api/auth/login" className="btn btn-primary">
+            Sign in with your Pilareta account
+          </a>
+        </section>
+      )}
     </div>
   );
 }
