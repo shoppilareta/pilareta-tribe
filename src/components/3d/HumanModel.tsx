@@ -5,25 +5,16 @@ import { useRef } from 'react';
 import * as THREE from 'three';
 
 /**
- * Scalable Human Model for Pilates Exercises
+ * Human Model for Pilates Bridging Exercise
  *
- * BRIDGING POSITION:
- * - Person lies supine (face up) on carriage
- * - Head on headrest at head-end of reformer
- * - Shoulders against shoulder rests
- * - Knees bent, feet flat on footbar
- * - During bridge: ONLY the pelvis/lower back lifts up
- * - Feet remain STATIONARY on footbar throughout
+ * BRIDGING:
+ * - Person lies on carriage, knees bent, feet on footbar
+ * - Bridge: pelvis lifts UP (never goes below carriage!)
+ * - Shoulders stay on carriage, feet stay on footbar
  *
- * COORDINATE SYSTEM:
- * - X axis: along reformer length (negative = head end, positive = foot end)
- * - Y axis: up
- * - Z axis: width (left/right)
- *
- * SCALABLE DESIGN:
- * - Body parts defined relative to joints
- * - Poses configured via props
- * - Animation system separate from body structure
+ * CONSTRAINTS:
+ * - Minimum Y position = carriage surface (body can't go through carriage)
+ * - Legs form connected chain: hip → thigh → knee → shin → foot
  */
 
 interface HumanModelProps {
@@ -31,30 +22,21 @@ interface HumanModelProps {
   onCarriageMove?: (position: number) => void;
 }
 
-// Colors
 const SKIN = '#d4a574';
 const CLOTHING = '#2a3d4f';
 
-// Body segment lengths (realistic proportions, scaled)
-const HEAD_RADIUS = 0.065;
-const NECK_LEN = 0.04;
-const SHOULDER_WIDTH = 0.26;
-const TORSO_LEN = 0.32;
-const UPPER_ARM_LEN = 0.18;
-const FOREARM_LEN = 0.16;
-const PELVIS_WIDTH = 0.22;
-const THIGH_LEN = 0.34;
-const SHIN_LEN = 0.32;
-const FOOT_LEN = 0.10;
+// Body dimensions
+const THIGH_LEN = 0.32;
+const SHIN_LEN = 0.30;
+const TORSO_LEN = 0.30;
 
-// Animation
 const CYCLE = 5.0;
+
+// CARRIAGE SURFACE - hard constraint, body cannot go below this
+const CARRIAGE_SURFACE_Y = 0.40;
 
 export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const timeRef = useRef(0);
-
-  // Refs for animated parts
-  const lowerBackRef = useRef<THREE.Group>(null);
   const pelvisRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
@@ -63,20 +45,16 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     timeRef.current += delta;
     const t = timeRef.current % CYCLE;
 
-    // Animation phases: lift (0-1.5s), hold (1.5-3s), lower (3-4.5s), rest (4.5-5s)
+    // Animation: 0-1.5s lift, 1.5-3s hold, 3-4.5s lower, 4.5-5s rest
     let p = 0;
     if (t < 1.5) p = ease(t / 1.5);
     else if (t < 3) p = 1;
     else if (t < 4.5) p = 1 - ease((t - 3) / 1.5);
 
-    // Lower back arches up (rotates around shoulder area)
-    if (lowerBackRef.current) {
-      lowerBackRef.current.rotation.z = -p * 0.35; // Negative = arch upward
-    }
-
-    // Pelvis lifts (child of lower back, so inherits rotation + adds Y offset)
+    // Pelvis ONLY lifts UP - never below 0 (which is carriage surface in local coords)
+    // Maximum lift is 0.15 units above carriage
     if (pelvisRef.current) {
-      pelvisRef.current.position.y = p * 0.12;
+      pelvisRef.current.position.y = Math.max(0, p * 0.15);
     }
 
     if (onCarriageMove) onCarriageMove(0.02);
@@ -87,162 +65,134 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   }
 
-  // Position: Person lying on carriage with head at head-end
-  // Carriage surface is approximately Y = 0.38
-  const CARRIAGE_Y = 0.38;
-
-  // Feet position (on footbar) - this is our FIXED point
-  const FOOTBAR_X = 0.68;  // X position of footbar
-  const FOOTBAR_Y = 0.54;  // Height of footbar
-
-  // Calculate body positions backwards from feet
-  // With knees bent ~90°, the knee is roughly above the foot
-  const KNEE_X = FOOTBAR_X - 0.05;
-  const KNEE_Y = FOOTBAR_Y + SHIN_LEN * 0.7; // Shin angled back
-
-  // Hip is behind knee with thigh angled
-  const HIP_X = KNEE_X - THIGH_LEN * 0.85;
-  const HIP_Y = CARRIAGE_Y + 0.06;
-
-  // Calculate angles
-  // Thigh angle: from hip to knee
-  const thighDX = KNEE_X - HIP_X;
-  const thighDY = KNEE_Y - HIP_Y;
-  const THIGH_ANGLE = Math.atan2(thighDY, thighDX);
-
-  // Shin angle: from knee down to foot
-  const shinDX = FOOTBAR_X - KNEE_X;
-  const shinDY = FOOTBAR_Y - KNEE_Y;
-  const SHIN_ANGLE = Math.atan2(shinDY, shinDX);
-
-  // Shoulders/head position
-  const SHOULDER_X = HIP_X - TORSO_LEN;
+  // Fixed positions based on reformer layout
+  // Head at x=-0.55, shoulders at x=-0.45, pelvis at x=-0.15
+  // Footbar at x=0.68, y=0.54
 
   return (
-    <group>
-      {/* === HEAD === */}
-      <mesh position={[SHOULDER_X - 0.12, CARRIAGE_Y + 0.08, 0]}>
-        <sphereGeometry args={[HEAD_RADIUS, 16, 16]} />
+    <group position={[0, CARRIAGE_SURFACE_Y, 0]}>
+      {/* === HEAD (on headrest) === */}
+      <mesh position={[-0.58, 0.07, 0]}>
+        <sphereGeometry args={[0.06, 16, 16]} />
         <meshStandardMaterial color={SKIN} />
       </mesh>
 
       {/* === NECK === */}
-      <mesh position={[SHOULDER_X - 0.05, CARRIAGE_Y + 0.06, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <capsuleGeometry args={[0.022, NECK_LEN, 4, 8]} />
+      <mesh position={[-0.50, 0.06, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.02, 0.04, 4, 8]} />
         <meshStandardMaterial color={SKIN} />
       </mesh>
 
-      {/* === UPPER BODY (FIXED - shoulders on carriage) === */}
-      <group position={[SHOULDER_X, CARRIAGE_Y + 0.04, 0]}>
-        {/* Shoulders */}
+      {/* === SHOULDERS (fixed on carriage) === */}
+      <group position={[-0.42, 0.04, 0]}>
         <mesh>
-          <boxGeometry args={[0.10, 0.05, SHOULDER_WIDTH]} />
+          <boxGeometry args={[0.10, 0.05, 0.26]} />
           <meshStandardMaterial color={CLOTHING} />
         </mesh>
 
-        {/* Arms resting at sides */}
-        {[-SHOULDER_WIDTH / 2 + 0.02, SHOULDER_WIDTH / 2 - 0.02].map((z, i) => (
-          <group key={`arm-${i}`} position={[0.02, -0.01, z]}>
-            <mesh position={[UPPER_ARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.020, UPPER_ARM_LEN - 0.03, 4, 8]} />
+        {/* Arms at sides */}
+        {[-0.11, 0.11].map((z, i) => (
+          <group key={`arm-${i}`} position={[0.02, 0, z]}>
+            <mesh position={[0.08, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <capsuleGeometry args={[0.018, 0.12, 4, 8]} />
               <meshStandardMaterial color={SKIN} />
             </mesh>
-            <mesh position={[UPPER_ARM_LEN + FOREARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.018, FOREARM_LEN - 0.03, 4, 8]} />
+            <mesh position={[0.20, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <capsuleGeometry args={[0.016, 0.10, 4, 8]} />
               <meshStandardMaterial color={SKIN} />
             </mesh>
           </group>
         ))}
+      </group>
 
-        {/* === LOWER BACK (ANIMATES - pivots at shoulders) === */}
-        <group ref={lowerBackRef}>
-          {/* Mid torso */}
-          <mesh position={[TORSO_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <capsuleGeometry args={[0.05, TORSO_LEN - 0.08, 4, 8]} />
-            <meshStandardMaterial color={CLOTHING} />
+      {/* === TORSO (connects shoulders to pelvis) === */}
+      <mesh position={[-0.28, 0.03, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.045, TORSO_LEN - 0.06, 4, 8]} />
+        <meshStandardMaterial color={CLOTHING} />
+      </mesh>
+
+      {/* === PELVIS GROUP (animates UP for bridge) === */}
+      {/* Position Y=0 means at carriage surface, animation only adds positive Y */}
+      <group ref={pelvisRef} position={[-0.10, 0, 0]}>
+        {/* Pelvis */}
+        <mesh position={[0, 0.03, 0]}>
+          <boxGeometry args={[0.12, 0.06, 0.22]} />
+          <meshStandardMaterial color={CLOTHING} />
+        </mesh>
+
+        {/* === LEFT LEG (connected chain) === */}
+        <group position={[0.04, 0.01, -0.08]}>
+          {/* Hip joint sphere */}
+          <mesh>
+            <sphereGeometry args={[0.03, 8, 8]} />
+            <meshStandardMaterial color={SKIN} />
           </mesh>
 
-          {/* === PELVIS (ANIMATES - lifts up) === */}
-          <group ref={pelvisRef} position={[TORSO_LEN, -0.01, 0]}>
-            {/* Pelvis/hips */}
-            <mesh>
-              <boxGeometry args={[0.10, 0.06, PELVIS_WIDTH]} />
-              <meshStandardMaterial color={CLOTHING} />
+          {/* Thigh - angled up toward knee */}
+          <group rotation={[0, 0, 0.75]}>
+            <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <capsuleGeometry args={[0.035, THIGH_LEN - 0.04, 4, 8]} />
+              <meshStandardMaterial color={SKIN} />
             </mesh>
+
+            {/* Knee joint (at end of thigh) */}
+            <group position={[THIGH_LEN, 0, 0]}>
+              <mesh>
+                <sphereGeometry args={[0.032, 8, 8]} />
+                <meshStandardMaterial color={SKIN} />
+              </mesh>
+
+              {/* Shin - angled down toward footbar */}
+              <group rotation={[0, 0, -2.0]}>
+                <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <capsuleGeometry args={[0.028, SHIN_LEN - 0.04, 4, 8]} />
+                  <meshStandardMaterial color={SKIN} />
+                </mesh>
+
+                {/* Foot (at end of shin, on footbar) */}
+                <mesh position={[SHIN_LEN, 0, 0]} rotation={[0, 0, 0.7]}>
+                  <boxGeometry args={[0.08, 0.025, 0.04]} />
+                  <meshStandardMaterial color={SKIN} />
+                </mesh>
+              </group>
+            </group>
+          </group>
+        </group>
+
+        {/* === RIGHT LEG (connected chain) === */}
+        <group position={[0.04, 0.01, 0.08]}>
+          <mesh>
+            <sphereGeometry args={[0.03, 8, 8]} />
+            <meshStandardMaterial color={SKIN} />
+          </mesh>
+
+          <group rotation={[0, 0, 0.75]}>
+            <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <capsuleGeometry args={[0.035, THIGH_LEN - 0.04, 4, 8]} />
+              <meshStandardMaterial color={SKIN} />
+            </mesh>
+
+            <group position={[THIGH_LEN, 0, 0]}>
+              <mesh>
+                <sphereGeometry args={[0.032, 8, 8]} />
+                <meshStandardMaterial color={SKIN} />
+              </mesh>
+
+              <group rotation={[0, 0, -2.0]}>
+                <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <capsuleGeometry args={[0.028, SHIN_LEN - 0.04, 4, 8]} />
+                  <meshStandardMaterial color={SKIN} />
+                </mesh>
+
+                <mesh position={[SHIN_LEN, 0, 0]} rotation={[0, 0, 0.7]}>
+                  <boxGeometry args={[0.08, 0.025, 0.04]} />
+                  <meshStandardMaterial color={SKIN} />
+                </mesh>
+              </group>
+            </group>
           </group>
         </group>
       </group>
-
-      {/* === LEGS (STATIC POSE - feet on footbar) === */}
-      {/* Left leg */}
-      <group position={[HIP_X, HIP_Y, -PELVIS_WIDTH / 2 + 0.03]}>
-        {/* Hip joint */}
-        <mesh>
-          <sphereGeometry args={[0.028, 8, 8]} />
-          <meshStandardMaterial color={SKIN} />
-        </mesh>
-        {/* Thigh */}
-        <group rotation={[0, 0, THIGH_ANGLE]}>
-          <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <capsuleGeometry args={[0.038, THIGH_LEN - 0.05, 4, 8]} />
-            <meshStandardMaterial color={SKIN} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* Left knee + shin */}
-      <group position={[KNEE_X, KNEE_Y, -PELVIS_WIDTH / 2 + 0.03]}>
-        <mesh>
-          <sphereGeometry args={[0.032, 8, 8]} />
-          <meshStandardMaterial color={SKIN} />
-        </mesh>
-        <group rotation={[0, 0, SHIN_ANGLE]}>
-          <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <capsuleGeometry args={[0.030, SHIN_LEN - 0.05, 4, 8]} />
-            <meshStandardMaterial color={SKIN} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* Left foot (on footbar) */}
-      <mesh position={[FOOTBAR_X, FOOTBAR_Y, -PELVIS_WIDTH / 2 + 0.03]} rotation={[0, 0, -0.3]}>
-        <boxGeometry args={[FOOT_LEN, 0.025, 0.045]} />
-        <meshStandardMaterial color={SKIN} />
-      </mesh>
-
-      {/* Right leg */}
-      <group position={[HIP_X, HIP_Y, PELVIS_WIDTH / 2 - 0.03]}>
-        <mesh>
-          <sphereGeometry args={[0.028, 8, 8]} />
-          <meshStandardMaterial color={SKIN} />
-        </mesh>
-        <group rotation={[0, 0, THIGH_ANGLE]}>
-          <mesh position={[THIGH_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <capsuleGeometry args={[0.038, THIGH_LEN - 0.05, 4, 8]} />
-            <meshStandardMaterial color={SKIN} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* Right knee + shin */}
-      <group position={[KNEE_X, KNEE_Y, PELVIS_WIDTH / 2 - 0.03]}>
-        <mesh>
-          <sphereGeometry args={[0.032, 8, 8]} />
-          <meshStandardMaterial color={SKIN} />
-        </mesh>
-        <group rotation={[0, 0, SHIN_ANGLE]}>
-          <mesh position={[SHIN_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <capsuleGeometry args={[0.030, SHIN_LEN - 0.05, 4, 8]} />
-            <meshStandardMaterial color={SKIN} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* Right foot (on footbar) */}
-      <mesh position={[FOOTBAR_X, FOOTBAR_Y, PELVIS_WIDTH / 2 - 0.03]} rotation={[0, 0, -0.3]}>
-        <boxGeometry args={[FOOT_LEN, 0.025, 0.045]} />
-        <meshStandardMaterial color={SKIN} />
-      </mesh>
     </group>
   );
 }
