@@ -181,6 +181,25 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     if (rightShinRef.current) {
       rightShinRef.current.rotation.z = ik.angle2;
     }
+
+    // Arms by sides for bridging (resting on carriage)
+    // Rotation z = 0 means arms point along body toward feet
+    if (leftUpperArmRef.current) {
+      leftUpperArmRef.current.rotation.z = 0.05;  // Slight angle, resting
+      leftUpperArmRef.current.rotation.x = 0;     // No spread
+      leftUpperArmRef.current.rotation.y = 0;
+    }
+    if (rightUpperArmRef.current) {
+      rightUpperArmRef.current.rotation.z = 0.05;
+      rightUpperArmRef.current.rotation.x = 0;
+      rightUpperArmRef.current.rotation.y = 0;
+    }
+    if (leftForearmRef.current) {
+      leftForearmRef.current.rotation.z = 0;
+    }
+    if (rightForearmRef.current) {
+      rightForearmRef.current.rotation.z = 0;
+    }
   }
 
   function animateArmCircles(t: number) {
