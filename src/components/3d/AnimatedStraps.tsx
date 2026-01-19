@@ -53,9 +53,10 @@ export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProp
     const angle = (t / CYCLE) * Math.PI * 2;
 
     // Calculate hand positions matching HumanModel arm circles animation
-    const armSwingZ = -0.3 + Math.sin(angle) * 0.5;
-    const armSpreadX = Math.abs(Math.sin(angle)) * 0.8;
-    const forearmBend = 0.15;
+    // Must match the updated animation parameters exactly
+    const armSwingZ = -0.25 + Math.sin(angle) * 0.35;
+    const armSpreadX = Math.abs(Math.cos(angle)) * 1.0;
+    const forearmBend = 0.1 + Math.abs(Math.sin(angle)) * 0.15;
 
     // Forward kinematics: calculate hand position from shoulder
     // Upper arm rotates by armSwingZ (in Z) and armSpreadX (in X)
