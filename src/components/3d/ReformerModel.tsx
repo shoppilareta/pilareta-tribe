@@ -120,14 +120,16 @@ export function ReformerModel({ carriagePosition = 0 }: ReformerProps) {
         </group>
       ))}
 
-      {/* === HEADREST === */}
-      <group position={[carriageX - CARRIAGE_LENGTH / 2 - 0.03, CARRIAGE_TOP, 0]}>
+      {/* === HEADREST (pillow style) === */}
+      <group position={[carriageX - CARRIAGE_LENGTH / 2 - 0.05, CARRIAGE_TOP, 0]}>
+        {/* Base platform */}
         <mesh>
-          <boxGeometry args={[0.08, 0.015, 0.12]} />
+          <boxGeometry args={[0.10, 0.02, 0.14]} />
           <meshStandardMaterial color={CARRIAGE_COLOR} />
         </mesh>
-        <mesh position={[0, 0.015, 0]}>
-          <boxGeometry args={[0.07, 0.015, 0.11]} />
+        {/* Cushion - rounded shape using capsule */}
+        <mesh position={[0, 0.035, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <capsuleGeometry args={[0.04, 0.06, 4, 8]} />
           <meshStandardMaterial color={PAD_COLOR} />
         </mesh>
       </group>

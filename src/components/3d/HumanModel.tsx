@@ -76,6 +76,7 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const timeRef = useRef(0);
 
   // Refs for animated parts
+  const chestRef = useRef<THREE.Mesh>(null);  // For breathing animation
   const lowerTorsoRef = useRef<THREE.Group>(null);
   const leftThighRef = useRef<THREE.Group>(null);
   const rightThighRef = useRef<THREE.Group>(null);
@@ -120,12 +121,29 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
       animateArmCircles(t);
     }
 
+    // Subtle breathing animation (always active)
+    animateBreathing(timeRef.current);
+
     if (onCarriageMove) onCarriageMove(0.02);
   });
 
   function ease(t: number): number {
     t = Math.max(0, Math.min(1, t));
     return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  }
+
+  function animateBreathing(time: number) {
+    // Subtle chest expansion for breathing (3-second cycle)
+    const breathCycle = 3.0;
+    const breathPhase = (time % breathCycle) / breathCycle;
+    // Smooth sine wave for natural breathing
+    const breathAmount = Math.sin(breathPhase * Math.PI * 2) * 0.02 + 1;
+
+    if (chestRef.current) {
+      // Subtle scale change on Y (vertical expansion)
+      chestRef.current.scale.y = breathAmount;
+      chestRef.current.scale.z = 1 + (breathAmount - 1) * 0.5; // Slight width change
+    }
   }
 
   function animateBridging(p: number) {
@@ -280,9 +298,9 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
         </group>
       ))}
 
-      {/* === UPPER TORSO === */}
+      {/* === UPPER TORSO (with breathing animation) === */}
       <group position={[0.04, 0, 0]}>
-        <mesh position={[UPPER_TORSO_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <mesh ref={chestRef} position={[UPPER_TORSO_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
           <capsuleGeometry args={[0.045, UPPER_TORSO_LEN - 0.02, 4, 8]} />
           <meshStandardMaterial color={CLOTHING} />
         </mesh>
