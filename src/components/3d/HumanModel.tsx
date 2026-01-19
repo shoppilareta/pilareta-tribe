@@ -166,17 +166,28 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   }
 
   function animateArmCircles(t: number) {
-    // Arms make circles - one full rotation per cycle
+    // Arms make circles ABOVE the body - never going below/through reformer
     const angle = (t / CYCLE) * Math.PI * 2;
 
-    // Arm circle animation - more dramatic movement
-    // Z rotation: swings arm up/down (toward head/feet)
+    // Arm circle animation:
+    // Arms start pointing UP toward ceiling (negative Z in local space = toward head)
+    // Circle: UP → OUT TO SIDES → TOWARD HIPS (but staying ABOVE body) → back UP
+    //
+    // Z rotation (in arm's local space after initial PI/2):
+    //   Negative = toward head, Positive = toward feet
     // X rotation: spreads arms out to sides
-    const armSwingZ = Math.sin(angle) * 1.3;  // Large swing
-    const armSpreadX = (1 - Math.cos(angle)) * 0.5;  // Opens arms to sides at bottom of circle
+    //
+    // We want arms to stay ABOVE the carriage, so limit Z rotation
+    // to only go toward head (negative) or neutral, never positive (toward feet)
+
+    // Arms sweep from pointing up, out to sides, toward hips (but above body)
+    // Range: -0.8 (toward head) to 0.3 (slightly toward hips, but above body)
+    const armSwingZ = -0.3 + Math.sin(angle) * 0.5;  // Keeps arms above body
+
+    // Arms spread out to sides during the circle
+    const armSpreadX = Math.abs(Math.sin(angle)) * 0.8;  // Maximum spread at sides
 
     if (leftUpperArmRef.current) {
-      // Start arms pointing up (z = 0), swing down and back up
       leftUpperArmRef.current.rotation.z = armSwingZ;
       leftUpperArmRef.current.rotation.x = armSpreadX;
     }
@@ -185,8 +196,8 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
       rightUpperArmRef.current.rotation.x = -armSpreadX;  // Mirror for right arm
     }
 
-    // Forearms stay relatively straight with slight bend
-    const forearmBend = 0.2 + Math.abs(Math.sin(angle)) * 0.2;
+    // Forearms follow with slight bend
+    const forearmBend = 0.15;
     if (leftForearmRef.current) {
       leftForearmRef.current.rotation.z = forearmBend;
     }
@@ -194,11 +205,15 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
       rightForearmRef.current.rotation.z = forearmBend;
     }
 
-    // Keep legs flat on carriage for arm circles (not on footbar)
-    if (leftThighRef.current) leftThighRef.current.rotation.z = 0.15;
-    if (rightThighRef.current) rightThighRef.current.rotation.z = 0.15;
-    if (leftShinRef.current) leftShinRef.current.rotation.z = 0.05;
-    if (rightShinRef.current) rightShinRef.current.rotation.z = 0.05;
+    // Legs bent with feet flat on carriage (tabletop-ish position)
+    // Thigh angle ~45 degrees up, shin angle to bring feet down to carriage
+    const thighAngle = 0.8;  // Thighs pointing upward at ~45 degrees
+    const shinAngle = -1.4;  // Shins angled down to put feet on carriage
+
+    if (leftThighRef.current) leftThighRef.current.rotation.z = thighAngle;
+    if (rightThighRef.current) rightThighRef.current.rotation.z = thighAngle;
+    if (leftShinRef.current) leftShinRef.current.rotation.z = shinAngle;
+    if (rightShinRef.current) rightShinRef.current.rotation.z = shinAngle;
   }
 
   // Initial angles for static pose
