@@ -344,10 +344,19 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
                       <meshStandardMaterial color={SKIN} />
                     </mesh>
 
-                    <mesh position={[SHIN_LEN, 0, 0]}>
-                      <boxGeometry args={[0.08, 0.025, 0.04]} />
-                      <meshStandardMaterial color={SKIN} />
-                    </mesh>
+                    {/* Foot - more anatomical shape */}
+                    <group position={[SHIN_LEN, 0, 0]}>
+                      {/* Heel */}
+                      <mesh position={[-0.01, -0.005, 0]}>
+                        <sphereGeometry args={[0.022, 8, 8]} />
+                        <meshStandardMaterial color={SKIN} />
+                      </mesh>
+                      {/* Main foot */}
+                      <mesh position={[0.03, -0.005, 0]} rotation={[0, 0, 0.1]}>
+                        <capsuleGeometry args={[0.018, 0.04, 4, 8]} />
+                        <meshStandardMaterial color={SKIN} />
+                      </mesh>
+                    </group>
                   </group>
                 </group>
               </group>
@@ -378,10 +387,19 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
                       <meshStandardMaterial color={SKIN} />
                     </mesh>
 
-                    <mesh position={[SHIN_LEN, 0, 0]}>
-                      <boxGeometry args={[0.08, 0.025, 0.04]} />
-                      <meshStandardMaterial color={SKIN} />
-                    </mesh>
+                    {/* Foot - more anatomical shape */}
+                    <group position={[SHIN_LEN, 0, 0]}>
+                      {/* Heel */}
+                      <mesh position={[-0.01, -0.005, 0]}>
+                        <sphereGeometry args={[0.022, 8, 8]} />
+                        <meshStandardMaterial color={SKIN} />
+                      </mesh>
+                      {/* Main foot */}
+                      <mesh position={[0.03, -0.005, 0]} rotation={[0, 0, 0.1]}>
+                        <capsuleGeometry args={[0.018, 0.04, 4, 8]} />
+                        <meshStandardMaterial color={SKIN} />
+                      </mesh>
+                    </group>
                   </group>
                 </group>
               </group>
