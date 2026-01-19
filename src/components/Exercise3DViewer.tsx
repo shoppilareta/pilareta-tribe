@@ -41,8 +41,8 @@ export function Exercise3DViewer({
       >
         <Canvas
           camera={{
-            position: [2.5, 1.8, 2],
-            fov: 40,
+            position: [2.2, 1.6, 2.2],  // Slightly closer and lower for better body view
+            fov: 38,  // Narrower FOV for less distortion
             near: 0.1,
             far: 100,
           }}
@@ -102,11 +102,11 @@ export function Exercise3DViewer({
             {/* Camera controls */}
             <OrbitControls
               enablePan={false}
-              minDistance={1.5}
-              maxDistance={6}
-              minPolarAngle={0.2}
-              maxPolarAngle={Math.PI / 2 - 0.05}
-              target={[0, 0.5, 0]}
+              minDistance={1.2}
+              maxDistance={5}
+              minPolarAngle={0.3}
+              maxPolarAngle={Math.PI / 2 - 0.1}
+              target={[0, 0.45, 0]}  // Focus on body center
             />
           </Suspense>
         </Canvas>

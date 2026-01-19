@@ -36,7 +36,8 @@ const UPPER_ARM_LEN = 0.18;
 const FOREARM_LEN = 0.16;
 
 const CYCLE = 5.0;
-const ROPE_COLOR = '#3a3a3a';
+const ROPE_COLOR = '#4a4a4a';  // Lighter for better visibility
+const ROPE_RADIUS = 0.006;    // Thicker rope
 
 export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProps) {
   const timeRef = useRef(0);
@@ -128,14 +129,14 @@ export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProp
     <group>
       {/* Left strap rope */}
       <mesh ref={leftRopeRef} position={[(PULLEY_X + initialHandX) / 2, (PULLEY_Y + initialHandY) / 2, PULLEY_Z_LEFT]}>
-        <cylinderGeometry args={[0.004, 0.004, 1, 6]} />
-        <meshStandardMaterial color={ROPE_COLOR} />
+        <cylinderGeometry args={[ROPE_RADIUS, ROPE_RADIUS, 1, 8]} />
+        <meshStandardMaterial color={ROPE_COLOR} roughness={0.8} />
       </mesh>
 
       {/* Right strap rope */}
       <mesh ref={rightRopeRef} position={[(PULLEY_X + initialHandX) / 2, (PULLEY_Y + initialHandY) / 2, PULLEY_Z_RIGHT]}>
-        <cylinderGeometry args={[0.004, 0.004, 1, 6]} />
-        <meshStandardMaterial color={ROPE_COLOR} />
+        <cylinderGeometry args={[ROPE_RADIUS, ROPE_RADIUS, 1, 8]} />
+        <meshStandardMaterial color={ROPE_COLOR} roughness={0.8} />
       </mesh>
 
       {/* Left handle */}
