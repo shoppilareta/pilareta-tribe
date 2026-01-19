@@ -55,22 +55,26 @@ export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProp
     // Calculate hand positions matching HumanModel arm circles animation
     const armSwingZ = -0.3 + Math.sin(angle) * 0.5;
     const armSpreadX = Math.abs(Math.sin(angle)) * 0.8;
+    const forearmBend = 0.15;
 
-    // Calculate hand world position for left arm
-    // Shoulder at (SHOULDER_X, SHOULDER_Y, -0.10)
-    // Arm rotates, hand ends up at certain position
-    const armLength = UPPER_ARM_LEN + FOREARM_LEN;
+    // Forward kinematics: calculate hand position from shoulder
+    // Upper arm rotates by armSwingZ (in Z) and armSpreadX (in X)
+    // Forearm has slight bend
 
-    // Simplified hand position calculation
-    // When armSwingZ is negative, hand is toward head (negative X)
-    // When armSpreadX is positive, hand is outward (more negative Z for left)
-    const leftHandX = SHOULDER_X + 0.02 + Math.cos(armSwingZ + Math.PI / 2) * armLength * 0.7;
-    const leftHandY = SHOULDER_Y + Math.sin(armSwingZ + Math.PI / 2) * armLength * 0.7;
-    const leftHandZ = -0.10 - armSpreadX * 0.15;
+    // Elbow position (end of upper arm)
+    const elbowLocalX = UPPER_ARM_LEN;
+    const elbowWorldX = SHOULDER_X + 0.02 + Math.cos(armSwingZ + Math.PI / 2) * elbowLocalX;
+    const elbowWorldY = SHOULDER_Y + Math.sin(armSwingZ + Math.PI / 2) * elbowLocalX;
+
+    // Hand position (end of forearm, with bend)
+    const totalArmAngle = armSwingZ + Math.PI / 2 + forearmBend;
+    const leftHandX = elbowWorldX + Math.cos(totalArmAngle) * FOREARM_LEN;
+    const leftHandY = elbowWorldY + Math.sin(totalArmAngle) * FOREARM_LEN;
+    const leftHandZ = -0.10 - armSpreadX * 0.12;
 
     const rightHandX = leftHandX;
     const rightHandY = leftHandY;
-    const rightHandZ = 0.10 + armSpreadX * 0.15;
+    const rightHandZ = 0.10 + armSpreadX * 0.12;
 
     // Update handle positions
     if (leftHandleRef.current) {

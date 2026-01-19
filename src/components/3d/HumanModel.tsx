@@ -205,10 +205,11 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
       rightForearmRef.current.rotation.z = forearmBend;
     }
 
-    // Legs bent with feet flat on carriage (tabletop-ish position)
-    // Thigh angle ~45 degrees up, shin angle to bring feet down to carriage
-    const thighAngle = 0.8;  // Thighs pointing upward at ~45 degrees
-    const shinAngle = -1.4;  // Shins angled down to put feet on carriage
+    // Legs bent with feet flat on carriage (hook-lying position)
+    // Thighs nearly vertical, shins pointing down to place feet on carriage
+    // This creates the classic "tabletop" position for arm exercises
+    const thighAngle = 1.35;  // Thighs nearly vertical (~77 degrees)
+    const shinAngle = -2.7;   // Shins pointing down and slightly back
 
     if (leftThighRef.current) leftThighRef.current.rotation.z = thighAngle;
     if (rightThighRef.current) rightThighRef.current.rotation.z = thighAngle;
