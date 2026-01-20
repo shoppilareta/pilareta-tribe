@@ -41,7 +41,7 @@ export function Exercise3DViewer({
       >
         <Canvas
           camera={{
-            position: [2.2, 1.6, 2.2],  // Slightly closer and lower for better body view
+            position: [1.8, 2.0, 2.0],  // Higher angle to better show arm motion
             fov: 38,  // Narrower FOV for less distortion
             near: 0.1,
             far: 100,

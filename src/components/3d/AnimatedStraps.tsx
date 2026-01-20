@@ -36,8 +36,8 @@ const UPPER_ARM_LEN = 0.18;
 const FOREARM_LEN = 0.16;
 
 const CYCLE = 5.0;
-const ROPE_COLOR = '#4a4a4a';  // Lighter for better visibility
-const ROPE_RADIUS = 0.006;    // Thicker rope
+const ROPE_COLOR = '#888888';  // Light gray for good visibility
+const ROPE_RADIUS = 0.008;    // Thicker for visibility
 
 export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProps) {
   const timeRef = useRef(0);
