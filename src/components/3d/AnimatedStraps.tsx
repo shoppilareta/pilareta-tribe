@@ -57,28 +57,33 @@ export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProp
     // Calculate hand positions matching HumanModel arm circles animation
     // MUST match HumanModel.tsx animateArmCircles() exactly!
     //
-    // Arms make vertical circles on their respective sides (no crossing)
-    const armAngleZ = Math.PI / 2 + Math.sin(angle) * 0.4;
-    const CONSTANT_SPREAD = 0.3;  // Arms stay on their sides
-    const forearmBend = 0.2;
+    // Arms make circles on their sides with constant spread
+    const SPREAD = 0.5;
+    const circleSize = 0.4;
+    const circleZ = Math.sin(angle) * circleSize;
+    const circleY = Math.cos(angle) * circleSize;
+    const forearmBend = 0.15;
 
     // Forward kinematics: calculate hand position from shoulder
-    // Upper arm rotates by armAngleZ (vertical circle) with constant X spread
+    const armAngleZ = Math.PI / 2 + circleZ;
 
     // Elbow position (end of upper arm)
-    const elbowLocalX = UPPER_ARM_LEN;
-    const elbowWorldX = SHOULDER_X + 0.02 + Math.cos(armAngleZ) * elbowLocalX;
-    const elbowWorldY = SHOULDER_Y + Math.sin(armAngleZ) * elbowLocalX;
+    const elbowWorldX = SHOULDER_X + 0.02 + Math.cos(armAngleZ) * UPPER_ARM_LEN;
+    const elbowWorldY = SHOULDER_Y + Math.sin(armAngleZ) * UPPER_ARM_LEN;
 
-    // Hand position (end of forearm, with bend)
+    // Hand position (end of forearm)
     const totalArmAngle = armAngleZ + forearmBend;
-    const leftHandX = elbowWorldX + Math.cos(totalArmAngle) * FOREARM_LEN;
-    const leftHandY = elbowWorldY + Math.sin(totalArmAngle) * FOREARM_LEN;
-    const leftHandZ = -0.10 - CONSTANT_SPREAD * 0.15;  // Constant position
+    const baseHandX = elbowWorldX + Math.cos(totalArmAngle) * FOREARM_LEN;
+    const baseHandY = elbowWorldY + Math.sin(totalArmAngle) * FOREARM_LEN;
 
-    const rightHandX = leftHandX;
-    const rightHandY = leftHandY;
-    const rightHandZ = 0.10 + CONSTANT_SPREAD * 0.15;  // Constant position
+    // Apply spread and circle Y motion for Z position
+    const leftHandX = baseHandX;
+    const leftHandY = baseHandY;
+    const leftHandZ = -0.10 - SPREAD * 0.2 + circleY * 0.05;
+
+    const rightHandX = baseHandX;
+    const rightHandY = baseHandY;
+    const rightHandZ = 0.10 + SPREAD * 0.2 - circleY * 0.05;
 
     // Update handle positions
     if (leftHandleRef.current) {
