@@ -74,6 +74,7 @@ function solveIK(
 
 export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const timeRef = useRef(0);
+  const groupRef = useRef<THREE.Group>(null);  // Root group for position updates
 
   // Refs for animated parts
   const chestRef = useRef<THREE.Mesh>(null);  // For breathing animation
@@ -115,16 +116,37 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     else if (t < 3) p = 1;
     else if (t < 4.5) p = 1 - ease((t - 3) / 1.5);
 
+    // Animation dispatch based on exercise type
+    let carriagePos = 0;
+
     if (animation === 'bridging') {
       animateBridging(p);
+      carriagePos = 0;  // Carriage stationary for bridging
     } else if (animation === 'arm-circles') {
       animateArmCircles(t);
+      carriagePos = 0;  // Carriage stationary for arm circles
+    } else if (animation === 'footwork' || animation === 'leg-press') {
+      carriagePos = animateFootwork(p);  // Carriage moves with leg push
+    } else {
+      // Default: stationary with arms by sides
+      setArmsResting();
     }
 
     // Subtle breathing animation (always active)
     animateBreathing(timeRef.current);
 
-    if (onCarriageMove) onCarriageMove(0.02);
+    // Update group position for footwork (body moves with carriage)
+    if (groupRef.current) {
+      if (animation === 'footwork' || animation === 'leg-press') {
+        // Body slides away from footbar with carriage
+        groupRef.current.position.x = SHOULDER_X + carriagePos;
+      } else {
+        // Other exercises: body stays in place
+        groupRef.current.position.x = SHOULDER_X;
+      }
+    }
+
+    if (onCarriageMove) onCarriageMove(carriagePos);
   });
 
   function ease(t: number): number {
@@ -255,12 +277,63 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     if (rightShinRef.current) rightShinRef.current.rotation.z = shinAngle;
   }
 
+  function animateFootwork(p: number): number {
+    // Footwork: legs push carriage out, then return
+    // p = 0: legs bent, carriage in
+    // p = 1: legs extended, carriage out
+
+    // Carriage position (0 to 0.4 range for visible movement)
+    const carriagePos = p * 0.35;
+
+    // IMPORTANT: For footwork, feet stay FIXED on the footbar
+    // The carriage (and body) move away from the footbar
+    // This causes legs to straighten as distance increases
+
+    // Foot target stays at footbar (doesn't move)
+    const footTargetX = FOOT_TARGET_X;
+    const footTargetY = FOOT_TARGET_Y;
+
+    // Hip position moves with the carriage (body slides away from footbar)
+    // As carriage moves out, hip X increases (moves away from footbar)
+    const currentHipX = restHipX + carriagePos;
+    const currentHipY = restHipY;
+
+    // IK calculates leg angles to reach from moving hip to fixed foot
+    const ik = solveIK(currentHipX, currentHipY, footTargetX, footTargetY, THIGH_LEN, SHIN_LEN);
+
+    if (leftThighRef.current) leftThighRef.current.rotation.z = ik.angle1;
+    if (rightThighRef.current) rightThighRef.current.rotation.z = ik.angle1;
+    if (leftShinRef.current) leftShinRef.current.rotation.z = ik.angle2;
+    if (rightShinRef.current) rightShinRef.current.rotation.z = ik.angle2;
+
+    // Arms by sides for footwork
+    setArmsResting();
+
+    return carriagePos;
+  }
+
+  function setArmsResting() {
+    // Arms resting by sides (default pose)
+    if (leftUpperArmRef.current) {
+      leftUpperArmRef.current.rotation.z = 0.05;
+      leftUpperArmRef.current.rotation.x = 0;
+      leftUpperArmRef.current.rotation.y = 0;
+    }
+    if (rightUpperArmRef.current) {
+      rightUpperArmRef.current.rotation.z = 0.05;
+      rightUpperArmRef.current.rotation.x = 0;
+      rightUpperArmRef.current.rotation.y = 0;
+    }
+    if (leftForearmRef.current) leftForearmRef.current.rotation.z = 0;
+    if (rightForearmRef.current) rightForearmRef.current.rotation.z = 0;
+  }
+
   // Initial angles for static pose
   const initialThighAngle = restIK.angle1;
   const initialKneeAngle = restIK.angle2;
 
   return (
-    <group position={[SHOULDER_X, SHOULDER_Y, 0]}>
+    <group ref={groupRef} position={[SHOULDER_X, SHOULDER_Y, 0]}>
       {/* === HEAD === */}
       <mesh position={[-0.14, 0.02, 0]}>
         <sphereGeometry args={[0.055, 16, 16]} />
