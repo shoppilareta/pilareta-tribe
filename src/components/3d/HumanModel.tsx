@@ -225,39 +225,37 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   }
 
   function animateArmCircles(t: number) {
-    // Arms make dramatic circles ABOVE the body
+    // Arms make circles ABOVE the body - arms always point UPWARD
     const angle = (t / CYCLE) * Math.PI * 2;
 
-    // Create a more dramatic circular motion:
-    // - Arms reach overhead (toward head)
-    // - Sweep out wide to sides
-    // - Come down toward hips (but stay above body)
-    // - Return overhead
+    // COORDINATE SYSTEM (person lying on back):
+    // - rotation.z = 0: arm points toward feet (+X)
+    // - rotation.z = PI/2: arm points straight UP toward ceiling
+    // - rotation.z = PI: arm points toward head
+    //
+    // For arm circles ABOVE the body, arms must ALWAYS point upward
+    // Range: PI/3 (60° toward feet but UP) to 2*PI/3 (60° toward head)
+    const armAngle = Math.PI / 2 + Math.sin(angle) * (Math.PI / 6);
 
-    // Vertical component: arms swing from overhead to near hips
-    // Range: -0.6 (toward head/overhead) to 0.1 (toward hips, still above body)
-    const armSwingZ = -0.25 + Math.sin(angle) * 0.35;
+    // Arms spread outward to sides at certain phases
+    const armSpread = Math.abs(Math.cos(angle)) * 0.7;
 
-    // Horizontal component: arms spread wide at sides of circle
-    // Use cos for phase offset - arms widest when swinging through middle
-    const armSpreadX = Math.abs(Math.cos(angle)) * 1.0;  // Full spread to sides
-
-    // Add slight Y rotation for more natural movement
+    // Slight twist for natural movement
     const armTwist = Math.sin(angle) * 0.15;
 
     if (leftUpperArmRef.current) {
-      leftUpperArmRef.current.rotation.z = armSwingZ;
-      leftUpperArmRef.current.rotation.x = armSpreadX;
+      leftUpperArmRef.current.rotation.z = armAngle;  // Arms point UP
+      leftUpperArmRef.current.rotation.x = armSpread;  // Spread outward
       leftUpperArmRef.current.rotation.y = armTwist;
     }
     if (rightUpperArmRef.current) {
-      rightUpperArmRef.current.rotation.z = armSwingZ;
-      rightUpperArmRef.current.rotation.x = -armSpreadX;
+      rightUpperArmRef.current.rotation.z = armAngle;
+      rightUpperArmRef.current.rotation.x = -armSpread;
       rightUpperArmRef.current.rotation.y = -armTwist;
     }
 
-    // Forearms follow with dynamic bend based on position
-    const forearmBend = 0.1 + Math.abs(Math.sin(angle)) * 0.15;
+    // Slight forearm bend
+    const forearmBend = 0.2;
     if (leftForearmRef.current) {
       leftForearmRef.current.rotation.z = forearmBend;
     }

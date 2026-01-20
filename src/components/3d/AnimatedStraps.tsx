@@ -54,29 +54,31 @@ export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProp
     const angle = (t / CYCLE) * Math.PI * 2;
 
     // Calculate hand positions matching HumanModel arm circles animation
-    // Must match the updated animation parameters exactly
-    const armSwingZ = -0.25 + Math.sin(angle) * 0.35;
-    const armSpreadX = Math.abs(Math.cos(angle)) * 1.0;
-    const forearmBend = 0.1 + Math.abs(Math.sin(angle)) * 0.15;
+    // MUST match HumanModel.tsx animateArmCircles() exactly!
+    //
+    // Arms always point UPWARD (rotation.z around PI/2)
+    // Range: PI/3 (60° toward feet but UP) to 2*PI/3 (60° toward head)
+    const armAngle = Math.PI / 2 + Math.sin(angle) * (Math.PI / 6);
+    const armSpread = Math.abs(Math.cos(angle)) * 0.7;
+    const forearmBend = 0.2;
 
     // Forward kinematics: calculate hand position from shoulder
-    // Upper arm rotates by armSwingZ (in Z) and armSpreadX (in X)
-    // Forearm has slight bend
+    // Upper arm rotates by armAngle (in Z) and armSpread (in X)
 
     // Elbow position (end of upper arm)
     const elbowLocalX = UPPER_ARM_LEN;
-    const elbowWorldX = SHOULDER_X + 0.02 + Math.cos(armSwingZ + Math.PI / 2) * elbowLocalX;
-    const elbowWorldY = SHOULDER_Y + Math.sin(armSwingZ + Math.PI / 2) * elbowLocalX;
+    const elbowWorldX = SHOULDER_X + 0.02 + Math.cos(armAngle) * elbowLocalX;
+    const elbowWorldY = SHOULDER_Y + Math.sin(armAngle) * elbowLocalX;
 
     // Hand position (end of forearm, with bend)
-    const totalArmAngle = armSwingZ + Math.PI / 2 + forearmBend;
+    const totalArmAngle = armAngle + forearmBend;
     const leftHandX = elbowWorldX + Math.cos(totalArmAngle) * FOREARM_LEN;
     const leftHandY = elbowWorldY + Math.sin(totalArmAngle) * FOREARM_LEN;
-    const leftHandZ = -0.10 - armSpreadX * 0.12;
+    const leftHandZ = -0.10 - armSpread * 0.15;
 
     const rightHandX = leftHandX;
     const rightHandY = leftHandY;
-    const rightHandZ = 0.10 + armSpreadX * 0.12;
+    const rightHandZ = 0.10 + armSpread * 0.15;
 
     // Update handle positions
     if (leftHandleRef.current) {
