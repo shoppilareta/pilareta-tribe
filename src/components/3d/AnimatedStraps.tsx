@@ -22,10 +22,11 @@ const CARRIAGE_TOP = 0.37;
 const LENGTH = 1.4;
 
 // Pulley positions (at head end of reformer)
+// Higher pulleys for better visibility of straps
 const PULLEY_X = -LENGTH / 2 + 0.08;
-const PULLEY_Y = FRAME_HEIGHT + 0.06;
-const PULLEY_Z_LEFT = -0.12;
-const PULLEY_Z_RIGHT = 0.12;
+const PULLEY_Y = 0.55;  // Raised for better strap visibility
+const PULLEY_Z_LEFT = -0.14;
+const PULLEY_Z_RIGHT = 0.14;
 
 // Shoulder position (where arms attach)
 const SHOULDER_X = -0.22;

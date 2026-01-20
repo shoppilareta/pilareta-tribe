@@ -207,12 +207,20 @@ export function ReformerModel({ carriagePosition = 0 }: ReformerProps) {
         </group>
       ))}
 
-      {/* === ROPE RISERS (vertical posts for rope routing) === */}
+      {/* === PULLEY POSTS (tall posts for strap pulleys) === */}
       {[-0.14, 0.14].map((z, i) => (
-        <mesh key={`riser-${i}`} position={[-LENGTH / 2 + 0.06, FRAME_HEIGHT + 0.03, z]}>
-          <boxGeometry args={[0.02, 0.06, 0.02]} />
-          <meshStandardMaterial color={METAL_DARK} />
-        </mesh>
+        <group key={`pulley-post-${i}`} position={[-LENGTH / 2 + 0.06, FRAME_HEIGHT, z]}>
+          {/* Vertical post */}
+          <mesh position={[0, 0.15, 0]}>
+            <cylinderGeometry args={[0.015, 0.015, 0.30, 8]} />
+            <meshStandardMaterial color={METAL_DARK} />
+          </mesh>
+          {/* Pulley wheel at top */}
+          <mesh position={[0, 0.27, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <torusGeometry args={[0.025, 0.008, 8, 16]} />
+            <meshStandardMaterial color={METAL_CHROME} metalness={0.7} roughness={0.3} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
