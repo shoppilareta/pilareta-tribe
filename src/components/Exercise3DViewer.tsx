@@ -5,7 +5,6 @@ import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
 import { Suspense, useState } from 'react';
 import { ReformerModel } from './3d/ReformerModel';
 import { HumanModel } from './3d/HumanModel';
-import { AnimatedStraps } from './3d/AnimatedStraps';
 
 interface Exercise3DViewerProps {
   exerciseSlug: string;
@@ -86,17 +85,12 @@ export function Exercise3DViewer({
               <ReformerModel carriagePosition={carriagePosition} />
             )}
 
-            {/* Human figure with animation */}
+            {/* Human figure with animation (includes integrated straps for arm circles) */}
             {isPlaying && (
               <HumanModel
                 animation={exerciseSlug}
                 onCarriageMove={setCarriagePosition}
               />
-            )}
-
-            {/* Animated straps for arm exercises */}
-            {isPlaying && exerciseSlug === 'arm-circles' && (
-              <AnimatedStraps animation={exerciseSlug} />
             )}
 
             {/* Camera controls */}

@@ -11,12 +11,13 @@ import * as THREE from 'three';
  * - Supports multiple exercise animations
  * - Uses inverse kinematics for realistic joint movement
  * - Feet stay fixed during bridging (IK calculated)
- * - Arms animate for arm circles
+ * - Arms animate for arm circles with integrated straps
  */
 
 interface HumanModelProps {
   animation: string;
   onCarriageMove?: (position: number) => void;
+  showStraps?: boolean;  // Show straps for arm circles
 }
 
 const SKIN = '#d4a574';
@@ -26,6 +27,18 @@ const CLOTHING = '#2a3d4f';
 const CARRIAGE_TOP = 0.37;
 const FOOTBAR_X = 0.55;
 const FOOTBAR_Y = 0.52;
+
+// Strap system constants
+const LENGTH = 1.4;  // Reformer length
+const FRAME_HEIGHT = 0.28;
+const PULLEY_X = -LENGTH / 2 + 0.06;
+const PULLEY_Y = FRAME_HEIGHT + 0.27;  // Top of pulley posts
+const PULLEY_Z_LEFT = -0.14;
+const PULLEY_Z_RIGHT = 0.14;
+const ROPE_COLOR = '#666666';
+const ROPE_RADIUS = 0.006;
+const HANDLE_COLOR = '#2a2a2a';
+const STRAP_COLOR = '#333333';
 
 // Body segment lengths
 const UPPER_TORSO_LEN = 0.18;
@@ -72,7 +85,7 @@ function solveIK(
   return { angle1, angle2 };
 }
 
-export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
+export function HumanModel({ animation, onCarriageMove, showStraps = true }: HumanModelProps) {
   const timeRef = useRef(0);
   const groupRef = useRef<THREE.Group>(null);  // Root group for position updates
 
@@ -87,6 +100,16 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   const rightUpperArmRef = useRef<THREE.Group>(null);
   const leftForearmRef = useRef<THREE.Group>(null);
   const rightForearmRef = useRef<THREE.Group>(null);
+
+  // Hand refs for strap attachment
+  const leftHandRef = useRef<THREE.Mesh>(null);
+  const rightHandRef = useRef<THREE.Mesh>(null);
+
+  // Strap refs (ropes and handles)
+  const leftRopeRef = useRef<THREE.Mesh>(null);
+  const rightRopeRef = useRef<THREE.Mesh>(null);
+  const leftHandleRef = useRef<THREE.Group>(null);
+  const rightHandleRef = useRef<THREE.Group>(null);
 
   // Body positioning
   const SHOULDER_X = -0.22;
@@ -134,6 +157,11 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
 
     // Subtle breathing animation (always active)
     animateBreathing(timeRef.current);
+
+    // Update straps for arm circles (use actual hand world positions)
+    if (animation === 'arm-circles' && showStraps) {
+      updateStraps();
+    }
 
     // Update group position for footwork (body moves with carriage)
     if (groupRef.current) {
@@ -322,6 +350,64 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
     if (rightForearmRef.current) rightForearmRef.current.rotation.z = 0;
   }
 
+  function updateStraps() {
+    // Get actual hand world positions from the mesh refs
+    const leftHandWorld = new THREE.Vector3();
+    const rightHandWorld = new THREE.Vector3();
+
+    if (leftHandRef.current) {
+      leftHandRef.current.getWorldPosition(leftHandWorld);
+    }
+    if (rightHandRef.current) {
+      rightHandRef.current.getWorldPosition(rightHandWorld);
+    }
+
+    // Left strap - pulley to left hand
+    const leftPulley = new THREE.Vector3(PULLEY_X, PULLEY_Y, PULLEY_Z_LEFT);
+    updateRope(leftRopeRef.current, leftPulley, leftHandWorld);
+
+    // Position left handle at the hand
+    if (leftHandleRef.current) {
+      leftHandleRef.current.position.copy(leftHandWorld);
+      leftHandleRef.current.rotation.z = Math.PI / 2;
+    }
+
+    // Right strap - pulley to right hand
+    const rightPulley = new THREE.Vector3(PULLEY_X, PULLEY_Y, PULLEY_Z_RIGHT);
+    updateRope(rightRopeRef.current, rightPulley, rightHandWorld);
+
+    // Position right handle at the hand
+    if (rightHandleRef.current) {
+      rightHandleRef.current.position.copy(rightHandWorld);
+      rightHandleRef.current.rotation.z = Math.PI / 2;
+      rightHandleRef.current.rotation.y = Math.PI;  // Mirror for right side
+    }
+  }
+
+  function updateRope(
+    mesh: THREE.Mesh | null,
+    start: THREE.Vector3,
+    end: THREE.Vector3
+  ) {
+    if (!mesh) return;
+
+    // Calculate midpoint
+    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+
+    // Calculate length
+    const length = start.distanceTo(end);
+
+    // Position at midpoint
+    mesh.position.copy(mid);
+
+    // Scale to length
+    mesh.scale.y = length;
+
+    // Rotate to point from start to end
+    mesh.lookAt(end);
+    mesh.rotateX(Math.PI / 2);
+  }
+
   // Initial angles for static pose
   const initialThighAngle = restIK.angle1;
   const initialKneeAngle = restIK.angle2;
@@ -346,43 +432,69 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
         <meshStandardMaterial color={CLOTHING} />
       </mesh>
 
-      {/* === ARMS === */}
-      {[
-        { z: -0.10, ref: leftUpperArmRef, forearmRef: leftForearmRef },
-        { z: 0.10, ref: rightUpperArmRef, forearmRef: rightForearmRef }
-      ].map(({ z, ref, forearmRef }, i) => (
-        <group key={`arm-${i}`} position={[0.02, 0, z]}>
-          {/* Upper arm */}
-          <group ref={ref} rotation={[0, 0, Math.PI / 2]}>
-            <mesh position={[UPPER_ARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <capsuleGeometry args={[0.020, UPPER_ARM_LEN - 0.02, 4, 8]} />
+      {/* === LEFT ARM === */}
+      <group position={[0.02, 0, -0.10]}>
+        <group ref={leftUpperArmRef} rotation={[0, 0, Math.PI / 2]}>
+          <mesh position={[UPPER_ARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.020, UPPER_ARM_LEN - 0.02, 4, 8]} />
+            <meshStandardMaterial color={SKIN} />
+          </mesh>
+
+          {/* Elbow */}
+          <group position={[UPPER_ARM_LEN, 0, 0]}>
+            <mesh>
+              <sphereGeometry args={[0.018, 8, 8]} />
               <meshStandardMaterial color={SKIN} />
             </mesh>
 
-            {/* Elbow */}
-            <group position={[UPPER_ARM_LEN, 0, 0]}>
-              <mesh>
-                <sphereGeometry args={[0.018, 8, 8]} />
+            {/* Forearm */}
+            <group ref={leftForearmRef} rotation={[0, 0, 0]}>
+              <mesh position={[FOREARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                <capsuleGeometry args={[0.016, FOREARM_LEN - 0.02, 4, 8]} />
                 <meshStandardMaterial color={SKIN} />
               </mesh>
 
-              {/* Forearm */}
-              <group ref={forearmRef} rotation={[0, 0, 0]}>
-                <mesh position={[FOREARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                  <capsuleGeometry args={[0.016, FOREARM_LEN - 0.02, 4, 8]} />
-                  <meshStandardMaterial color={SKIN} />
-                </mesh>
-
-                {/* Hand */}
-                <mesh position={[FOREARM_LEN, 0, 0]}>
-                  <sphereGeometry args={[0.022, 8, 8]} />
-                  <meshStandardMaterial color={SKIN} />
-                </mesh>
-              </group>
+              {/* Hand - with ref for strap attachment */}
+              <mesh ref={leftHandRef} position={[FOREARM_LEN, 0, 0]}>
+                <sphereGeometry args={[0.022, 8, 8]} />
+                <meshStandardMaterial color={SKIN} />
+              </mesh>
             </group>
           </group>
         </group>
-      ))}
+      </group>
+
+      {/* === RIGHT ARM === */}
+      <group position={[0.02, 0, 0.10]}>
+        <group ref={rightUpperArmRef} rotation={[0, 0, Math.PI / 2]}>
+          <mesh position={[UPPER_ARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.020, UPPER_ARM_LEN - 0.02, 4, 8]} />
+            <meshStandardMaterial color={SKIN} />
+          </mesh>
+
+          {/* Elbow */}
+          <group position={[UPPER_ARM_LEN, 0, 0]}>
+            <mesh>
+              <sphereGeometry args={[0.018, 8, 8]} />
+              <meshStandardMaterial color={SKIN} />
+            </mesh>
+
+            {/* Forearm */}
+            <group ref={rightForearmRef} rotation={[0, 0, 0]}>
+              <mesh position={[FOREARM_LEN / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                <capsuleGeometry args={[0.016, FOREARM_LEN - 0.02, 4, 8]} />
+                <meshStandardMaterial color={SKIN} />
+              </mesh>
+
+              {/* Hand - with ref for strap attachment */}
+              <mesh ref={rightHandRef} position={[FOREARM_LEN, 0, 0]}>
+                <sphereGeometry args={[0.022, 8, 8]} />
+                <meshStandardMaterial color={SKIN} />
+              </mesh>
+            </group>
+          </group>
+        </group>
+      </group>
 
       {/* === UPPER TORSO (with breathing animation) === */}
       <group position={[0.04, 0, 0]}>
@@ -493,6 +605,59 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
           </group>
         </group>
       </group>
+
+      {/* === STRAPS (for arm circles) === */}
+      {animation === 'arm-circles' && showStraps && (
+        <>
+          {/* Left strap rope - connects pulley to hand */}
+          <mesh ref={leftRopeRef}>
+            <cylinderGeometry args={[ROPE_RADIUS, ROPE_RADIUS, 1, 8]} />
+            <meshStandardMaterial color={ROPE_COLOR} roughness={0.8} />
+          </mesh>
+
+          {/* Right strap rope */}
+          <mesh ref={rightRopeRef}>
+            <cylinderGeometry args={[ROPE_RADIUS, ROPE_RADIUS, 1, 8]} />
+            <meshStandardMaterial color={ROPE_COLOR} roughness={0.8} />
+          </mesh>
+
+          {/* Left handle - fabric loop that hand holds */}
+          <group ref={leftHandleRef}>
+            {/* Loop part */}
+            <mesh rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+              <torusGeometry args={[0.025, 0.006, 8, 16, Math.PI]} />
+              <meshStandardMaterial color={HANDLE_COLOR} />
+            </mesh>
+            {/* Fabric straps */}
+            <mesh position={[0, 0.03, 0.025]}>
+              <boxGeometry args={[0.004, 0.05, 0.02]} />
+              <meshStandardMaterial color={STRAP_COLOR} />
+            </mesh>
+            <mesh position={[0, 0.03, -0.025]}>
+              <boxGeometry args={[0.004, 0.05, 0.02]} />
+              <meshStandardMaterial color={STRAP_COLOR} />
+            </mesh>
+          </group>
+
+          {/* Right handle - fabric loop */}
+          <group ref={rightHandleRef}>
+            {/* Loop part */}
+            <mesh rotation={[Math.PI / 2, -Math.PI / 2, 0]}>
+              <torusGeometry args={[0.025, 0.006, 8, 16, Math.PI]} />
+              <meshStandardMaterial color={HANDLE_COLOR} />
+            </mesh>
+            {/* Fabric straps */}
+            <mesh position={[0, 0.03, 0.025]}>
+              <boxGeometry args={[0.004, 0.05, 0.02]} />
+              <meshStandardMaterial color={STRAP_COLOR} />
+            </mesh>
+            <mesh position={[0, 0.03, -0.025]}>
+              <boxGeometry args={[0.004, 0.05, 0.02]} />
+              <meshStandardMaterial color={STRAP_COLOR} />
+            </mesh>
+          </group>
+        </>
+      )}
     </group>
   );
 }
