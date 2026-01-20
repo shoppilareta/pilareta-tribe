@@ -225,32 +225,34 @@ export function HumanModel({ animation, onCarriageMove }: HumanModelProps) {
   }
 
   function animateArmCircles(t: number) {
-    // Arms make circles ABOVE the body - arms always point UPWARD
+    // Arms make circles ABOVE the body - each arm stays on its own side
     const angle = (t / CYCLE) * Math.PI * 2;
 
-    // COORDINATE SYSTEM (person lying on back):
-    // - rotation.z = 0: arm points toward feet (+X)
-    // - rotation.z = PI/2: arm points straight UP toward ceiling
-    // - rotation.z = PI: arm points toward head
+    // ARM CIRCLES - Each arm makes a vertical circle on its own side
+    // Arms NEVER cross - they maintain constant outward spread
     //
-    // For arm circles ABOVE the body, arms must ALWAYS point upward
-    // Range: PI/3 (60° toward feet but UP) to 2*PI/3 (60° toward head)
-    const armAngle = Math.PI / 2 + Math.sin(angle) * (Math.PI / 6);
+    // COORDINATE SYSTEM (person lying on back):
+    // - rotation.z controls up/down and forward/back (vertical circle)
+    // - rotation.x controls side spread (constant to prevent crossing)
 
-    // Arms spread outward to sides at certain phases
-    const armSpread = Math.abs(Math.cos(angle)) * 0.7;
+    // Vertical circular motion - arms swing from overhead to near hips
+    // Range: ~33° to ~147° from horizontal (always pointing up)
+    const armAngleZ = Math.PI / 2 + Math.sin(angle) * 0.4;
 
-    // Slight twist for natural movement
-    const armTwist = Math.sin(angle) * 0.15;
+    // CONSTANT spread keeps arms on their respective sides (no crossing!)
+    const CONSTANT_SPREAD = 0.3;
+
+    // Subtle twist for natural movement
+    const armTwist = Math.sin(angle) * 0.1;
 
     if (leftUpperArmRef.current) {
-      leftUpperArmRef.current.rotation.z = armAngle;  // Arms point UP
-      leftUpperArmRef.current.rotation.x = armSpread;  // Spread outward
+      leftUpperArmRef.current.rotation.z = armAngleZ;
+      leftUpperArmRef.current.rotation.x = CONSTANT_SPREAD;  // Left arm stays left
       leftUpperArmRef.current.rotation.y = armTwist;
     }
     if (rightUpperArmRef.current) {
-      rightUpperArmRef.current.rotation.z = armAngle;
-      rightUpperArmRef.current.rotation.x = -armSpread;
+      rightUpperArmRef.current.rotation.z = armAngleZ;
+      rightUpperArmRef.current.rotation.x = -CONSTANT_SPREAD;  // Right arm stays right
       rightUpperArmRef.current.rotation.y = -armTwist;
     }
 

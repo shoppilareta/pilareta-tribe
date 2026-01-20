@@ -57,29 +57,28 @@ export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProp
     // Calculate hand positions matching HumanModel arm circles animation
     // MUST match HumanModel.tsx animateArmCircles() exactly!
     //
-    // Arms always point UPWARD (rotation.z around PI/2)
-    // Range: PI/3 (60° toward feet but UP) to 2*PI/3 (60° toward head)
-    const armAngle = Math.PI / 2 + Math.sin(angle) * (Math.PI / 6);
-    const armSpread = Math.abs(Math.cos(angle)) * 0.7;
+    // Arms make vertical circles on their respective sides (no crossing)
+    const armAngleZ = Math.PI / 2 + Math.sin(angle) * 0.4;
+    const CONSTANT_SPREAD = 0.3;  // Arms stay on their sides
     const forearmBend = 0.2;
 
     // Forward kinematics: calculate hand position from shoulder
-    // Upper arm rotates by armAngle (in Z) and armSpread (in X)
+    // Upper arm rotates by armAngleZ (vertical circle) with constant X spread
 
     // Elbow position (end of upper arm)
     const elbowLocalX = UPPER_ARM_LEN;
-    const elbowWorldX = SHOULDER_X + 0.02 + Math.cos(armAngle) * elbowLocalX;
-    const elbowWorldY = SHOULDER_Y + Math.sin(armAngle) * elbowLocalX;
+    const elbowWorldX = SHOULDER_X + 0.02 + Math.cos(armAngleZ) * elbowLocalX;
+    const elbowWorldY = SHOULDER_Y + Math.sin(armAngleZ) * elbowLocalX;
 
     // Hand position (end of forearm, with bend)
-    const totalArmAngle = armAngle + forearmBend;
+    const totalArmAngle = armAngleZ + forearmBend;
     const leftHandX = elbowWorldX + Math.cos(totalArmAngle) * FOREARM_LEN;
     const leftHandY = elbowWorldY + Math.sin(totalArmAngle) * FOREARM_LEN;
-    const leftHandZ = -0.10 - armSpread * 0.15;
+    const leftHandZ = -0.10 - CONSTANT_SPREAD * 0.15;  // Constant position
 
     const rightHandX = leftHandX;
     const rightHandY = leftHandY;
-    const rightHandZ = 0.10 + armSpread * 0.15;
+    const rightHandZ = 0.10 + CONSTANT_SPREAD * 0.15;  // Constant position
 
     // Update handle positions
     if (leftHandleRef.current) {
@@ -142,19 +141,31 @@ export function AnimatedStraps({ animation, visible = true }: AnimatedStrapsProp
         <meshStandardMaterial color={ROPE_COLOR} roughness={0.8} />
       </mesh>
 
-      {/* Left handle */}
+      {/* Left handle - loop that hand grips */}
       <group ref={leftHandleRef} position={[initialHandX, initialHandY, -0.10]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.015, 0.015, 0.08, 8]} />
-          <meshStandardMaterial color="#1a1a1a" />
+        {/* Loop/ring that hand goes through */}
+        <mesh rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+          <torusGeometry args={[0.025, 0.006, 8, 16, Math.PI]} />
+          <meshStandardMaterial color="#2a2a2a" />
+        </mesh>
+        {/* Fabric strap connecting loop to rope */}
+        <mesh position={[0, 0.03, 0]}>
+          <boxGeometry args={[0.004, 0.05, 0.04]} />
+          <meshStandardMaterial color="#333333" />
         </mesh>
       </group>
 
-      {/* Right handle */}
+      {/* Right handle - loop that hand grips */}
       <group ref={rightHandleRef} position={[initialHandX, initialHandY, 0.10]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.015, 0.015, 0.08, 8]} />
-          <meshStandardMaterial color="#1a1a1a" />
+        {/* Loop/ring that hand goes through */}
+        <mesh rotation={[Math.PI / 2, -Math.PI / 2, 0]}>
+          <torusGeometry args={[0.025, 0.006, 8, 16, Math.PI]} />
+          <meshStandardMaterial color="#2a2a2a" />
+        </mesh>
+        {/* Fabric strap connecting loop to rope */}
+        <mesh position={[0, 0.03, 0]}>
+          <boxGeometry args={[0.004, 0.05, 0.04]} />
+          <meshStandardMaterial color="#333333" />
         </mesh>
       </group>
     </group>
