@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import { useCallback, useMemo, useEffect, useState } from 'react';
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 import type { Studio } from './hooks/useStudios';
 
 interface StudioMapProps {
@@ -14,7 +14,29 @@ interface StudioMapProps {
 const DEFAULT_CENTER = { lat: 20.5937, lng: 78.9629 }; // India
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
+// Inner component that can use the useMap hook
+function MapController({ center, studios }: { center: { lat: number; lng: number }; studios: Studio[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    // Pan to center when it changes
+    map.panTo(center);
+
+    // Adjust zoom based on whether we have studios
+    if (studios.length > 0) {
+      map.setZoom(12);
+    } else {
+      map.setZoom(10);
+    }
+  }, [map, center, studios.length]);
+
+  return null;
+}
+
 export function StudioMap({ studios, center, selectedStudioId, onSelectStudio }: StudioMapProps) {
+  const [initialCenter] = useState(center || DEFAULT_CENTER);
   const mapCenter = center || DEFAULT_CENTER;
 
   // Calculate bounds to fit all markers
@@ -73,13 +95,14 @@ export function StudioMap({ studios, center, selectedStudioId, onSelectStudio }:
   return (
     <APIProvider apiKey={MAPS_API_KEY}>
       <Map
-        center={mapCenter}
-        zoom={studios.length > 0 ? 11 : 5}
+        defaultCenter={initialCenter}
+        defaultZoom={10}
         gestureHandling="greedy"
         disableDefaultUI={false}
         mapId="studio-locator-map"
         style={{ width: '100%', height: '100%' }}
       >
+        <MapController center={mapCenter} studios={studios} />
         {studios.map((studio) => {
           if (!studio.latitude || !studio.longitude) return null;
           const isSelected = studio.id === selectedStudioId;
