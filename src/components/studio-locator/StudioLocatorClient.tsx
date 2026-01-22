@@ -11,17 +11,46 @@ import { ViewToggle } from './ViewToggle';
 import { useStudios, type Studio } from './hooks/useStudios';
 import { useGeolocation } from './hooks/useGeolocation';
 
+// Default to India if geolocation unavailable
+const INDIA_CENTER = { lat: 20.5937, lng: 78.9629 };
+
 export function StudioLocatorClient() {
   const [view, setView] = useState<'map' | 'list'>('map');
   const [selectedStudio, setSelectedStudio] = useState<Studio | null>(null);
   const [detailStudio, setDetailStudio] = useState<Studio | null>(null);
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>(INDIA_CENTER);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const { studios, loading, error, searchNearby, geocodeAndSearch, getStudioDetails, clearError } = useStudios();
-  const { getCurrentLocation, loading: locationLoading, error: locationError } = useGeolocation();
+  const { getCurrentLocation, loading: locationLoading, error: locationError, clearError: clearLocationError } = useGeolocation();
+
+  // Auto-detect location on mount
+  useEffect(() => {
+    if (initialLoadDone) return;
+
+    const initializeLocation = async () => {
+      setInitialLoadDone(true);
+
+      // Try to get user's location
+      const location = await getCurrentLocation();
+
+      if (location) {
+        // User location available - use it
+        setMapCenter({ lat: location.latitude, lng: location.longitude });
+        await searchNearby(location.latitude, location.longitude);
+      } else {
+        // Fallback to India
+        clearLocationError();
+        setMapCenter(INDIA_CENTER);
+        await searchNearby(INDIA_CENTER.lat, INDIA_CENTER.lng, 50000); // 50km radius for India default
+      }
+    };
+
+    initializeLocation();
+  }, [initialLoadDone, getCurrentLocation, searchNearby, clearLocationError]);
 
   // Handle success messages
   useEffect(() => {

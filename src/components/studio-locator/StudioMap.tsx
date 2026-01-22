@@ -11,7 +11,7 @@ interface StudioMapProps {
   onSelectStudio: (studio: Studio) => void;
 }
 
-const DEFAULT_CENTER = { lat: 37.7749, lng: -122.4194 }; // San Francisco
+const DEFAULT_CENTER = { lat: 20.5937, lng: 78.9629 }; // India
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 export function StudioMap({ studios, center, selectedStudioId, onSelectStudio }: StudioMapProps) {
@@ -73,13 +73,12 @@ export function StudioMap({ studios, center, selectedStudioId, onSelectStudio }:
   return (
     <APIProvider apiKey={MAPS_API_KEY}>
       <Map
-        defaultCenter={mapCenter}
-        defaultZoom={12}
+        center={mapCenter}
+        zoom={studios.length > 0 ? 11 : 5}
         gestureHandling="greedy"
         disableDefaultUI={false}
         mapId="studio-locator-map"
         style={{ width: '100%', height: '100%' }}
-        {...(bounds && { defaultBounds: bounds })}
       >
         {studios.map((studio) => {
           if (!studio.latitude || !studio.longitude) return null;
