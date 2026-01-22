@@ -14,7 +14,7 @@ export function HomeTile({
   description,
   href,
   children,
-  comingSoon = true,
+  comingSoon = false,
 }: HomeTileProps) {
   return (
     <section className="card">
