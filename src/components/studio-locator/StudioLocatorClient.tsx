@@ -63,7 +63,10 @@ export function StudioLocatorClient() {
   const handleSearch = useCallback(
     async (query: string) => {
       clearError();
-      await geocodeAndSearch(query);
+      const location = await geocodeAndSearch(query);
+      if (location) {
+        setMapCenter({ lat: location.latitude, lng: location.longitude });
+      }
     },
     [geocodeAndSearch, clearError]
   );

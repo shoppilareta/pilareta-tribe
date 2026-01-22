@@ -41,9 +41,15 @@ interface StudiosState {
   source: string | null;
 }
 
+interface GeocodedLocation {
+  latitude: number;
+  longitude: number;
+  formattedName: string;
+}
+
 interface UseStudiosReturn extends StudiosState {
   searchNearby: (lat: number, lng: number, radius?: number, keyword?: string) => Promise<void>;
-  geocodeAndSearch: (query: string, radius?: number, keyword?: string) => Promise<void>;
+  geocodeAndSearch: (query: string, radius?: number, keyword?: string) => Promise<GeocodedLocation | null>;
   getStudioDetails: (id: string) => Promise<Studio | null>;
   clearStudios: () => void;
   clearError: () => void;
@@ -112,7 +118,7 @@ export function useStudios(): UseStudiosReturn {
     query: string,
     radius: number = 10000,
     keyword: string = 'Pilates studio'
-  ) => {
+  ): Promise<GeocodedLocation | null> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
@@ -123,6 +129,12 @@ export function useStudios(): UseStudiosReturn {
       if (!geocodeResponse.ok) {
         throw new Error(geocodeData.error || 'Failed to find location');
       }
+
+      const geocodedLocation: GeocodedLocation = {
+        latitude: geocodeData.latitude,
+        longitude: geocodeData.longitude,
+        formattedName: geocodeData.formattedName || query,
+      };
 
       // Then search nearby
       const params = new URLSearchParams({
@@ -145,12 +157,15 @@ export function useStudios(): UseStudiosReturn {
         error: nearbyData.warning || null,
         source: nearbyData.source,
       });
+
+      return geocodedLocation;
     } catch (error) {
       setState(prev => ({
         ...prev,
         loading: false,
         error: error instanceof Error ? error.message : 'An error occurred',
       }));
+      return null;
     }
   }, []);
 
