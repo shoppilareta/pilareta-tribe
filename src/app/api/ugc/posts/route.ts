@@ -1,0 +1,216 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import { checkUploadRateLimit, saveUploadedFile } from '@/lib/ugc/upload';
+
+// GET /api/ugc/posts - Get feed (public)
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const cursor = searchParams.get('cursor');
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const tag = searchParams.get('tag');
+    const studioId = searchParams.get('studioId');
+
+    const where: Record<string, unknown> = {
+      status: 'approved',
+    };
+
+    if (tag) {
+      where.tags = {
+        some: {
+          tag: {
+            slug: tag,
+          },
+        },
+      };
+    }
+
+    if (studioId) {
+      where.studioId = studioId;
+    }
+
+    const posts = await prisma.ugcPost.findMany({
+      where,
+      take: limit + 1,
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1,
+      }),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        studio: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+            saves: true,
+          },
+        },
+      },
+    });
+
+    const hasMore = posts.length > limit;
+    const items = hasMore ? posts.slice(0, limit) : posts;
+    const nextCursor = hasMore ? items[items.length - 1]?.id : null;
+
+    // Check if current user has liked/saved posts
+    const session = await getSession();
+    let userInteractions: Record<string, { liked: boolean; saved: boolean }> = {};
+
+    if (session?.userId) {
+      const postIds = items.map((p) => p.id);
+
+      const [likes, saves] = await Promise.all([
+        prisma.ugcLike.findMany({
+          where: {
+            userId: session.userId,
+            postId: { in: postIds },
+          },
+          select: { postId: true },
+        }),
+        prisma.ugcSave.findMany({
+          where: {
+            userId: session.userId,
+            postId: { in: postIds },
+          },
+          select: { postId: true },
+        }),
+      ]);
+
+      const likedIds = new Set(likes.map((l) => l.postId));
+      const savedIds = new Set(saves.map((s) => s.postId));
+
+      userInteractions = Object.fromEntries(
+        postIds.map((id) => [
+          id,
+          {
+            liked: likedIds.has(id),
+            saved: savedIds.has(id),
+          },
+        ])
+      );
+    }
+
+    return NextResponse.json({
+      posts: items.map((post) => ({
+        ...post,
+        isLiked: userInteractions[post.id]?.liked || false,
+        isSaved: userInteractions[post.id]?.saved || false,
+      })),
+      nextCursor,
+      hasMore,
+    });
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
+  }
+}
+
+// POST /api/ugc/posts - Create post (auth required)
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session?.userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    // Check rate limit
+    const rateLimit = await checkUploadRateLimit(session.userId);
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: rateLimit.error }, { status: 429 });
+    }
+
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
+    const caption = formData.get('caption') as string | null;
+    const studioId = formData.get('studioId') as string | null;
+    const tagIds = formData.get('tagIds') as string | null;
+    const consentGiven = formData.get('consentGiven') === 'true';
+
+    if (!file) {
+      return NextResponse.json({ error: 'File is required' }, { status: 400 });
+    }
+
+    if (!consentGiven) {
+      return NextResponse.json(
+        { error: 'You must agree to the community guidelines' },
+        { status: 400 }
+      );
+    }
+
+    // Create post first to get ID
+    const post = await prisma.ugcPost.create({
+      data: {
+        userId: session.userId,
+        caption: caption || null,
+        studioId: studioId || null,
+        mediaUrl: '', // Will update after file save
+        mediaType: 'image', // Will update after file save
+        consentGiven: true,
+        consentTimestamp: new Date(),
+        status: 'pending',
+      },
+    });
+
+    // Save file
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const uploadResult = await saveUploadedFile(post.id, buffer, file.type);
+
+    if (!uploadResult.success) {
+      // Delete the post if file save failed
+      await prisma.ugcPost.delete({ where: { id: post.id } });
+      return NextResponse.json({ error: uploadResult.error }, { status: 400 });
+    }
+
+    // Update post with file info
+    const updatedPost = await prisma.ugcPost.update({
+      where: { id: post.id },
+      data: {
+        mediaUrl: uploadResult.mediaUrl!,
+        mediaType: uploadResult.mediaType!,
+        fileSizeBytes: uploadResult.fileSizeBytes,
+      },
+    });
+
+    // Add tags if provided
+    if (tagIds) {
+      const tagIdArray = JSON.parse(tagIds) as string[];
+      if (tagIdArray.length > 0) {
+        await prisma.ugcPostTag.createMany({
+          data: tagIdArray.map((tagId) => ({
+            postId: post.id,
+            tagId,
+          })),
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      post: updatedPost,
+      message: 'Your post has been submitted for review',
+    });
+  } catch (error) {
+    console.error('Error creating post:', error);
+    return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+  }
+}

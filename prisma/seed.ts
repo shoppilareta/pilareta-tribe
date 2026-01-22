@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { reformerExercises } from './seed-data/exercises';
 import { programs } from './seed-data/programs';
+import { ugcTags } from './seed-data/ugc';
 
 const prisma = new PrismaClient();
 
@@ -163,6 +164,33 @@ async function main() {
     }
   }
   console.log(`\n✅ Seeded ${programs.length} programs`);
+
+  // Seed UGC tags
+  console.log('\n🏷️ Seeding UGC tags...');
+  for (const tag of ugcTags) {
+    await prisma.ugcTag.upsert({
+      where: { slug: tag.slug },
+      update: { name: tag.name },
+      create: tag,
+    });
+    console.log(`  ✓ #${tag.name}`);
+  }
+  console.log(`\n✅ Seeded ${ugcTags.length} UGC tags`);
+
+  // Create admin user for testing
+  console.log('\n👤 Creating admin user...');
+  await prisma.user.upsert({
+    where: { email: 'demo@pilareta.com' },
+    update: { isAdmin: true },
+    create: {
+      shopifyId: 'demo-user-001',
+      email: 'demo@pilareta.com',
+      firstName: 'Pilareta',
+      lastName: 'Admin',
+      isAdmin: true,
+    },
+  });
+  console.log('  ✓ Admin user created/updated');
 
   console.log('\n🎉 Seed completed successfully!');
 }

@@ -22,6 +22,9 @@ model User {
   updatedAt             DateTime                 @updatedAt
   sessions              Session[]
   ugcPosts              UgcPost[]
+  ugcLikes              UgcLike[]
+  ugcComments           UgcComment[]
+  ugcSaves              UgcSave[]
   pilatesSessions       PilatesSession[]
   sessionCompletions    UserSessionCompletion[]
   programProgress       UserProgramProgress[]
@@ -37,15 +40,120 @@ model Session {
   createdAt   DateTime @default(now())
 }
 
+// ============================================
+// UGC COMMUNITY SYSTEM
+// ============================================
+
 model UgcPost {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Content
+  caption         String?  @db.Text
+  mediaUrl        String   // Local file path: /uploads/ugc/...
+  mediaType       String   // "image" | "video"
+  thumbnailUrl    String?  // For videos
+  aspectRatio     Float?   // width/height
+
+  // Metadata
+  fileSizeBytes   Int?
+  durationSeconds Int?     // For videos
+
+  // Studio linking
+  studioId        String?
+  studio          Studio?  @relation(fields: [studioId], references: [id], onDelete: SetNull)
+
+  // Moderation
+  status          String   @default("pending") // pending | approved | rejected
+  moderatedAt     DateTime?
+  moderationNote  String?
+
+  // Consent
+  consentGiven    Boolean  @default(false)
+  consentTimestamp DateTime?
+
+  // Featured
+  isFeatured      Boolean  @default(false)
+  featuredAt      DateTime?
+
+  // Counts (denormalized)
+  likesCount      Int      @default(0)
+  commentsCount   Int      @default(0)
+  savesCount      Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  likes           UgcLike[]
+  comments        UgcComment[]
+  saves           UgcSave[]
+  tags            UgcPostTag[]
+
+  @@index([userId])
+  @@index([studioId])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([createdAt])
+}
+
+model UgcLike {
   id        String   @id @default(cuid())
+  postId    String
+  post      UgcPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String?
-  mediaUrl  String?
-  status    String   @default("pending")
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model UgcComment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      UgcPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model UgcSave {
+  id        String   @id @default(cuid())
+  postId    String
+  post      UgcPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model UgcTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  posts     UgcPostTag[]
+}
+
+model UgcPostTag {
+  id        String   @id @default(cuid())
+  postId    String
+  post      UgcPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       UgcTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([postId])
+  @@index([tagId])
 }
 
 model Studio {
@@ -76,6 +184,7 @@ model Studio {
 
   claims            StudioClaim[]
   editSuggestions   StudioEditSuggestion[]
+  ugcPosts          UgcPost[]
 }
 
 model StudioClaim {
