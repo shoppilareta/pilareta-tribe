@@ -49,14 +49,76 @@ model UgcPost {
 }
 
 model Studio {
-  id        String   @id @default(cuid())
-  name      String
-  city      String
-  address   String?
-  latitude  Float?
-  longitude Float?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String    @id @default(cuid())
+  name              String
+  city              String
+  address           String?
+  latitude          Float?
+  longitude         Float?
+
+  // Google Places
+  googlePlaceId     String?   @unique
+  googleDataFetched DateTime?
+  formattedAddress  String?
+  phoneNumber       String?
+  website           String?
+  rating            Float?
+  ratingCount       Int?
+  openingHours      Json?
+  photos            Json?
+
+  // Curated
+  amenities         String[]
+  verified          Boolean   @default(false)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  claims            StudioClaim[]
+  editSuggestions   StudioEditSuggestion[]
+}
+
+model StudioClaim {
+  id              String   @id @default(cuid())
+  studioId        String
+  studio          Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  claimantName    String
+  claimantEmail   String
+  claimantPhone   String?
+  businessRole    String   // owner | manager | employee
+  proofDescription String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  @@index([studioId])
+}
+
+model StudioEditSuggestion {
+  id              String   @id @default(cuid())
+  studioId        String
+  studio          Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  submitterEmail  String?
+  suggestedChanges Json
+  reason          String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  @@index([studioId])
+}
+
+model GeoCache {
+  id              String   @id @default(cuid())
+  query           String   @unique
+  latitude        Float
+  longitude       Float
+  formattedName   String
+  cachedAt        DateTime @default(now())
+}
+
+model ApiUsageLog {
+  id              String   @id @default(cuid())
+  apiType         String
+  requestCount    Int      @default(1)
+  date            DateTime @default(now()) @db.Date
+  @@unique([apiType, date])
 }
 
 // ============================================
