@@ -80,6 +80,15 @@ export function StudioLocatorClient() {
     }
   }, [getCurrentLocation, searchNearby, clearError]);
 
+  const handleMapMoved = useCallback(
+    async (newCenter: { lat: number; lng: number }) => {
+      // Don't update mapCenter state to avoid re-centering the map
+      // Just search for studios at the new location
+      await searchNearby(newCenter.lat, newCenter.lng);
+    },
+    [searchNearby]
+  );
+
   const handleSelectStudio = useCallback(
     async (studio: Studio) => {
       setSelectedStudio(studio);
@@ -230,6 +239,7 @@ export function StudioLocatorClient() {
             selectedStudioId={selectedStudio?.id || null}
             onSelectStudio={handleSelectStudio}
             userLocation={userLat && userLng ? { lat: userLat, lng: userLng } : null}
+            onMapMoved={handleMapMoved}
           />
         </div>
 

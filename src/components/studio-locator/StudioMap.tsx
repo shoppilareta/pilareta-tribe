@@ -10,17 +10,31 @@ interface StudioMapProps {
   selectedStudioId: string | null;
   onSelectStudio: (studio: Studio) => void;
   userLocation?: { lat: number; lng: number } | null;
+  onMapMoved?: (center: { lat: number; lng: number }) => void;
 }
 
 const DEFAULT_CENTER = { lat: 20.5937, lng: 78.9629 }; // India
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 // Inner component that can use the useMap hook
-function MapController({ center, studios }: { center: { lat: number; lng: number }; studios: Studio[] }) {
+function MapController({
+  center,
+  studios,
+  onMapMoved,
+}: {
+  center: { lat: number; lng: number };
+  studios: Studio[];
+  onMapMoved?: (center: { lat: number; lng: number }) => void;
+}) {
   const map = useMap();
+  const [lastProgrammaticCenter, setLastProgrammaticCenter] = useState<string | null>(null);
 
+  // Handle programmatic center changes (from search)
   useEffect(() => {
     if (!map) return;
+
+    const centerKey = `${center.lat},${center.lng}`;
+    setLastProgrammaticCenter(centerKey);
 
     // Pan to center when it changes
     map.panTo(center);
@@ -33,10 +47,35 @@ function MapController({ center, studios }: { center: { lat: number; lng: number
     }
   }, [map, center, studios.length]);
 
+  // Listen for user drag events
+  useEffect(() => {
+    if (!map || !onMapMoved) return;
+
+    const handleDragEnd = () => {
+      const newCenter = map.getCenter();
+      if (!newCenter) return;
+
+      const newLat = newCenter.lat();
+      const newLng = newCenter.lng();
+      const newCenterKey = `${newLat},${newLng}`;
+
+      // Only trigger if this is a user-initiated move (not programmatic)
+      if (newCenterKey !== lastProgrammaticCenter) {
+        onMapMoved({ lat: newLat, lng: newLng });
+      }
+    };
+
+    const listener = map.addListener('dragend', handleDragEnd);
+
+    return () => {
+      google.maps.event.removeListener(listener);
+    };
+  }, [map, onMapMoved, lastProgrammaticCenter]);
+
   return null;
 }
 
-export function StudioMap({ studios, center, selectedStudioId, onSelectStudio, userLocation }: StudioMapProps) {
+export function StudioMap({ studios, center, selectedStudioId, onSelectStudio, userLocation, onMapMoved }: StudioMapProps) {
   const [initialCenter] = useState(center || DEFAULT_CENTER);
   const mapCenter = center || DEFAULT_CENTER;
 
@@ -103,7 +142,7 @@ export function StudioMap({ studios, center, selectedStudioId, onSelectStudio, u
         mapId="studio-locator-map"
         style={{ width: '100%', height: '100%' }}
       >
-        <MapController center={mapCenter} studios={studios} />
+        <MapController center={mapCenter} studios={studios} onMapMoved={onMapMoved} />
         {studios.map((studio) => {
           if (!studio.latitude || !studio.longitude) return null;
           const isSelected = studio.id === selectedStudioId;
