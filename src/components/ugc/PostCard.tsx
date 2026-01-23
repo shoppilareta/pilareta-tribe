@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import type { UgcPost } from './hooks/useFeed';
+import { InstagramEmbedCompact } from './InstagramEmbed';
 
 interface PostCardProps {
   post: UgcPost;
@@ -38,14 +39,26 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
       <div
         style={{
           position: 'relative',
-          paddingBottom: post.aspectRatio ? `${(1 / post.aspectRatio) * 100}%` : '100%',
+          paddingBottom: post.mediaType === 'instagram' ? '100%' : (post.aspectRatio ? `${(1 / post.aspectRatio) * 100}%` : '100%'),
           background: 'rgba(246, 237, 221, 0.03)',
         }}
       >
-        {post.mediaType === 'video' ? (
+        {post.mediaType === 'instagram' && post.instagramUrl ? (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+            }}
+          >
+            <InstagramEmbedCompact url={post.instagramUrl} postId={post.instagramPostId} />
+          </div>
+        ) : post.mediaType === 'video' ? (
           <>
             <img
-              src={post.thumbnailUrl || post.mediaUrl}
+              src={post.thumbnailUrl || post.mediaUrl || ''}
               alt={post.caption || 'Post'}
               style={{
                 position: 'absolute',
@@ -82,7 +95,7 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
           </>
         ) : (
           <img
-            src={post.mediaUrl}
+            src={post.mediaUrl || ''}
             alt={post.caption || 'Post'}
             style={{
               position: 'absolute',

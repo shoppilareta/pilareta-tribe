@@ -4,7 +4,8 @@ import { useState, useCallback } from 'react';
 import { validateFile } from '@/lib/ugc/validation';
 
 export interface UploadData {
-  file: File;
+  file?: File;
+  instagramUrl?: string;
   caption?: string;
   studioId?: string;
   tagIds?: string[];
@@ -20,26 +21,58 @@ export function useUpload() {
     return validateFile(file);
   }, []);
 
+  const validateInstagramUrl = useCallback((url: string): { valid: boolean; error?: string } => {
+    if (!url.trim()) {
+      return { valid: false, error: 'Instagram URL is required' };
+    }
+    // Simple validation - check if it looks like an Instagram URL
+    const patterns = [
+      /instagram\.com\/p\/[A-Za-z0-9_-]+/,
+      /instagram\.com\/reel\/[A-Za-z0-9_-]+/,
+    ];
+    const isValid = patterns.some(pattern => pattern.test(url));
+    if (!isValid) {
+      return { valid: false, error: 'Please enter a valid Instagram post or reel URL' };
+    }
+    return { valid: true };
+  }, []);
+
   const uploadPost = useCallback(async (data: UploadData) => {
     try {
       setUploading(true);
       setProgress(0);
       setError(null);
 
-      // Validate file
-      const validation = validateFile(data.file);
-      if (!validation.valid) {
-        throw new Error(validation.error);
-      }
-
       if (!data.consentGiven) {
         throw new Error('You must agree to the community guidelines');
       }
 
+      // Validate - must have either file or Instagram URL
+      if (!data.file && !data.instagramUrl) {
+        throw new Error('Please upload a file or provide an Instagram URL');
+      }
+
+      // Validate file if provided
+      if (data.file) {
+        const validation = validateFile(data.file);
+        if (!validation.valid) {
+          throw new Error(validation.error);
+        }
+      }
+
+      // Validate Instagram URL if provided
+      if (data.instagramUrl) {
+        const validation = validateInstagramUrl(data.instagramUrl);
+        if (!validation.valid) {
+          throw new Error(validation.error);
+        }
+      }
+
       // Create form data
       const formData = new FormData();
-      formData.append('file', data.file);
       formData.append('consentGiven', 'true');
+      if (data.file) formData.append('file', data.file);
+      if (data.instagramUrl) formData.append('instagramUrl', data.instagramUrl);
       if (data.caption) formData.append('caption', data.caption);
       if (data.studioId) formData.append('studioId', data.studioId);
       if (data.tagIds && data.tagIds.length > 0) {
@@ -76,7 +109,7 @@ export function useUpload() {
     } finally {
       setUploading(false);
     }
-  }, []);
+  }, [validateInstagramUrl]);
 
   const clearError = useCallback(() => {
     setError(null);

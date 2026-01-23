@@ -7,6 +7,7 @@ import { LikeButton } from './LikeButton';
 import { SaveButton } from './SaveButton';
 import { ShareButton } from './ShareButton';
 import { CommentSection } from './CommentSection';
+import { InstagramEmbed } from './InstagramEmbed';
 
 interface PostDetailModalProps {
   postId: string | null;
@@ -220,11 +221,14 @@ export function PostDetailModal({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                padding: post.mediaType === 'instagram' ? '1rem' : 0,
               }}
             >
-              {post.mediaType === 'video' ? (
+              {post.mediaType === 'instagram' && post.instagramUrl ? (
+                <InstagramEmbed url={post.instagramUrl} postId={post.instagramPostId} maxWidth={500} />
+              ) : post.mediaType === 'video' ? (
                 <video
-                  src={post.mediaUrl}
+                  src={post.mediaUrl || ''}
                   poster={post.thumbnailUrl || undefined}
                   controls
                   style={{
@@ -235,7 +239,7 @@ export function PostDetailModal({
                 />
               ) : (
                 <img
-                  src={post.mediaUrl}
+                  src={post.mediaUrl || ''}
                   alt={post.caption || 'Post'}
                   style={{
                     maxWidth: '100%',

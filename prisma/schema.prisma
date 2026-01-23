@@ -51,10 +51,14 @@ model UgcPost {
 
   // Content
   caption         String?  @db.Text
-  mediaUrl        String   // Local file path: /uploads/ugc/...
-  mediaType       String   // "image" | "video"
+  mediaUrl        String?  // Local file path: /uploads/ugc/... (null for Instagram embeds)
+  mediaType       String   // "image" | "video" | "instagram"
   thumbnailUrl    String?  // For videos
   aspectRatio     Float?   // width/height
+
+  // Instagram embed
+  instagramUrl    String?  // Instagram post URL (e.g., https://www.instagram.com/p/ABC123/)
+  instagramPostId String?  // Extracted post ID
 
   // Metadata
   fileSizeBytes   Int?

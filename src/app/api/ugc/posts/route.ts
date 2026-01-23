@@ -125,6 +125,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Helper to extract Instagram post ID from URL
+function extractInstagramPostId(url: string): string | null {
+  // Patterns:
+  // https://www.instagram.com/p/ABC123/
+  // https://instagram.com/p/ABC123/
+  // https://www.instagram.com/reel/ABC123/
+  const patterns = [
+    /instagram\.com\/p\/([A-Za-z0-9_-]+)/,
+    /instagram\.com\/reel\/([A-Za-z0-9_-]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
+// Helper to validate Instagram URL
+function isValidInstagramUrl(url: string): boolean {
+  return extractInstagramPostId(url) !== null;
+}
+
 // POST /api/ugc/posts - Create post (auth required)
 export async function POST(request: NextRequest) {
   try {
@@ -141,13 +166,15 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const instagramUrl = formData.get('instagramUrl') as string | null;
     const caption = formData.get('caption') as string | null;
     const studioId = formData.get('studioId') as string | null;
     const tagIds = formData.get('tagIds') as string | null;
     const consentGiven = formData.get('consentGiven') === 'true';
 
-    if (!file) {
-      return NextResponse.json({ error: 'File is required' }, { status: 400 });
+    // Must have either file or Instagram URL
+    if (!file && !instagramUrl) {
+      return NextResponse.json({ error: 'File or Instagram URL is required' }, { status: 400 });
     }
 
     if (!consentGiven) {
@@ -155,6 +182,57 @@ export async function POST(request: NextRequest) {
         { error: 'You must agree to the community guidelines' },
         { status: 400 }
       );
+    }
+
+    // Handle Instagram URL
+    if (instagramUrl) {
+      if (!isValidInstagramUrl(instagramUrl)) {
+        return NextResponse.json(
+          { error: 'Invalid Instagram URL. Please use a link to an Instagram post or reel.' },
+          { status: 400 }
+        );
+      }
+
+      const instagramPostId = extractInstagramPostId(instagramUrl);
+
+      const post = await prisma.ugcPost.create({
+        data: {
+          userId: session.userId,
+          caption: caption || null,
+          studioId: studioId || null,
+          mediaUrl: null,
+          mediaType: 'instagram',
+          instagramUrl: instagramUrl,
+          instagramPostId: instagramPostId,
+          consentGiven: true,
+          consentTimestamp: new Date(),
+          status: 'pending',
+        },
+      });
+
+      // Add tags if provided
+      if (tagIds) {
+        const tagIdArray = JSON.parse(tagIds) as string[];
+        if (tagIdArray.length > 0) {
+          await prisma.ugcPostTag.createMany({
+            data: tagIdArray.map((tagId) => ({
+              postId: post.id,
+              tagId,
+            })),
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        post,
+        message: 'Your Instagram post has been submitted for review',
+      });
+    }
+
+    // Handle file upload
+    if (!file) {
+      return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
 
     // Create post first to get ID

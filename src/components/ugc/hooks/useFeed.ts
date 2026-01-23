@@ -25,12 +25,15 @@ export interface UgcPost {
   userId: string;
   user: UgcUser;
   caption: string | null;
-  mediaUrl: string;
-  mediaType: 'image' | 'video';
+  mediaUrl: string | null;
+  mediaType: 'image' | 'video' | 'instagram';
   thumbnailUrl: string | null;
   aspectRatio: number | null;
   fileSizeBytes: number | null;
   durationSeconds: number | null;
+  // Instagram embed fields
+  instagramUrl: string | null;
+  instagramPostId: string | null;
   studio: UgcStudio | null;
   status: string;
   isFeatured: boolean;

@@ -13,8 +13,12 @@ interface UploadModalProps {
   onSuccess: () => void;
 }
 
+type UploadMode = 'upload' | 'instagram';
+
 export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
+  const [mode, setMode] = useState<UploadMode>('upload');
   const [file, setFile] = useState<File | null>(null);
+  const [instagramUrl, setInstagramUrl] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [studioId, setStudioId] = useState<string | null>(null);
@@ -50,12 +54,28 @@ export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
     clearError();
   }, [clearError]);
 
+  const handleModeChange = useCallback((newMode: UploadMode) => {
+    setMode(newMode);
+    // Clear the other mode's data
+    if (newMode === 'upload') {
+      setInstagramUrl('');
+    } else {
+      setFile(null);
+    }
+    clearError();
+  }, [clearError]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !consentGiven || uploading) return;
+    if (!consentGiven || uploading) return;
+
+    // Validate based on mode
+    if (mode === 'upload' && !file) return;
+    if (mode === 'instagram' && !instagramUrl.trim()) return;
 
     const result = await uploadPost({
-      file,
+      file: mode === 'upload' ? file || undefined : undefined,
+      instagramUrl: mode === 'instagram' ? instagramUrl.trim() : undefined,
       caption: caption.trim() || undefined,
       studioId: studioId || undefined,
       tagIds: selectedTags.map((t) => t.id),
@@ -70,7 +90,10 @@ export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
     }
   };
 
-  const isFormValid = file && consentGiven && !uploading;
+  const isFormValid = consentGiven && !uploading && (
+    (mode === 'upload' && file) ||
+    (mode === 'instagram' && instagramUrl.trim())
+  );
 
   return (
     <div
@@ -170,13 +193,138 @@ export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
         ) : (
           <form onSubmit={handleSubmit}>
             <div style={{ padding: '1rem' }}>
-              {/* Media uploader */}
-              <MediaUploader
-                file={file}
-                preview={preview}
-                onFileSelect={handleFileSelect}
-                disabled={uploading}
-              />
+              {/* Mode toggle */}
+              <div
+                style={{
+                  display: 'flex',
+                  marginBottom: '1rem',
+                  background: 'rgba(246, 237, 221, 0.05)',
+                  borderRadius: '2px',
+                  padding: '4px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('upload')}
+                  disabled={uploading}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    background: mode === 'upload' ? 'rgba(246, 237, 221, 0.15)' : 'transparent',
+                    border: 'none',
+                    borderRadius: '2px',
+                    color: mode === 'upload' ? '#f6eddd' : 'rgba(246, 237, 221, 0.5)',
+                    fontSize: '0.875rem',
+                    fontWeight: mode === 'upload' ? 500 : 400,
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Upload Photo/Video
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('instagram')}
+                  disabled={uploading}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    background: mode === 'instagram' ? 'rgba(246, 237, 221, 0.15)' : 'transparent',
+                    border: 'none',
+                    borderRadius: '2px',
+                    color: mode === 'instagram' ? '#f6eddd' : 'rgba(246, 237, 221, 0.5)',
+                    fontSize: '0.875rem',
+                    fontWeight: mode === 'instagram' ? 500 : 400,
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                  </svg>
+                  Instagram Link
+                </button>
+              </div>
+
+              {/* Media uploader (for upload mode) */}
+              {mode === 'upload' && (
+                <MediaUploader
+                  file={file}
+                  preview={preview}
+                  onFileSelect={handleFileSelect}
+                  disabled={uploading}
+                />
+              )}
+
+              {/* Instagram URL input (for instagram mode) */}
+              {mode === 'instagram' && (
+                <div
+                  style={{
+                    padding: '1.5rem',
+                    border: '2px dashed rgba(246, 237, 221, 0.2)',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="rgba(246, 237, 221, 0.4)"
+                    strokeWidth="1.5"
+                    style={{ margin: '0 auto 12px' }}
+                  >
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                  </svg>
+                  <p
+                    style={{
+                      margin: '0 0 12px',
+                      fontSize: '0.875rem',
+                      color: 'rgba(246, 237, 221, 0.6)',
+                    }}
+                  >
+                    Paste an Instagram post or reel URL
+                  </p>
+                  <input
+                    type="url"
+                    value={instagramUrl}
+                    onChange={(e) => {
+                      setInstagramUrl(e.target.value);
+                      clearError();
+                    }}
+                    placeholder="https://www.instagram.com/p/..."
+                    disabled={uploading}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: 'rgba(246, 237, 221, 0.05)',
+                      border: '1px solid rgba(246, 237, 221, 0.1)',
+                      borderRadius: '2px',
+                      color: '#f6eddd',
+                      fontSize: '0.875rem',
+                      outline: 'none',
+                    }}
+                  />
+                  <p
+                    style={{
+                      margin: '8px 0 0',
+                      fontSize: '0.75rem',
+                      color: 'rgba(246, 237, 221, 0.4)',
+                    }}
+                  >
+                    Supports posts and reels from public Instagram accounts
+                  </p>
+                </div>
+              )}
 
               {/* Caption */}
               <div style={{ marginTop: '1rem' }}>

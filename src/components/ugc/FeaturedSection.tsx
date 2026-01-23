@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { UgcPost } from './hooks/useFeed';
+import { InstagramEmbedCompact } from './InstagramEmbed';
 
 interface FeaturedSectionProps {
   onPostClick: (post: UgcPost) => void;
@@ -90,18 +91,32 @@ export function FeaturedSection({ onPostClick }: FeaturedSectionProps) {
                 background: 'rgba(246, 237, 221, 0.03)',
               }}
             >
-              <img
-                src={post.mediaType === 'video' && post.thumbnailUrl ? post.thumbnailUrl : post.mediaUrl}
-                alt={post.caption || 'Featured post'}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
+              {post.mediaType === 'instagram' && post.instagramUrl ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                  }}
+                >
+                  <InstagramEmbedCompact url={post.instagramUrl} postId={post.instagramPostId} />
+                </div>
+              ) : (
+                <img
+                  src={post.mediaType === 'video' && post.thumbnailUrl ? post.thumbnailUrl : (post.mediaUrl || '')}
+                  alt={post.caption || 'Featured post'}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              )}
 
               {/* Gradient overlay */}
               <div
