@@ -124,13 +124,13 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
         <div
-          className="bg-[#202219] rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-[rgba(246,237,221,0.1)] shadow-2xl"
+          className="bg-[#202219] rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-[rgba(246,237,221,0.12)] shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 z-10 w-10 h-10 flex items-center justify-center bg-[rgba(32,34,25,0.9)] rounded-full opacity-70 hover:opacity-100 transition-opacity border border-[rgba(246,237,221,0.1)]"
+            className="absolute top-6 right-6 z-10 w-11 h-11 flex items-center justify-center bg-[rgba(32,34,25,0.95)] rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-105 border border-[rgba(246,237,221,0.15)]"
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,9 +140,9 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
           <div className="flex flex-col md:flex-row max-h-[90vh] overflow-auto">
             {/* Image Gallery */}
-            <div className="md:w-1/2 p-6 md:p-8">
+            <div className="md:w-1/2 p-6 md:p-10 bg-[rgba(246,237,221,0.02)]">
               {/* Main Image */}
-              <div className="relative aspect-square bg-[rgba(246,237,221,0.03)] rounded-xl overflow-hidden mb-4">
+              <div className="relative aspect-square bg-[rgba(246,237,221,0.03)] rounded-2xl overflow-hidden mb-5 border border-[rgba(246,237,221,0.06)]">
                 {images[selectedImage] ? (
                   <Image
                     src={images[selectedImage].url}
@@ -163,15 +163,15 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
               {/* Thumbnail Strip */}
               {images.length > 1 && (
-                <div className="flex gap-3 overflow-x-auto pb-2">
+                <div className="flex gap-3 overflow-x-auto pb-2 px-1">
                   {images.map((img, idx) => (
                     <button
                       key={idx}
                       onClick={() => setSelectedImage(idx)}
-                      className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
+                      className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all ${
                         selectedImage === idx
-                          ? 'border-[#f6eddd] opacity-100'
-                          : 'border-transparent opacity-50 hover:opacity-80'
+                          ? 'border-[#f6eddd] opacity-100 scale-105'
+                          : 'border-[rgba(246,237,221,0.1)] opacity-60 hover:opacity-90 hover:border-[rgba(246,237,221,0.3)]'
                       }`}
                     >
                       <Image
@@ -188,24 +188,31 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
             </div>
 
             {/* Product Details */}
-            <div className="md:w-1/2 p-6 md:p-8 md:border-l border-[rgba(246,237,221,0.1)] flex flex-col">
+            <div className="md:w-1/2 p-6 md:p-10 md:border-l border-[rgba(246,237,221,0.08)] flex flex-col">
               <div className="flex-1">
-                <h2 className="text-2xl md:text-3xl font-medium mb-3 leading-tight">{product.title}</h2>
-
-                <p className="text-xl opacity-70 mb-8">
-                  {selectedVariant
-                    ? formatPrice(selectedVariant.price.amount, selectedVariant.price.currencyCode)
-                    : formatPrice(product.priceRange.minVariantPrice.amount, product.priceRange.minVariantPrice.currencyCode)
-                  }
-                </p>
+                {/* Product Title & Price */}
+                <div className="mb-8">
+                  <h2 className="text-2xl md:text-3xl font-medium mb-4 leading-tight">{product.title}</h2>
+                  <p className="text-2xl font-medium opacity-80">
+                    {selectedVariant
+                      ? formatPrice(selectedVariant.price.amount, selectedVariant.price.currencyCode)
+                      : formatPrice(product.priceRange.minVariantPrice.amount, product.priceRange.minVariantPrice.currencyCode)
+                    }
+                  </p>
+                </div>
 
                 {/* Options */}
-                <div className="space-y-6 mb-8">
+                <div className="space-y-8 mb-10">
                   {options.map(option => (
                     <div key={option.name}>
-                      <label className="block text-sm opacity-50 mb-3 uppercase tracking-wider">
-                        {option.name}
-                      </label>
+                      <div className="flex items-center justify-between mb-4">
+                        <label className="text-sm opacity-50 uppercase tracking-wider font-medium">
+                          {option.name}
+                        </label>
+                        {selectedOptions[option.name] && (
+                          <span className="text-sm opacity-70">{selectedOptions[option.name]}</span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-3">
                         {option.values.map(value => {
                           const isSelected = selectedOptions[option.name] === value;
@@ -219,9 +226,9 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
                                 onClick={() => setSelectedOptions(prev => ({ ...prev, [option.name]: value }))}
                                 disabled={!isAvailable}
                                 className={`
-                                  w-10 h-10 rounded-full border-2 transition-all
-                                  ${isSelected ? 'border-[#f6eddd] scale-110' : 'border-[rgba(246,237,221,0.2)]'}
-                                  ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:scale-105'}
+                                  w-11 h-11 rounded-full border-2 transition-all relative
+                                  ${isSelected ? 'border-[#f6eddd] scale-110 ring-2 ring-[rgba(246,237,221,0.3)] ring-offset-2 ring-offset-[#202219]' : 'border-[rgba(246,237,221,0.15)]'}
+                                  ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:scale-105 hover:border-[rgba(246,237,221,0.4)]'}
                                 `}
                                 style={{ backgroundColor: getColorCode(value) }}
                                 title={value}
@@ -235,10 +242,10 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
                               onClick={() => setSelectedOptions(prev => ({ ...prev, [option.name]: value }))}
                               disabled={!isAvailable}
                               className={`
-                                px-5 py-2.5 text-sm border rounded-lg transition-all
+                                px-6 py-3 text-sm border rounded-full transition-all font-medium
                                 ${isSelected
-                                  ? 'border-[#f6eddd] bg-[rgba(246,237,221,0.1)]'
-                                  : 'border-[rgba(246,237,221,0.2)] hover:border-[rgba(246,237,221,0.4)]'
+                                  ? 'border-[#f6eddd] bg-[rgba(246,237,221,0.12)] text-[#f6eddd]'
+                                  : 'border-[rgba(246,237,221,0.15)] hover:border-[rgba(246,237,221,0.4)] opacity-70 hover:opacity-100'
                                 }
                                 ${!isAvailable ? 'opacity-30 cursor-not-allowed line-through' : ''}
                               `}
@@ -254,9 +261,9 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
                 {/* Description */}
                 {product.description && (
-                  <div className="mb-8">
-                    <h3 className="text-sm opacity-50 mb-3 uppercase tracking-wider">Description</h3>
-                    <p className="text-sm opacity-70 leading-relaxed">
+                  <div className="mb-10 p-5 bg-[rgba(246,237,221,0.03)] rounded-2xl border border-[rgba(246,237,221,0.06)]">
+                    <h3 className="text-xs opacity-40 mb-3 uppercase tracking-wider font-medium">Description</h3>
+                    <p className="text-sm opacity-60 leading-relaxed">
                       {product.description}
                     </p>
                   </div>
@@ -264,18 +271,45 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
               </div>
 
               {/* Add to Cart */}
-              <button
-                onClick={handleAddToCart}
-                disabled={isLoading || isAdding || !selectedVariant?.availableForSale}
-                className="w-full py-4 px-8 bg-[#f6eddd] text-[#202219] font-medium rounded-full hover:bg-[#e3dccb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
-              >
-                {!selectedVariant?.availableForSale
-                  ? 'Sold Out'
-                  : isAdding
-                    ? 'Adding to Cart...'
-                    : 'Add to Cart'
-                }
-              </button>
+              <div className="space-y-4 pt-6 border-t border-[rgba(246,237,221,0.08)]">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isLoading || isAdding || !selectedVariant?.availableForSale}
+                  className="w-full py-4 px-8 bg-[#f6eddd] text-[#202219] font-semibold rounded-full hover:bg-[#e3dccb] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-[15px] hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {!selectedVariant?.availableForSale ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                      Sold Out
+                    </span>
+                  ) : isAdding ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Adding to Cart...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      Add to Cart
+                    </span>
+                  )}
+                </button>
+
+                {/* Shipping Info */}
+                <p className="text-center text-xs opacity-40 flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  Free shipping on orders over $100
+                </p>
+              </div>
             </div>
           </div>
         </div>
