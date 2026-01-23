@@ -17,7 +17,7 @@ function formatDistance(distanceKm: number | undefined): string {
 }
 
 function getPhotoUrl(photoReference: string): string {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM';
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=100&photo_reference=${photoReference}&key=${apiKey}`;
 }
 
