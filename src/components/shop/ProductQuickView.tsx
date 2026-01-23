@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import type { ShopifyProduct, ShopifyProductVariant } from '@/lib/shopify/types';
+import type { ShopifyProduct } from '@/lib/shopify/types';
 import { useCart } from './CartProvider';
 
 interface ProductQuickViewProps {
@@ -12,7 +12,7 @@ interface ProductQuickViewProps {
 }
 
 function formatPrice(amount: string, currencyCode: string): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: currencyCode,
   }).format(parseFloat(amount));
@@ -113,36 +113,43 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
   const images = product.images.length > 0 ? product.images : (product.featuredImage ? [product.featuredImage] : []);
 
+  // Helper to get a short label for size options
+  const getShortLabel = (value: string) => {
+    // Extract just the size part before any parentheses
+    const match = value.match(/^([A-Z0-9]+)/i);
+    return match ? match[1] : value;
+  };
+
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 lg:p-8">
         <div
-          className="bg-[#202219] rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-[rgba(246,237,221,0.12)] shadow-2xl"
+          className="bg-[#1a1c16] rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl border border-[rgba(246,237,221,0.1)]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 z-10 w-11 h-11 flex items-center justify-center bg-[rgba(32,34,25,0.95)] rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-105 border border-[rgba(246,237,221,0.15)]"
+            className="absolute top-4 right-4 md:top-6 md:right-6 z-20 w-11 h-11 flex items-center justify-center bg-[#1a1c16]/90 backdrop-blur-sm rounded-full border border-[rgba(246,237,221,0.15)] hover:bg-[rgba(246,237,221,0.1)] transition-colors"
             aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-[#f6eddd]/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
 
           <div className="flex flex-col md:flex-row max-h-[90vh] overflow-auto">
-            {/* Image Gallery */}
-            <div className="md:w-1/2 p-6 md:p-10 bg-[rgba(246,237,221,0.02)]">
+            {/* Image Gallery - Left Side */}
+            <div className="md:w-1/2 bg-[rgba(246,237,221,0.03)]">
               {/* Main Image */}
-              <div className="relative aspect-square bg-[rgba(246,237,221,0.03)] rounded-2xl overflow-hidden mb-5 border border-[rgba(246,237,221,0.06)]">
+              <div className="relative aspect-square">
                 {images[selectedImage] ? (
                   <Image
                     src={images[selectedImage].url}
@@ -153,8 +160,8 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
                     priority
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center opacity-20">
-                    <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-full h-full flex items-center justify-center bg-[rgba(246,237,221,0.05)]">
+                    <svg className="w-20 h-20 text-[#f6eddd]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
@@ -163,15 +170,15 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
               {/* Thumbnail Strip */}
               {images.length > 1 && (
-                <div className="flex gap-3 overflow-x-auto pb-2 px-1">
+                <div className="flex gap-2 p-4 overflow-x-auto">
                   {images.map((img, idx) => (
                     <button
                       key={idx}
                       onClick={() => setSelectedImage(idx)}
-                      className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all ${
+                      className={`relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all ${
                         selectedImage === idx
-                          ? 'border-[#f6eddd] opacity-100 scale-105'
-                          : 'border-[rgba(246,237,221,0.1)] opacity-60 hover:opacity-90 hover:border-[rgba(246,237,221,0.3)]'
+                          ? 'border-[#f6eddd] opacity-100'
+                          : 'border-transparent opacity-50 hover:opacity-80'
                       }`}
                     >
                       <Image
@@ -187,13 +194,15 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
               )}
             </div>
 
-            {/* Product Details */}
-            <div className="md:w-1/2 p-6 md:p-10 md:border-l border-[rgba(246,237,221,0.08)] flex flex-col">
-              <div className="flex-1">
-                {/* Product Title & Price */}
+            {/* Product Details - Right Side */}
+            <div className="md:w-1/2 flex flex-col">
+              <div className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
+                {/* Title & Price */}
                 <div className="mb-8">
-                  <h2 className="text-2xl md:text-3xl font-medium mb-4 leading-tight">{product.title}</h2>
-                  <p className="text-2xl font-medium opacity-80">
+                  <h2 className="text-2xl md:text-3xl font-medium text-[#f6eddd] leading-tight mb-4">
+                    {product.title}
+                  </h2>
+                  <p className="text-2xl font-semibold text-[#f6eddd]">
                     {selectedVariant
                       ? formatPrice(selectedVariant.price.amount, selectedVariant.price.currencyCode)
                       : formatPrice(product.priceRange.minVariantPrice.amount, product.priceRange.minVariantPrice.currencyCode)
@@ -202,112 +211,105 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
                 </div>
 
                 {/* Options */}
-                <div className="space-y-8 mb-10">
-                  {options.map(option => (
-                    <div key={option.name}>
-                      <div className="flex items-center justify-between mb-4">
-                        <label className="text-sm opacity-50 uppercase tracking-wider font-medium">
-                          {option.name}
-                        </label>
-                        {selectedOptions[option.name] && (
-                          <span className="text-sm opacity-70">{selectedOptions[option.name]}</span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        {option.values.map(value => {
-                          const isSelected = selectedOptions[option.name] === value;
-                          const isAvailable = isOptionAvailable(option.name, value);
-                          const isColor = option.name.toLowerCase() === 'color' || option.name.toLowerCase() === 'colour';
+                <div className="space-y-8 mb-8">
+                  {options.map(option => {
+                    const isColor = option.name.toLowerCase() === 'color' || option.name.toLowerCase() === 'colour';
+                    const isSize = option.name.toLowerCase() === 'size';
 
-                          if (isColor) {
+                    return (
+                      <div key={option.name}>
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="text-sm text-[#f6eddd]/50 uppercase tracking-wider font-medium">
+                            {option.name}
+                          </span>
+                          {selectedOptions[option.name] && (
+                            <span className="text-sm text-[#f6eddd]/70">
+                              {selectedOptions[option.name]}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          {option.values.map(value => {
+                            const isSelected = selectedOptions[option.name] === value;
+                            const isAvailable = isOptionAvailable(option.name, value);
+
+                            if (isColor) {
+                              return (
+                                <button
+                                  key={value}
+                                  onClick={() => setSelectedOptions(prev => ({ ...prev, [option.name]: value }))}
+                                  disabled={!isAvailable}
+                                  className={`
+                                    w-12 h-12 rounded-full border-2 transition-all relative
+                                    ${isSelected
+                                      ? 'border-[#f6eddd] ring-2 ring-[#f6eddd]/30 ring-offset-2 ring-offset-[#1a1c16]'
+                                      : 'border-[rgba(246,237,221,0.2)] hover:border-[rgba(246,237,221,0.4)]'
+                                    }
+                                    ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}
+                                  `}
+                                  style={{ backgroundColor: getColorCode(value) }}
+                                  title={value}
+                                />
+                              );
+                            }
+
                             return (
                               <button
                                 key={value}
                                 onClick={() => setSelectedOptions(prev => ({ ...prev, [option.name]: value }))}
                                 disabled={!isAvailable}
                                 className={`
-                                  w-11 h-11 rounded-full border-2 transition-all relative
-                                  ${isSelected ? 'border-[#f6eddd] scale-110 ring-2 ring-[rgba(246,237,221,0.3)] ring-offset-2 ring-offset-[#202219]' : 'border-[rgba(246,237,221,0.15)]'}
-                                  ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:scale-105 hover:border-[rgba(246,237,221,0.4)]'}
+                                  px-5 py-3 text-sm rounded-full border transition-all font-medium
+                                  ${isSelected
+                                    ? 'border-[#f6eddd] bg-[#f6eddd] text-[#1a1c16]'
+                                    : 'border-[rgba(246,237,221,0.2)] text-[#f6eddd]/70 hover:border-[rgba(246,237,221,0.4)] hover:text-[#f6eddd]'
+                                  }
+                                  ${!isAvailable ? 'opacity-30 cursor-not-allowed line-through' : 'cursor-pointer'}
                                 `}
-                                style={{ backgroundColor: getColorCode(value) }}
-                                title={value}
-                              />
+                              >
+                                {isSize ? getShortLabel(value) : value}
+                              </button>
                             );
-                          }
-
-                          return (
-                            <button
-                              key={value}
-                              onClick={() => setSelectedOptions(prev => ({ ...prev, [option.name]: value }))}
-                              disabled={!isAvailable}
-                              className={`
-                                px-6 py-3 text-sm border rounded-full transition-all font-medium
-                                ${isSelected
-                                  ? 'border-[#f6eddd] bg-[rgba(246,237,221,0.12)] text-[#f6eddd]'
-                                  : 'border-[rgba(246,237,221,0.15)] hover:border-[rgba(246,237,221,0.4)] opacity-70 hover:opacity-100'
-                                }
-                                ${!isAvailable ? 'opacity-30 cursor-not-allowed line-through' : ''}
-                              `}
-                            >
-                              {value}
-                            </button>
-                          );
-                        })}
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Description */}
                 {product.description && (
-                  <div className="mb-10 p-5 bg-[rgba(246,237,221,0.03)] rounded-2xl border border-[rgba(246,237,221,0.06)]">
-                    <h3 className="text-xs opacity-40 mb-3 uppercase tracking-wider font-medium">Description</h3>
-                    <p className="text-sm opacity-60 leading-relaxed">
-                      {product.description}
-                    </p>
+                  <div className="mb-8">
+                    <h3 className="text-sm text-[#f6eddd]/50 uppercase tracking-wider font-medium mb-4">
+                      Description
+                    </h3>
+                    <div className="bg-[rgba(246,237,221,0.04)] rounded-2xl p-5 border border-[rgba(246,237,221,0.06)]">
+                      <p className="text-sm text-[#f6eddd]/60 leading-relaxed">
+                        {product.description}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Add to Cart */}
-              <div className="space-y-4 pt-6 border-t border-[rgba(246,237,221,0.08)]">
+              {/* Sticky Add to Cart Footer */}
+              <div className="p-6 md:p-8 lg:px-10 border-t border-[rgba(246,237,221,0.1)] bg-[#1a1c16]">
                 <button
                   onClick={handleAddToCart}
                   disabled={isLoading || isAdding || !selectedVariant?.availableForSale}
-                  className="w-full py-4 px-8 bg-[#f6eddd] text-[#202219] font-semibold rounded-full hover:bg-[#e3dccb] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-[15px] hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full py-4 bg-[#f6eddd] text-[#1a1c16] font-semibold rounded-full hover:bg-[#e8dfcc] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[15px]"
                 >
-                  {!selectedVariant?.availableForSale ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                      </svg>
-                      Sold Out
-                    </span>
-                  ) : isAdding ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Adding to Cart...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                      </svg>
-                      Add to Cart
-                    </span>
-                  )}
+                  {!selectedVariant?.availableForSale
+                    ? 'Sold Out'
+                    : isAdding
+                      ? 'Adding to Cart...'
+                      : 'Add to Cart'
+                  }
                 </button>
 
-                {/* Shipping Info */}
-                <p className="text-center text-xs opacity-40 flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                  </svg>
-                  Free shipping on orders over $100
+                <p className="text-center text-xs text-[#f6eddd]/40 mt-4">
+                  Free shipping across India
                 </p>
               </div>
             </div>
@@ -360,6 +362,8 @@ function getColorCode(colorName: string): string {
     'silver': '#c0c0c0',
     'slate': '#708090',
     'wine': '#722f37',
+    'dark green': '#1a472a',
+    'light blue': '#87ceeb',
   };
 
   const normalized = colorName.toLowerCase().trim();
