@@ -9,6 +9,7 @@ interface StudioMapProps {
   center: { lat: number; lng: number } | null;
   selectedStudioId: string | null;
   onSelectStudio: (studio: Studio) => void;
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 const DEFAULT_CENTER = { lat: 20.5937, lng: 78.9629 }; // India
@@ -35,7 +36,7 @@ function MapController({ center, studios }: { center: { lat: number; lng: number
   return null;
 }
 
-export function StudioMap({ studios, center, selectedStudioId, onSelectStudio }: StudioMapProps) {
+export function StudioMap({ studios, center, selectedStudioId, onSelectStudio, userLocation }: StudioMapProps) {
   const [initialCenter] = useState(center || DEFAULT_CENTER);
   const mapCenter = center || DEFAULT_CENTER;
 
@@ -123,6 +124,24 @@ export function StudioMap({ studios, center, selectedStudioId, onSelectStudio }:
             </AdvancedMarker>
           );
         })}
+        {/* User's current location - blue dot */}
+        {userLocation && (
+          <AdvancedMarker
+            position={userLocation}
+            title="Your location"
+          >
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                background: '#4285F4',
+                border: '3px solid white',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+              }}
+            />
+          </AdvancedMarker>
+        )}
       </Map>
     </APIProvider>
   );

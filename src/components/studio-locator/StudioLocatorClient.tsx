@@ -25,7 +25,7 @@ export function StudioLocatorClient() {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const { studios, loading, error, searchNearby, geocodeAndSearch, getStudioDetails, clearError } = useStudios();
-  const { getCurrentLocation, loading: locationLoading, error: locationError, clearError: clearLocationError } = useGeolocation();
+  const { getCurrentLocation, loading: locationLoading, error: locationError, clearError: clearLocationError, latitude: userLat, longitude: userLng } = useGeolocation();
 
   // Auto-detect location on mount
   useEffect(() => {
@@ -229,6 +229,7 @@ export function StudioLocatorClient() {
             center={mapCenter}
             selectedStudioId={selectedStudio?.id || null}
             onSelectStudio={handleSelectStudio}
+            userLocation={userLat && userLng ? { lat: userLat, lng: userLng } : null}
           />
         </div>
 
