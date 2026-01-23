@@ -53,7 +53,47 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
               height: '100%',
             }}
           >
-            <InstagramEmbedCompact url={post.instagramUrl} postId={post.instagramPostId} />
+            {post.thumbnailUrl ? (
+              <>
+                <img
+                  src={post.thumbnailUrl}
+                  alt={post.caption || 'Instagram post'}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+                {/* Instagram badge */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    background: 'rgba(0,0,0,0.6)',
+                    borderRadius: '4px',
+                    padding: '4px 6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                  </svg>
+                </div>
+              </>
+            ) : (
+              <InstagramEmbedCompact url={post.instagramUrl} postId={post.instagramPostId} />
+            )}
           </div>
         ) : post.mediaType === 'video' ? (
           <>

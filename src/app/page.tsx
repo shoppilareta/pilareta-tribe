@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
+import { ShopTile } from '@/components/shop';
+import { getProducts } from '@/lib/shopify/queries';
+import { isShopifyConfigured } from '@/lib/shopify/client';
 
 // Force dynamic rendering to check session state
 export const dynamic = 'force-dynamic';
@@ -10,12 +13,35 @@ export default async function HomePage() {
   const isLoggedIn = !!session.userId;
 
   // Fetch some stats for the tiles
-  const [studioCount, exerciseCount, programCount, postCount] = await Promise.all([
+  const [studioCount, exerciseCount, programCount, postCount, recentPosts, shopProducts] = await Promise.all([
     prisma.studio.count(),
     prisma.exercise.count(),
     prisma.program.count({ where: { isPublished: true } }),
     prisma.ugcPost.count({ where: { status: 'approved' } }),
+    prisma.ugcPost.findMany({
+      where: { status: 'approved' },
+      orderBy: { createdAt: 'desc' },
+      take: 6,
+      select: {
+        id: true,
+        mediaUrl: true,
+        mediaType: true,
+        thumbnailUrl: true,
+        instagramUrl: true,
+      },
+    }),
+    // Fetch shop products if Shopify is configured
+    isShopifyConfigured() ? getProducts(6).catch(() => []) : Promise.resolve([]),
   ]);
+
+  // Helper to transform media URLs
+  const transformMediaUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    if (url.startsWith('/uploads/')) {
+      return '/api' + url;
+    }
+    return url;
+  };
 
   return (
     <div className="container py-8 md:py-12">
@@ -260,7 +286,7 @@ export default async function HomePage() {
             </p>
           </div>
 
-          {/* Mock feed preview */}
+          {/* Feed preview */}
           <div
             style={{
               display: 'grid',
@@ -271,15 +297,79 @@ export default async function HomePage() {
               overflow: 'hidden',
             }}
           >
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                style={{
-                  aspectRatio: '1',
-                  background: `rgba(246, 237, 221, ${0.03 + i * 0.01})`,
-                }}
-              />
-            ))}
+            {recentPosts.length > 0
+              ? recentPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    style={{
+                      aspectRatio: '1',
+                      background: 'rgba(246, 237, 221, 0.05)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {post.mediaType === 'instagram' ? (
+                      post.thumbnailUrl ? (
+                        <img
+                          src={post.thumbnailUrl}
+                          alt=""
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCAF45 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <svg
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="white"
+                            strokeWidth="1.5"
+                          >
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                          </svg>
+                        </div>
+                      )
+                    ) : (
+                      <img
+                        src={
+                          post.mediaType === 'video' && post.thumbnailUrl
+                            ? transformMediaUrl(post.thumbnailUrl)!
+                            : transformMediaUrl(post.mediaUrl)!
+                        }
+                        alt=""
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    )}
+                  </div>
+                ))
+              : [1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      aspectRatio: '1',
+                      background: `rgba(246, 237, 221, ${0.03 + i * 0.01})`,
+                    }}
+                  />
+                ))}
           </div>
 
           {/* Stats */}
@@ -336,6 +426,9 @@ export default async function HomePage() {
             Join the Community
           </Link>
         </section>
+
+        {/* Shop Pilareta */}
+        <ShopTile products={shopProducts} />
       </div>
 
       {/* Bottom CTA - only show when not logged in */}

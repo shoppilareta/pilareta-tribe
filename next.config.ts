@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: 'pilareta.com',
         pathname: '/cdn/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.shopify.com',
+        pathname: '/**',
+      },
     ],
   },
 };

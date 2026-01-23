@@ -58,8 +58,21 @@ export async function GET(request: NextRequest) {
     const items = hasMore ? posts.slice(0, limit) : posts;
     const nextCursor = hasMore ? items[items.length - 1]?.id : null;
 
+    // Helper to transform /uploads/... paths to /api/uploads/...
+    const transformMediaUrl = (url: string | null): string | null => {
+      if (!url) return null;
+      if (url.startsWith('/uploads/')) {
+        return '/api' + url;
+      }
+      return url;
+    };
+
     return NextResponse.json({
-      posts: items,
+      posts: items.map((post) => ({
+        ...post,
+        mediaUrl: transformMediaUrl(post.mediaUrl),
+        thumbnailUrl: transformMediaUrl(post.thumbnailUrl),
+      })),
       nextCursor,
       hasMore,
     });

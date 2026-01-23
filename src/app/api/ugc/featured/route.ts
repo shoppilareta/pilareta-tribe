@@ -83,9 +83,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Helper to transform /uploads/... paths to /api/uploads/...
+    const transformMediaUrl = (url: string | null): string | null => {
+      if (!url) return null;
+      if (url.startsWith('/uploads/')) {
+        return '/api' + url;
+      }
+      return url;
+    };
+
     return NextResponse.json({
       posts: posts.map((post) => ({
         ...post,
+        mediaUrl: transformMediaUrl(post.mediaUrl),
+        thumbnailUrl: transformMediaUrl(post.thumbnailUrl),
         isLiked: userInteractions[post.id]?.liked || false,
         isSaved: userInteractions[post.id]?.saved || false,
       })),

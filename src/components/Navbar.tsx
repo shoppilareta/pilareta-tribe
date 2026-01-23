@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { AuthButton } from './AuthButton';
+import { CartButton } from './shop/CartButton';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -15,6 +16,7 @@ export function Navbar() {
     { href: '/studio-locator', label: 'Studios' },
     { href: '/learn', label: 'Learn' },
     { href: '/ugc', label: 'Community' },
+    { href: '/shop', label: 'Shop' },
   ];
 
   return (
@@ -49,19 +51,13 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {/* Link to main shop */}
-            <a
-              href="https://pilareta.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm tracking-wide opacity-70 hover:opacity-100 transition-opacity"
-            >
-              Shop
-            </a>
           </div>
 
-          {/* Right Section - Auth & Mobile Menu */}
+          {/* Right Section - Cart, Auth & Mobile Menu */}
           <div className="flex items-center gap-4">
+            {/* Cart Button */}
+            <CartButton />
+
             {/* Auth Button - Desktop */}
             <div className="hidden md:block">
               <AuthButton />
@@ -104,14 +100,6 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <a
-                href="https://pilareta.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm tracking-wide py-2 opacity-70"
-              >
-                Shop
-              </a>
               <div className="pt-2 border-t border-[rgba(246,237,221,0.1)]">
                 <AuthButton />
               </div>

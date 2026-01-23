@@ -98,8 +98,19 @@ export async function GET(
       isSaved = !!save;
     }
 
+    // Helper to transform /uploads/... paths to /api/uploads/...
+    const transformMediaUrl = (url: string | null): string | null => {
+      if (!url) return null;
+      if (url.startsWith('/uploads/')) {
+        return '/api' + url;
+      }
+      return url;
+    };
+
     return NextResponse.json({
       ...post,
+      mediaUrl: transformMediaUrl(post.mediaUrl),
+      thumbnailUrl: transformMediaUrl(post.thumbnailUrl),
       isLiked,
       isSaved,
       isOwner,

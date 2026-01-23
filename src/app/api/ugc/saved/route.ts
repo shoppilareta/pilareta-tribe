@@ -76,9 +76,20 @@ export async function GET(request: NextRequest) {
     });
     const likedIds = new Set(likes.map((l) => l.postId));
 
+    // Helper to transform /uploads/... paths to /api/uploads/...
+    const transformMediaUrl = (url: string | null): string | null => {
+      if (!url) return null;
+      if (url.startsWith('/uploads/')) {
+        return '/api' + url;
+      }
+      return url;
+    };
+
     return NextResponse.json({
       posts: items.map((save) => ({
         ...save.post,
+        mediaUrl: transformMediaUrl(save.post.mediaUrl),
+        thumbnailUrl: transformMediaUrl(save.post.thumbnailUrl),
         isLiked: likedIds.has(save.post.id),
         isSaved: true,
         savedAt: save.createdAt,

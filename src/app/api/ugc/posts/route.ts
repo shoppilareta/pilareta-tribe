@@ -110,9 +110,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Helper to transform /uploads/... paths to /api/uploads/...
+    const transformMediaUrl = (url: string | null): string | null => {
+      if (!url) return null;
+      if (url.startsWith('/uploads/')) {
+        return '/api' + url;
+      }
+      return url;
+    };
+
     return NextResponse.json({
       posts: items.map((post) => ({
         ...post,
+        mediaUrl: transformMediaUrl(post.mediaUrl),
+        thumbnailUrl: transformMediaUrl(post.thumbnailUrl),
         isLiked: userInteractions[post.id]?.liked || false,
         isSaved: userInteractions[post.id]?.saved || false,
       })),
@@ -148,6 +159,72 @@ function extractInstagramPostId(url: string): string | null {
 // Helper to validate Instagram URL
 function isValidInstagramUrl(url: string): boolean {
   return extractInstagramPostId(url) !== null;
+}
+
+// Helper to decode HTML entities in URLs
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+// Helper to fetch Instagram thumbnail via oEmbed API with fallback to og:image
+async function fetchInstagramThumbnail(url: string): Promise<string | null> {
+  // Clean the URL - remove tracking parameters
+  const cleanUrl = url.split('?')[0];
+
+  // Try oEmbed first
+  try {
+    const oembedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
+    const response = await fetch(oembedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.thumbnail_url) {
+        return decodeHtmlEntities(data.thumbnail_url);
+      }
+    }
+  } catch {
+    // oEmbed failed, try fallback
+  }
+
+  // Fallback: fetch page and extract og:image
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html',
+      },
+    });
+
+    if (response.ok) {
+      const html = await response.text();
+
+      // Look for og:image meta tag
+      const ogImageMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i);
+      if (ogImageMatch && ogImageMatch[1]) {
+        return decodeHtmlEntities(ogImageMatch[1]);
+      }
+
+      // Try alternate pattern
+      const ogImageMatch2 = html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:image"/i);
+      if (ogImageMatch2 && ogImageMatch2[1]) {
+        return decodeHtmlEntities(ogImageMatch2[1]);
+      }
+    }
+  } catch {
+    // Fallback also failed
+  }
+
+  return null;
 }
 
 // POST /api/ugc/posts - Create post (auth required)
@@ -195,6 +272,9 @@ export async function POST(request: NextRequest) {
 
       const instagramPostId = extractInstagramPostId(instagramUrl);
 
+      // Try to fetch Instagram thumbnail
+      const thumbnailUrl = await fetchInstagramThumbnail(instagramUrl);
+
       const post = await prisma.ugcPost.create({
         data: {
           userId: session.userId,
@@ -202,6 +282,7 @@ export async function POST(request: NextRequest) {
           studioId: studioId || null,
           mediaUrl: null,
           mediaType: 'instagram',
+          thumbnailUrl: thumbnailUrl,
           instagramUrl: instagramUrl,
           instagramPostId: instagramPostId,
           consentGiven: true,

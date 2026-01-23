@@ -184,45 +184,164 @@ export function InstagramEmbed({ url, postId, maxWidth = 400 }: InstagramEmbedPr
   );
 }
 
-// Compact version for grid cards
+// Compact version for grid cards - renders actual embed scaled to fit
 export function InstagramEmbedCompact({ url, postId }: { url: string; postId?: string | null }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    // Load Instagram embed script if not already loaded
+    const loadScript = () => {
+      if (document.querySelector('script[src*="instagram.com/embed.js"]')) {
+        if (window.instgrm) {
+          window.instgrm.Embeds.process();
+        }
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://www.instagram.com/embed.js';
+      script.async = true;
+      script.onload = () => {
+        if (window.instgrm) {
+          window.instgrm.Embeds.process();
+        }
+      };
+      document.body.appendChild(script);
+    };
+
+    loadScript();
+
+    // Check periodically if the embed has loaded
+    const checkLoaded = setInterval(() => {
+      if (containerRef.current) {
+        const iframe = containerRef.current.querySelector('iframe');
+        if (iframe) {
+          setLoaded(true);
+          clearInterval(checkLoaded);
+        }
+      }
+    }, 500);
+
+    const timeout = setTimeout(() => {
+      clearInterval(checkLoaded);
+      setLoaded(true); // Show whatever we have after timeout
+    }, 5000);
+
+    return () => {
+      clearInterval(checkLoaded);
+      clearTimeout(timeout);
+    };
+  }, [url]);
+
+  // Re-process when URL changes
+  useEffect(() => {
+    if (window.instgrm) {
+      setTimeout(() => {
+        window.instgrm?.Embeds.process();
+      }, 100);
+    }
+  }, [url]);
+
   return (
     <div
+      ref={containerRef}
       style={{
         width: '100%',
-        aspectRatio: '1',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCAF45 100%)',
-        borderRadius: '4px',
+        height: '100%',
         position: 'relative',
         overflow: 'hidden',
+        background: '#1a1a1a',
       }}
     >
-      <svg
-        width="40"
-        height="40"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth="1.5"
-      >
-        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-      </svg>
-      <p
+      {/* Loading placeholder */}
+      {!loaded && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCAF45 100%)',
+            zIndex: 1,
+          }}
+        >
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="1.5"
+          >
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+          </svg>
+          <p style={{ margin: '8px 0 0', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>
+            Loading...
+          </p>
+        </div>
+      )}
+
+      {/* Scaled embed container */}
+      <div
         style={{
-          margin: '8px 0 0',
-          fontSize: '0.75rem',
-          color: 'white',
-          fontWeight: 500,
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) scale(0.5)',
+          transformOrigin: 'center center',
+          width: '400px',
+          minHeight: '400px',
         }}
       >
-        Instagram Post
-      </p>
+        <blockquote
+          className="instagram-media"
+          data-instgrm-permalink={url}
+          data-instgrm-version="14"
+          style={{
+            background: '#1a1a1a',
+            border: 0,
+            borderRadius: '4px',
+            boxShadow: 'none',
+            margin: 0,
+            padding: 0,
+            width: '100%',
+          }}
+        />
+      </div>
+
+      {/* Instagram badge overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '8px',
+          right: '8px',
+          background: 'rgba(0, 0, 0, 0.6)',
+          borderRadius: '4px',
+          padding: '4px 8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          zIndex: 2,
+        }}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="white"
+          strokeWidth="1.5"
+        >
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+        </svg>
+      </div>
     </div>
   );
 }
