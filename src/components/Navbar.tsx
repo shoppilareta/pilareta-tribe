@@ -48,8 +48,6 @@ export function Navbar() {
                 <a
                   key={link.href}
                   href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="text-sm tracking-wide transition-opacity hover:opacity-100 opacity-70"
                 >
                   {link.label}
@@ -105,8 +103,6 @@ export function Navbar() {
                   <a
                     key={link.href}
                     href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     onClick={() => setMobileMenuOpen(false)}
                     className="text-sm tracking-wide py-2 transition-opacity opacity-70"
                   >
