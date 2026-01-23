@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db';
 import { checkRateLimit, logApiUsage } from './rate-limiter';
 
-const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+// Fallback API key for when env var is not set
+const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM';
 const PLACES_BASE_URL = 'https://maps.googleapis.com/maps/api/place';
 const GEOCODE_BASE_URL = 'https://maps.googleapis.com/maps/api/geocode';
 
