@@ -1,9 +1,6 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
-import { ShopTile } from '@/components/shop';
-import { getProducts } from '@/lib/shopify/queries';
-import { isShopifyConfigured } from '@/lib/shopify/client';
 
 // Force dynamic rendering to check session state
 export const dynamic = 'force-dynamic';
@@ -13,7 +10,7 @@ export default async function HomePage() {
   const isLoggedIn = !!session.userId;
 
   // Fetch some stats for the tiles
-  const [studioCount, exerciseCount, programCount, postCount, recentPosts, shopProducts] = await Promise.all([
+  const [studioCount, exerciseCount, programCount, postCount, recentPosts] = await Promise.all([
     prisma.studio.count(),
     prisma.exercise.count(),
     prisma.program.count({ where: { isPublished: true } }),
@@ -30,8 +27,6 @@ export default async function HomePage() {
         instagramUrl: true,
       },
     }),
-    // Fetch shop products if Shopify is configured
-    isShopifyConfigured() ? getProducts(6).catch(() => []) : Promise.resolve([]),
   ]);
 
   // Helper to transform media URLs
@@ -427,8 +422,6 @@ export default async function HomePage() {
           </Link>
         </section>
 
-        {/* Shop Pilareta */}
-        <ShopTile products={shopProducts} />
       </div>
 
       {/* Bottom CTA - only show when not logged in */}

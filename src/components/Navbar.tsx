@@ -5,18 +5,23 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { AuthButton } from './AuthButton';
-import { CartButton } from './shop/CartButton';
+
+interface NavLink {
+  href: string;
+  label: string;
+  external?: boolean;
+}
 
 export function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navLinks = [
+  const navLinks: NavLink[] = [
     { href: '/', label: 'Home' },
     { href: '/studio-locator', label: 'Studios' },
     { href: '/learn', label: 'Learn' },
     { href: '/ugc', label: 'Community' },
-    { href: '/shop', label: 'Shop' },
+    { href: 'https://pilareta.com', label: 'Shop', external: true },
   ];
 
   return (
@@ -39,25 +44,34 @@ export function Navbar() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-10">
             {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm tracking-wide transition-opacity hover:opacity-100 ${
-                  pathname === link.href
-                    ? 'opacity-100'
-                    : 'opacity-70'
-                }`}
-              >
-                {link.label}
-              </Link>
+              link.external ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm tracking-wide transition-opacity hover:opacity-100 opacity-70"
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`text-sm tracking-wide transition-opacity hover:opacity-100 ${
+                    pathname === link.href
+                      ? 'opacity-100'
+                      : 'opacity-70'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
           </div>
 
-          {/* Right Section - Cart, Auth & Mobile Menu */}
+          {/* Right Section - Auth & Mobile Menu */}
           <div className="flex items-center gap-4">
-            {/* Cart Button */}
-            <CartButton />
-
             {/* Auth Button - Desktop */}
             <div className="hidden md:block">
               <AuthButton />
@@ -87,18 +101,31 @@ export function Navbar() {
           <div className="md:hidden border-t border-[rgba(246,237,221,0.1)] py-4">
             <div className="flex flex-col gap-4">
               {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`text-sm tracking-wide py-2 transition-opacity ${
-                    pathname === link.href
-                      ? 'opacity-100'
-                      : 'opacity-70'
-                  }`}
-                >
-                  {link.label}
-                </Link>
+                link.external ? (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-sm tracking-wide py-2 transition-opacity opacity-70"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`text-sm tracking-wide py-2 transition-opacity ${
+                      pathname === link.href
+                        ? 'opacity-100'
+                        : 'opacity-70'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                )
               ))}
               <div className="pt-2 border-t border-[rgba(246,237,221,0.1)]">
                 <AuthButton />
