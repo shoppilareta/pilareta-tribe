@@ -41,21 +41,21 @@ export function ProductCard({ product }: ProductCardProps) {
     <>
       <div
         onClick={() => setIsQuickViewOpen(true)}
-        className="group bg-[rgba(70,74,60,0.2)] border border-[rgba(246,237,221,0.1)] rounded-2xl p-4 transition-all hover:border-[rgba(246,237,221,0.2)] hover:bg-[rgba(70,74,60,0.3)] overflow-hidden cursor-pointer"
+        className="card cursor-pointer group"
       >
         {/* Product Image */}
-        <div className="relative aspect-square mb-4 bg-[rgba(70,74,60,0.3)] rounded-xl overflow-hidden">
+        <div className="relative aspect-square mb-5 bg-[rgba(246,237,221,0.05)] rounded-lg overflow-hidden">
           {product.featuredImage ? (
             <Image
               src={product.featuredImage.url}
               alt={product.featuredImage.altText || product.title}
               fill
-              className="object-cover transition-transform group-hover:scale-105"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center opacity-30">
-              <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-full h-full flex items-center justify-center opacity-20">
+              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
@@ -63,16 +63,16 @@ export function ProductCard({ product }: ProductCardProps) {
 
           {/* Out of Stock Badge */}
           {!product.availableForSale && (
-            <div className="absolute top-2 left-2 bg-[#202219]/80 text-xs px-2 py-1 rounded">
+            <div className="absolute top-3 left-3 bg-[#202219]/90 text-xs px-3 py-1.5 rounded-full">
               Sold Out
             </div>
           )}
 
           {/* Image Count Badge */}
           {product.images.length > 1 && (
-            <div className="absolute bottom-2 right-2 bg-[#202219]/80 text-xs px-2 py-1 rounded flex items-center gap-1">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <div className="absolute bottom-3 right-3 bg-[#202219]/90 text-xs px-2.5 py-1.5 rounded-full flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               {product.images.length}
             </div>
@@ -80,12 +80,12 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Product Info */}
-        <div className="space-y-2">
-          <h3 className="font-medium text-sm line-clamp-2 min-h-[2.5rem]">
+        <div className="space-y-3">
+          <h3 className="font-medium leading-snug line-clamp-2">
             {product.title}
           </h3>
 
-          <p className="text-sm opacity-70">
+          <p className="text-sm opacity-60">
             {hasMultiplePrices ? (
               <>From {formatPrice(minVariantPrice.amount, minVariantPrice.currencyCode)}</>
             ) : (
@@ -95,44 +95,39 @@ export function ProductCard({ product }: ProductCardProps) {
 
           {/* Color Swatches */}
           {colors.length > 0 && (
-            <div className="flex items-center gap-1 pt-1">
-              {colors.slice(0, 5).map(color => (
+            <div className="flex items-center gap-2 pt-1">
+              {colors.slice(0, 6).map(color => (
                 <div
                   key={color}
-                  className="w-5 h-5 rounded-full border border-[rgba(246,237,221,0.3)]"
+                  className="w-6 h-6 rounded-full border border-[rgba(246,237,221,0.2)]"
                   style={{ backgroundColor: getColorCode(color) }}
                   title={color}
                 />
               ))}
-              {colors.length > 5 && (
-                <span className="text-xs opacity-50">+{colors.length - 5}</span>
+              {colors.length > 6 && (
+                <span className="text-xs opacity-40">+{colors.length - 6}</span>
               )}
             </div>
           )}
 
           {/* Size Options */}
           {sizes.length > 0 && (
-            <div className="flex items-center gap-1 pt-1">
-              {sizes.slice(0, 5).map(size => (
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              {sizes.map(size => (
                 <span
                   key={size}
-                  className="text-xs px-2 py-0.5 border border-[rgba(246,237,221,0.2)] rounded opacity-70"
+                  className="text-xs px-2.5 py-1 bg-[rgba(246,237,221,0.05)] border border-[rgba(246,237,221,0.1)] rounded-md opacity-60"
                 >
                   {size}
                 </span>
               ))}
-              {sizes.length > 5 && (
-                <span className="text-xs opacity-50">+{sizes.length - 5}</span>
-              )}
             </div>
           )}
 
           {/* Quick View CTA */}
-          <div className="pt-2">
-            <span className="text-xs opacity-50 group-hover:opacity-70 transition-opacity">
-              Click to view details
-            </span>
-          </div>
+          <p className="text-xs opacity-30 pt-2 group-hover:opacity-50 transition-opacity">
+            Click for details
+          </p>
         </div>
       </div>
 
@@ -149,8 +144,8 @@ export function ProductCard({ product }: ProductCardProps) {
 // Helper to convert color names to hex codes
 function getColorCode(colorName: string): string {
   const colors: Record<string, string> = {
-    'black': '#000000',
-    'white': '#ffffff',
+    'black': '#1a1a1a',
+    'white': '#f5f5f5',
     'red': '#dc2626',
     'blue': '#2563eb',
     'navy': '#1e3a5f',
