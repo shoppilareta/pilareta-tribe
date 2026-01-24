@@ -235,8 +235,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Check rate limit
-    const rateLimit = await checkUploadRateLimit(session.userId);
+    // Check rate limit (admins are exempt)
+    const rateLimit = await checkUploadRateLimit(session.userId, session.isAdmin || false);
     if (!rateLimit.allowed) {
       return NextResponse.json({ error: rateLimit.error }, { status: 429 });
     }

@@ -28,8 +28,17 @@ export interface UploadResult {
 
 /**
  * Check if user has exceeded upload rate limits
+ * Admins are exempt from rate limits
  */
-export async function checkUploadRateLimit(userId: string): Promise<{ allowed: boolean; error?: string }> {
+export async function checkUploadRateLimit(
+  userId: string,
+  isAdmin: boolean = false
+): Promise<{ allowed: boolean; error?: string }> {
+  // Admins are exempt from rate limits
+  if (isAdmin) {
+    return { allowed: true };
+  }
+
   const now = new Date();
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
