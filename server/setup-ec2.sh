@@ -1,138 +1,155 @@
 #!/bin/bash
-# EC2 Setup Script for Pilareta Tribe
-# Run as: sudo bash setup-ec2.sh
-# Tested on: Amazon Linux 2023
+# ============================================
+# Pilareta Tribe - EC2 Initial Setup Script
+# ============================================
+# Run this script on a fresh Amazon Linux 2023 EC2 instance
+# to set up all required dependencies and services.
+#
+# Usage: sudo ./setup-ec2.sh
+# ============================================
 
 set -e
 
-echo "=== Pilareta Tribe EC2 Setup ==="
-echo "Starting setup at $(date)"
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# Update system
-echo ">>> Updating system packages..."
+echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}  Pilareta Tribe EC2 Setup${NC}"
+echo -e "${YELLOW}========================================${NC}"
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}Please run as root (sudo ./setup-ec2.sh)${NC}"
+    exit 1
+fi
+
+# ============================================
+# 1. System Update
+# ============================================
+echo -e "\n${GREEN}[1/8]${NC} Updating system packages..."
 dnf update -y
 
-# Install Node.js 20 LTS
-echo ">>> Installing Node.js 20 LTS..."
+# ============================================
+# 2. Install Node.js 20 LTS
+# ============================================
+echo -e "\n${GREEN}[2/8]${NC} Installing Node.js 20 LTS..."
 curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
 dnf install -y nodejs
 
-# Verify Node.js installation
+# Verify installation
 node --version
 npm --version
 
-# Install pnpm globally
-echo ">>> Installing pnpm..."
+# ============================================
+# 3. Install pnpm
+# ============================================
+echo -e "\n${GREEN}[3/8]${NC} Installing pnpm..."
 npm install -g pnpm
+pnpm --version
 
-# Install pm2 globally
-echo ">>> Installing pm2..."
+# ============================================
+# 4. Install PM2
+# ============================================
+echo -e "\n${GREEN}[4/8]${NC} Installing PM2..."
 npm install -g pm2
+pm2 --version
 
-# Install nginx
-echo ">>> Installing nginx..."
+# ============================================
+# 5. Install Nginx
+# ============================================
+echo -e "\n${GREEN}[5/8]${NC} Installing Nginx..."
 dnf install -y nginx
 systemctl enable nginx
 systemctl start nginx
 
-# Install PostgreSQL 15
-echo ">>> Installing PostgreSQL 15..."
+# ============================================
+# 6. Install PostgreSQL 15
+# ============================================
+echo -e "\n${GREEN}[6/8]${NC} Installing PostgreSQL 15..."
 dnf install -y postgresql15-server postgresql15
-
-# Initialize PostgreSQL database
-echo ">>> Initializing PostgreSQL..."
 postgresql-setup --initdb
-
-# Enable and start PostgreSQL
 systemctl enable postgresql
 systemctl start postgresql
 
-# Create database and user
-echo ">>> Setting up database..."
-echo "Enter a secure password for the 'tribe' database user:"
+# ============================================
+# 7. Configure PostgreSQL
+# ============================================
+echo -e "\n${GREEN}[7/8]${NC} Configuring PostgreSQL..."
+
+# Prompt for database password
+echo -e "${YELLOW}Enter a secure password for the 'tribe' database user:${NC}"
 read -s DB_PASSWORD
 
-sudo -u postgres psql <<EOF
-CREATE USER tribe WITH PASSWORD '${DB_PASSWORD}';
+# Create database and user
+sudo -u postgres psql << EOF
+CREATE USER tribe WITH PASSWORD '$DB_PASSWORD';
 CREATE DATABASE pilareta_tribe OWNER tribe;
 GRANT ALL PRIVILEGES ON DATABASE pilareta_tribe TO tribe;
-\c pilareta_tribe
-GRANT ALL ON SCHEMA public TO tribe;
 EOF
 
-# Update pg_hba.conf for password authentication
-echo ">>> Configuring PostgreSQL authentication..."
+# Configure authentication (allow password auth for local connections)
 PG_HBA="/var/lib/pgsql/data/pg_hba.conf"
-sed -i 's/ident$/md5/' "$PG_HBA"
-sed -i 's/peer$/md5/' "$PG_HBA"
+if ! grep -q "pilareta_tribe" "$PG_HBA"; then
+    echo "host    pilareta_tribe    tribe    127.0.0.1/32    md5" >> "$PG_HBA"
+fi
+
 systemctl restart postgresql
 
-# Create application directory
-echo ">>> Creating application directory..."
+# ============================================
+# 8. Create Application Directory
+# ============================================
+echo -e "\n${GREEN}[8/8]${NC} Creating application directory..."
 mkdir -p /var/www/pilareta-tribe
-chown ec2-user:ec2-user /var/www/pilareta-tribe
+chown -R ec2-user:ec2-user /var/www/pilareta-tribe
 
-# Setup pm2 to run on startup
-echo ">>> Configuring pm2 startup..."
-pm2 startup systemd -u ec2-user --hp /home/ec2-user
-systemctl enable pm2-ec2-user
+# Create uploads directory
+mkdir -p /var/www/pilareta-tribe/public/uploads/ugc/images
+mkdir -p /var/www/pilareta-tribe/public/uploads/ugc/videos
+chown -R ec2-user:ec2-user /var/www/pilareta-tribe/public/uploads
 
-# Install git
-echo ">>> Installing git..."
-dnf install -y git
+# Create backup directory
+mkdir -p /var/backups/pilareta-tribe
+chown ec2-user:ec2-user /var/backups/pilareta-tribe
 
-# Configure nginx
-echo ">>> Configuring nginx..."
-cat > /etc/nginx/conf.d/tribe.conf << 'NGINX_EOF'
-server {
-    listen 80;
-    server_name tribe.pilareta.com;
-
-    # Increase max body size for file uploads
-    client_max_body_size 10M;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-
-        # Timeouts
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    # Static file caching
-    location /_next/static {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_cache_valid 60m;
-        add_header Cache-Control "public, immutable, max-age=31536000";
-    }
-}
-NGINX_EOF
-
-# Test nginx config and reload
-nginx -t
-systemctl reload nginx
-
-# Print summary
+# ============================================
+# Setup Complete
+# ============================================
+echo -e "\n${GREEN}========================================${NC}"
+echo -e "${GREEN}  Setup Complete!${NC}"
+echo -e "${GREEN}========================================${NC}"
 echo ""
-echo "=== Setup Complete ==="
+echo -e "Next steps:"
+echo -e "  1. Clone the repository:"
+echo -e "     ${YELLOW}cd /var/www/pilareta-tribe${NC}"
+echo -e "     ${YELLOW}git clone https://github.com/shoppilareta/pilareta-tribe.git .${NC}"
 echo ""
-echo "Database connection string:"
-echo "postgresql://tribe:YOUR_PASSWORD@localhost:5432/pilareta_tribe"
+echo -e "  2. Install dependencies:"
+echo -e "     ${YELLOW}pnpm install${NC}"
 echo ""
-echo "Next steps:"
-echo "1. Clone your repository to /var/www/pilareta-tribe"
-echo "2. Create .env file with your configuration"
-echo "3. Run: pnpm install && pnpm prisma migrate deploy && pnpm build"
-echo "4. Run: pm2 start npm --name 'pilareta-tribe' -- start"
-echo "5. Run: pm2 save"
+echo -e "  3. Create environment file:"
+echo -e "     ${YELLOW}cp .env.example .env.local${NC}"
+echo -e "     ${YELLOW}nano .env.local  # Fill in all values${NC}"
 echo ""
-echo "For HTTPS, run: sudo dnf install -y certbot python3-certbot-nginx && sudo certbot --nginx -d tribe.pilareta.com"
+echo -e "  4. Setup database:"
+echo -e "     ${YELLOW}pnpm prisma db push${NC}"
+echo -e "     ${YELLOW}pnpm db:seed${NC}"
+echo ""
+echo -e "  5. Build and start:"
+echo -e "     ${YELLOW}pnpm build${NC}"
+echo -e "     ${YELLOW}pm2 start ecosystem.config.js${NC}"
+echo -e "     ${YELLOW}pm2 save${NC}"
+echo -e "     ${YELLOW}pm2 startup systemd -u ec2-user --hp /home/ec2-user${NC}"
+echo ""
+echo -e "  6. Configure Nginx:"
+echo -e "     ${YELLOW}sudo cp server/nginx.conf /etc/nginx/conf.d/tribe.conf${NC}"
+echo -e "     ${YELLOW}sudo nginx -t && sudo systemctl reload nginx${NC}"
+echo ""
+echo -e "  7. Setup SSL (optional):"
+echo -e "     ${YELLOW}sudo dnf install -y certbot python3-certbot-nginx${NC}"
+echo -e "     ${YELLOW}sudo certbot --nginx -d tribe.pilareta.com${NC}"
+echo ""
+echo -e "Database password: ${YELLOW}(saved during setup)${NC}"
+echo -e "Remember to save this password in your .env.local file!"
