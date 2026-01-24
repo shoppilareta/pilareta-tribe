@@ -5,9 +5,10 @@ import { useState } from 'react';
 interface ModerationPost {
   id: string;
   caption: string | null;
-  mediaUrl: string;
+  mediaUrl: string | null;
   mediaType: string;
   thumbnailUrl: string | null;
+  instagramUrl?: string | null;
   createdAt: string;
   consentGiven: boolean;
   user: {
@@ -96,7 +97,7 @@ export function ModerationCard({ post, onModerate }: ModerationCardProps) {
       >
         {post.mediaType === 'video' ? (
           <video
-            src={post.mediaUrl}
+            src={post.mediaUrl || undefined}
             poster={post.thumbnailUrl || undefined}
             controls
             style={{
@@ -105,9 +106,43 @@ export function ModerationCard({ post, onModerate }: ModerationCardProps) {
               objectFit: 'contain',
             }}
           />
+        ) : post.mediaType === 'instagram' ? (
+          <div style={{ position: 'relative' }}>
+            <a
+              href={post.instagramUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src={post.thumbnailUrl || '/placeholder-instagram.png'}
+                alt="Instagram post"
+                style={{
+                  width: '100%',
+                  maxHeight: '400px',
+                  objectFit: 'contain',
+                }}
+                referrerPolicy="no-referrer"
+              />
+            </a>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '8px',
+                right: '8px',
+                background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+                color: '#fff',
+                fontWeight: 500,
+              }}
+            >
+              Instagram
+            </div>
+          </div>
         ) : (
           <img
-            src={post.mediaUrl}
+            src={post.mediaUrl || post.thumbnailUrl || ''}
             alt="Post media"
             style={{
               width: '100%',

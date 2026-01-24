@@ -5,9 +5,10 @@ import { useState, useEffect, useCallback } from 'react';
 interface AdminPost {
   id: string;
   caption: string | null;
-  mediaUrl: string;
+  mediaUrl: string | null;
   mediaType: string;
   thumbnailUrl: string | null;
+  instagramUrl: string | null;
   status: string;
   isFeatured: boolean;
   createdAt: string;
@@ -361,7 +362,7 @@ export function AllPostsManager() {
               >
                 {post.mediaType === 'video' ? (
                   <video
-                    src={post.mediaUrl}
+                    src={post.mediaUrl || undefined}
                     poster={post.thumbnailUrl || undefined}
                     style={{
                       width: '100%',
@@ -369,9 +370,47 @@ export function AllPostsManager() {
                       objectFit: 'cover',
                     }}
                   />
+                ) : post.mediaType === 'instagram' ? (
+                  <a
+                    href={post.instagramUrl || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    <img
+                      src={post.thumbnailUrl || '/placeholder-instagram.png'}
+                      alt="Instagram post"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                      referrerPolicy="no-referrer"
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        right: '8px',
+                        background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        color: '#fff',
+                        fontWeight: 500,
+                      }}
+                    >
+                      Instagram
+                    </div>
+                  </a>
                 ) : (
                   <img
-                    src={post.mediaUrl}
+                    src={post.mediaUrl || post.thumbnailUrl || ''}
                     alt="Post media"
                     style={{
                       width: '100%',
