@@ -121,6 +121,64 @@ export async function GET(
   }
 }
 
+// PATCH /api/ugc/posts/[id] - Update post (caption) - owner or admin only
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session?.userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { caption } = body;
+
+    if (typeof caption !== 'string') {
+      return NextResponse.json({ error: 'Caption must be a string' }, { status: 400 });
+    }
+
+    const post = await prisma.ugcPost.findUnique({
+      where: { id },
+    });
+
+    if (!post) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+
+    // Check authorization - only owner or admin can edit
+    if (post.userId !== session.userId && !session.isAdmin) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
+    const updatedPost = await prisma.ugcPost.update({
+      where: { id },
+      data: {
+        caption: caption.trim() || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      post: updatedPost,
+    });
+  } catch (error) {
+    console.error('Error updating post:', error);
+    return NextResponse.json({ error: 'Failed to update post' }, { status: 500 });
+  }
+}
+
 // DELETE /api/ugc/posts/[id] - Delete post (owner or admin)
 export async function DELETE(
   request: NextRequest,

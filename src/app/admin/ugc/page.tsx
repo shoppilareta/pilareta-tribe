@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { isAdmin } from '@/lib/auth';
-import { ModerationQueue } from '@/components/ugc/admin/ModerationQueue';
+import { AdminUgcTabs } from '@/components/ugc/admin/AdminUgcTabs';
 
 export default async function AdminUgcPage() {
   const hasAdminAccess = await isAdmin();
@@ -64,8 +64,8 @@ export default async function AdminUgcPage() {
           </p>
         </div>
 
-        {/* Moderation Queue */}
-        <ModerationQueue />
+        {/* Admin Tabs */}
+        <AdminUgcTabs />
       </div>
     </div>
   );
