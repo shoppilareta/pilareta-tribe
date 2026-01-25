@@ -29,6 +29,8 @@ model User {
   sessionCompletions    UserSessionCompletion[]
   programProgress       UserProgramProgress[]
   exerciseCompletions   UserExerciseCompletion[]
+  workoutLogs           WorkoutLog[]
+  workoutStats          UserWorkoutStats?
 }
 
 model Session {
@@ -81,6 +83,9 @@ model UgcPost {
   isFeatured      Boolean  @default(false)
   featuredAt      DateTime?
 
+  // Post type
+  postType        String   @default("general") // "general" | "workout_recap"
+
   // Counts (denormalized)
   likesCount      Int      @default(0)
   commentsCount   Int      @default(0)
@@ -93,12 +98,14 @@ model UgcPost {
   comments        UgcComment[]
   saves           UgcSave[]
   tags            UgcPostTag[]
+  workoutRecap    WorkoutLog?
 
   @@index([userId])
   @@index([studioId])
   @@index([status])
   @@index([isFeatured])
   @@index([createdAt])
+  @@index([postType])
 }
 
 model UgcLike {
@@ -189,6 +196,7 @@ model Studio {
   claims            StudioClaim[]
   editSuggestions   StudioEditSuggestion[]
   ugcPosts          UgcPost[]
+  workoutLogs       WorkoutLog[]
 }
 
 model StudioClaim {
@@ -334,6 +342,7 @@ model PilatesSession {
   items           PilatesSessionItem[]
   completions     UserSessionCompletion[]
   programSessions ProgramSession[]
+  workoutLogs     WorkoutLog[]
 }
 
 model PilatesSessionItem {
@@ -564,4 +573,70 @@ model UserProgramProgress {
   updatedAt       DateTime @updatedAt
 
   @@unique([userId, programId])
+}
+
+// ============================================
+// TRACK MY WORKOUTS
+// ============================================
+
+model WorkoutLog {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // When the workout occurred (user-selectable for backfilling)
+  workoutDate     DateTime @db.Date
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Core metrics (fast logging)
+  durationMinutes Int
+  workoutType     String   // "reformer" | "mat" | "tower" | "other"
+  rpe             Int      // 1-10 Rate of Perceived Exertion
+  notes           String?  @db.Text
+
+  // Optional
+  calorieEstimate Int?
+  focusAreas      String[] // ["core", "glutes", "legs", "arms", "back", "mobility"]
+
+  // Integrations (all optional)
+  sessionId       String?
+  session         PilatesSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  studioId        String?
+  studio          Studio? @relation(fields: [studioId], references: [id], onDelete: SetNull)
+
+  // Sharing
+  isShared        Boolean  @default(false)
+  sharedPostId    String?  @unique
+  sharedPost      UgcPost? @relation(fields: [sharedPostId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([workoutDate])
+  @@index([userId, workoutDate])
+  @@index([studioId])
+  @@index([sessionId])
+}
+
+model UserWorkoutStats {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Streak tracking
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  lastWorkoutDate DateTime? @db.Date
+  streakStartDate DateTime? @db.Date
+
+  // Aggregate stats (cached, updated on each log)
+  totalWorkouts   Int       @default(0)
+  totalMinutes    Int       @default(0)
+  weeklyMinutes   Int       @default(0)
+  monthlyMinutes  Int       @default(0)
+
+  // Focus area distribution
+  focusAreaCounts Json?
+
+  updatedAt       DateTime  @updatedAt
 }

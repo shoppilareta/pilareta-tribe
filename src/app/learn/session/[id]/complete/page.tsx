@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { LogThisSessionButton } from '@/components/track/LogThisSessionButton';
 
 interface Session {
   id: string;
@@ -95,7 +96,15 @@ export default function SessionCompletePage() {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <Link href="/learn/builder" className="btn btn-primary" style={{ width: '100%' }}>
+          {session && (
+            <LogThisSessionButton
+              sessionId={session.id}
+              sessionName={session.name}
+              durationMinutes={session.durationMinutes}
+              workoutType="reformer"
+            />
+          )}
+          <Link href="/learn/builder" className="btn btn-outline" style={{ width: '100%' }}>
             Build Another Session
           </Link>
           <Link href="/learn/programs" className="btn btn-outline" style={{ width: '100%' }}>

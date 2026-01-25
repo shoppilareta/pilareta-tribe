@@ -20,6 +20,7 @@ export function Navbar() {
     { href: '/', label: 'Home' },
     { href: '/studio-locator', label: 'Studios' },
     { href: '/learn', label: 'Learn' },
+    { href: '/track', label: 'Track' },
     { href: '/ugc', label: 'Community' },
     { href: 'https://pilareta.com', label: 'Shop', external: true },
   ];

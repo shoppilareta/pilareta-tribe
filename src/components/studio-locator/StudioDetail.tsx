@@ -1,6 +1,7 @@
 'use client';
 
 import { StudioActions } from './StudioActions';
+import { LogWorkoutHereButton } from '@/components/track/LogWorkoutHereButton';
 import type { Studio } from './hooks/useStudios';
 
 interface StudioDetailProps {
@@ -188,6 +189,9 @@ export function StudioDetail({ studio, onClaimClick, onSuggestEditClick }: Studi
 
       {/* Action buttons */}
       <StudioActions studio={studio} />
+
+      {/* Log Workout Here button */}
+      <LogWorkoutHereButton studioId={studio.id} studioName={studio.name} />
 
       {/* Claim/Edit links */}
       <div
