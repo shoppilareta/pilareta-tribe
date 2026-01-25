@@ -20,10 +20,14 @@ export default function TrackPage() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/user');
         if (response.ok) {
           const data = await response.json();
-          setSession(data.user);
+          if (data.user) {
+            setSession({ userId: data.user.id, firstName: data.user.firstName });
+          } else {
+            router.push('/api/auth/login?redirect=/track');
+          }
         } else {
           router.push('/api/auth/login?redirect=/track');
         }

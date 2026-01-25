@@ -16,9 +16,12 @@ export function LogWorkoutHereButton({ studioId, studioName }: LogWorkoutHereBut
   useEffect(() => {
     async function checkAuth() {
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/user');
         if (response.ok) {
-          setIsLoggedIn(true);
+          const data = await response.json();
+          if (data.user) {
+            setIsLoggedIn(true);
+          }
         }
       } catch {
         // Not logged in
