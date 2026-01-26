@@ -34,6 +34,18 @@ export async function GET(
             tag: true,
           },
         },
+        workoutRecap: {
+          select: {
+            id: true,
+            workoutDate: true,
+            durationMinutes: true,
+            workoutType: true,
+            rpe: true,
+            calorieEstimate: true,
+            focusAreas: true,
+            imageUrl: true,
+          },
+        },
         comments: {
           where: { isHidden: false },
           orderBy: { createdAt: 'desc' },
@@ -114,6 +126,10 @@ export async function GET(
       isLiked,
       isSaved,
       isOwner,
+      workoutRecap: post.workoutRecap ? {
+        ...post.workoutRecap,
+        imageUrl: transformMediaUrl(post.workoutRecap.imageUrl),
+      } : null,
     });
   } catch (error) {
     console.error('Error fetching post:', error);

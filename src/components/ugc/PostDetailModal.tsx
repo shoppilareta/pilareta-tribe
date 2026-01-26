@@ -224,7 +224,50 @@ export function PostDetailModal({
                 padding: post.mediaType === 'instagram' ? '1rem' : 0,
               }}
             >
-              {post.mediaType === 'instagram' && post.instagramUrl ? (
+              {/* Workout Recap without image - show placeholder card */}
+              {post.postType === 'workout_recap' && !post.mediaUrl && post.workoutRecap ? (
+                <div
+                  style={{
+                    width: '100%',
+                    maxWidth: '400px',
+                    aspectRatio: '1',
+                    background: 'linear-gradient(135deg, #202219 0%, #2a2b25 50%, #1a1b15 100%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2rem',
+                    borderRadius: '8px',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔥</div>
+                  <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem', color: '#f6eddd' }}>
+                    {post.workoutRecap.durationMinutes} min
+                  </div>
+                  <div style={{ fontSize: '1.25rem', color: 'rgba(246, 237, 221, 0.7)', textTransform: 'capitalize' }}>
+                    {post.workoutRecap.workoutType} Workout
+                  </div>
+                  {/* Workout recap badge */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '16px',
+                      right: '16px',
+                      background: 'rgba(99, 102, 241, 0.6)',
+                      borderRadius: '4px',
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      color: '#f6eddd',
+                    }}
+                  >
+                    Workout
+                  </div>
+                </div>
+              ) : post.mediaType === 'instagram' && post.instagramUrl ? (
                 <InstagramEmbed url={post.instagramUrl} postId={post.instagramPostId} maxWidth={500} />
               ) : post.mediaType === 'video' ? (
                 <video
