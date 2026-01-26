@@ -131,6 +131,8 @@ export function decodeIdToken(idToken: string): {
   sub: string; // Shopify customer ID
   email: string;
   email_verified?: boolean;
+  given_name?: string; // First name (OIDC standard claim)
+  family_name?: string; // Last name (OIDC standard claim)
 } {
   const [, payload] = idToken.split('.');
   const decoded = Buffer.from(payload, 'base64').toString();
@@ -235,4 +237,41 @@ export async function getCustomerInfo(accessToken: string): Promise<{
 
 export function isNewAccountsMode(): boolean {
   return SHOPIFY_ACCOUNTS_MODE === 'new';
+}
+
+// Fetch customer details from Customer Account API (New Customer Accounts)
+export async function fetchCustomerFromAccountApi(accessToken: string): Promise<{
+  firstName?: string;
+  lastName?: string;
+} | null> {
+  try {
+    const query = `
+      query {
+        customer {
+          firstName
+          lastName
+        }
+      }
+    `;
+
+    const res = await fetch(`https://shopify.com/${process.env.SHOPIFY_SHOP_ID}/account/customer/api/2024-07/graphql`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': accessToken,
+      },
+      body: JSON.stringify({ query }),
+    });
+
+    if (!res.ok) {
+      console.error('Customer Account API error:', await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    return data.data?.customer || null;
+  } catch (error) {
+    console.error('Error fetching customer from Account API:', error);
+    return null;
+  }
 }

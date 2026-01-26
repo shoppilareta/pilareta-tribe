@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { exchangeCodeForTokens, decodeIdToken } from '@/lib/shopify-auth';
+import { exchangeCodeForTokens, decodeIdToken, fetchCustomerFromAccountApi } from '@/lib/shopify-auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -47,16 +47,34 @@ export async function GET(request: NextRequest) {
     // Ensure shopifyId is a string (Shopify may return it as a number)
     const shopifyId = String(customerInfo.sub);
 
+    // Get names from ID token or fallback to Customer Account API
+    let firstName = customerInfo.given_name || null;
+    let lastName = customerInfo.family_name || null;
+
+    // If names not in ID token, try Customer Account API
+    if (!firstName && !lastName) {
+      const customerDetails = await fetchCustomerFromAccountApi(tokens.access_token);
+      if (customerDetails) {
+        firstName = customerDetails.firstName || null;
+        lastName = customerDetails.lastName || null;
+      }
+    }
+
     // Create or update user in database
     const user = await prisma.user.upsert({
       where: { shopifyId },
       update: {
         email: customerInfo.email,
+        // Update name if provided (don't overwrite with null)
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
         updatedAt: new Date(),
       },
       create: {
         shopifyId,
         email: customerInfo.email,
+        firstName,
+        lastName,
       },
     });
 
