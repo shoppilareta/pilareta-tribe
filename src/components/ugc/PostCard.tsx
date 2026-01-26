@@ -3,6 +3,7 @@
 import { memo } from 'react';
 import type { UgcPost } from './hooks/useFeed';
 import { InstagramEmbedCompact } from './InstagramEmbed';
+import { WorkoutRecapCard } from './WorkoutRecapCard';
 
 interface PostCardProps {
   post: UgcPost;
@@ -43,48 +44,14 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
           background: 'rgba(246, 237, 221, 0.03)',
         }}
       >
-        {/* Workout Recap without image - show placeholder card */}
+        {/* Workout Recap without image - show styled recap card */}
         {post.postType === 'workout_recap' && !post.mediaUrl && post.workoutRecap ? (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(135deg, #202219 0%, #2a2b25 50%, #1a1b15 100%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1rem',
-            }}
-          >
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔥</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-              {post.workoutRecap.durationMinutes} min
-            </div>
-            <div style={{ fontSize: '0.875rem', color: 'rgba(246, 237, 221, 0.7)', textTransform: 'capitalize' }}>
-              {post.workoutRecap.workoutType} Workout
-            </div>
-            {/* Workout recap badge */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                background: 'rgba(99, 102, 241, 0.6)',
-                borderRadius: '4px',
-                padding: '4px 8px',
-                fontSize: '0.65rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Workout
-            </div>
-          </div>
+          <WorkoutRecapCard
+            recap={post.workoutRecap}
+            userName={userName}
+            studioName={post.studio?.name}
+            size="compact"
+          />
         ) : post.mediaType === 'instagram' && post.instagramUrl ? (
           <div
             style={{
