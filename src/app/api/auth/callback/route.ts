@@ -69,6 +69,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Get redirect URL before clearing session params
+    const redirectTo = session.redirectTo || '/account';
+
     // Update session cookie
     session.userId = user.id;
     session.shopifyAccessToken = tokens.access_token;
@@ -78,10 +81,11 @@ export async function GET(request: NextRequest) {
     // Clear PKCE params
     session.codeVerifier = undefined;
     session.state = undefined;
+    session.redirectTo = undefined;
     await session.save();
 
-    // Redirect to account page
-    return NextResponse.redirect(`${appUrl}/account`);
+    // Redirect to the original page or account
+    return NextResponse.redirect(`${appUrl}${redirectTo}`);
   } catch (error) {
     console.error('Callback error:', error);
     return NextResponse.redirect(

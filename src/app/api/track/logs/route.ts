@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { updateUserStats } from '@/lib/track/streak';
 import { estimateCalories, isValidRpe, isValidDuration, isValidWorkoutType } from '@/lib/track/calories';
+import { saveWorkoutImage } from '@/lib/track/upload';
 
 // GET /api/track/logs - List user's workout logs
 export async function GET(request: NextRequest) {
@@ -87,18 +88,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const {
-      workoutDate,
-      durationMinutes,
-      workoutType,
-      rpe,
-      notes,
-      focusAreas,
-      sessionId,
-      studioId,
-      calorieEstimate,
-    } = body;
+    // Check content type to determine how to parse
+    const contentType = request.headers.get('content-type') || '';
+
+    let workoutDate: string | undefined;
+    let durationMinutes: number;
+    let workoutType: string;
+    let rpe: number;
+    let notes: string | undefined;
+    let focusAreas: string[] | undefined;
+    let sessionId: string | undefined;
+    let studioId: string | undefined;
+    let calorieEstimate: number | undefined;
+    let imageFile: File | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      // Handle form data with potential image
+      const formData = await request.formData();
+      workoutDate = formData.get('workoutDate') as string | undefined;
+      durationMinutes = parseInt(formData.get('durationMinutes') as string, 10);
+      workoutType = formData.get('workoutType') as string;
+      rpe = parseInt(formData.get('rpe') as string, 10);
+      notes = formData.get('notes') as string | undefined;
+      sessionId = formData.get('sessionId') as string | undefined;
+      studioId = formData.get('studioId') as string | undefined;
+      const calorieStr = formData.get('calorieEstimate') as string | undefined;
+      calorieEstimate = calorieStr ? parseInt(calorieStr, 10) : undefined;
+
+      const focusAreasStr = formData.get('focusAreas') as string | undefined;
+      if (focusAreasStr) {
+        try {
+          focusAreas = JSON.parse(focusAreasStr);
+        } catch {
+          focusAreas = undefined;
+        }
+      }
+
+      imageFile = formData.get('image') as File | null;
+    } else {
+      // Handle JSON body (backwards compatible)
+      const body = await request.json();
+      workoutDate = body.workoutDate;
+      durationMinutes = body.durationMinutes;
+      workoutType = body.workoutType;
+      rpe = body.rpe;
+      notes = body.notes;
+      focusAreas = body.focusAreas;
+      sessionId = body.sessionId;
+      studioId = body.studioId;
+      calorieEstimate = body.calorieEstimate;
+    }
 
     // Validation
     if (!durationMinutes || !workoutType || !rpe) {
@@ -193,6 +232,27 @@ export async function POST(request: NextRequest) {
         studioId: studioId || null,
         calorieEstimate: calories,
       },
+    });
+
+    // Handle image upload if provided
+    let imageUrl: string | null = null;
+    if (imageFile && imageFile.size > 0) {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const uploadResult = await saveWorkoutImage(log.id, buffer, imageFile.type);
+
+      if (uploadResult.success && uploadResult.imageUrl) {
+        imageUrl = uploadResult.imageUrl;
+        // Update the log with the image URL
+        await prisma.workoutLog.update({
+          where: { id: log.id },
+          data: { imageUrl },
+        });
+      }
+    }
+
+    // Get the full log with relations
+    const fullLog = await prisma.workoutLog.findUnique({
+      where: { id: log.id },
       include: {
         session: {
           select: {
@@ -215,7 +275,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      log,
+      log: fullLog,
       message: 'Workout logged successfully',
     });
   } catch (error) {

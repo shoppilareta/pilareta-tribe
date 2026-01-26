@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface QuickLogModalProps {
   onClose: () => void;
@@ -54,6 +54,9 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
   const [showStudioDropdown, setShowStudioDropdown] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate date options (today and past 7 days)
   const dateOptions: { value: string; label: string }[] = [];
@@ -125,6 +128,42 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
     setStudioSearch('');
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Only images are allowed (JPEG, PNG, WebP)');
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image too large. Maximum size: 10MB');
+      return;
+    }
+
+    setImageFile(file);
+    setError(null);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const getRpeLabel = (value: number) => {
     if (value <= 2) return 'Very light';
     if (value <= 4) return 'Light';
@@ -145,20 +184,44 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
     setError(null);
 
     try {
-      const response = await fetch('/api/track/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workoutDate,
-          durationMinutes,
-          workoutType,
-          rpe,
-          focusAreas: focusAreas.length > 0 ? focusAreas : undefined,
-          notes: notes || undefined,
-          studioId: studioId || undefined,
-          sessionId: prefill?.sessionId || undefined
-        })
-      });
+      let response: Response;
+
+      if (imageFile) {
+        // Use FormData when we have an image
+        const formData = new FormData();
+        formData.append('workoutDate', workoutDate);
+        formData.append('durationMinutes', String(durationMinutes));
+        formData.append('workoutType', workoutType);
+        formData.append('rpe', String(rpe));
+        if (focusAreas.length > 0) {
+          formData.append('focusAreas', JSON.stringify(focusAreas));
+        }
+        if (notes) formData.append('notes', notes);
+        if (studioId) formData.append('studioId', studioId);
+        if (prefill?.sessionId) formData.append('sessionId', prefill.sessionId);
+        formData.append('image', imageFile);
+
+        response = await fetch('/api/track/logs', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        // Use JSON when no image
+        response = await fetch('/api/track/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workoutDate,
+            durationMinutes,
+            workoutType,
+            rpe,
+            focusAreas: focusAreas.length > 0 ? focusAreas : undefined,
+            notes: notes || undefined,
+            studioId: studioId || undefined,
+            sessionId: prefill?.sessionId || undefined
+          })
+        });
+      }
 
       if (response.ok) {
         onComplete();
@@ -558,6 +621,100 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
                   resize: 'vertical'
                 }}
               />
+            </div>
+
+            {/* Image Upload */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>
+                Photo (optional)
+              </label>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                accept="image/jpeg,image/png,image/webp"
+                style={{ display: 'none' }}
+              />
+              {imagePreview ? (
+                <div style={{ position: 'relative' }}>
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '120px',
+                      borderRadius: '0.5rem',
+                      overflow: 'hidden',
+                      background: 'rgba(246, 237, 221, 0.1)'
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imagePreview}
+                      alt="Workout preview"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={removeImage}
+                    type="button"
+                    style={{
+                      position: 'absolute',
+                      top: '0.5rem',
+                      right: '0.5rem',
+                      width: '1.75rem',
+                      height: '1.75rem',
+                      borderRadius: '50%',
+                      background: 'rgba(0, 0, 0, 0.7)',
+                      border: 'none',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  type="button"
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    background: 'rgba(246, 237, 221, 0.05)',
+                    border: '2px dashed rgba(246, 237, 221, 0.2)',
+                    borderRadius: '0.5rem',
+                    color: 'rgba(246, 237, 221, 0.6)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.875rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(246, 237, 221, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(246, 237, 221, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.2)';
+                  }}
+                >
+                  <svg style={{ width: '1.5rem', height: '1.5rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Add a photo from your workout</span>
+                </button>
+              )}
             </div>
           </div>
         )}

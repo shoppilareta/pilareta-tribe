@@ -13,6 +13,7 @@ interface WorkoutLog {
   calorieEstimate: number | null;
   focusAreas: string[];
   isShared: boolean;
+  imageUrl?: string | null;
   session?: {
     id: string;
     name: string;

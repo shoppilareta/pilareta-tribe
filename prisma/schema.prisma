@@ -599,6 +599,9 @@ model WorkoutLog {
   calorieEstimate Int?
   focusAreas      String[] // ["core", "glutes", "legs", "arms", "back", "mobility"]
 
+  // Workout image (optional)
+  imageUrl        String?  // Local file path: /uploads/track/...
+
   // Integrations (all optional)
   sessionId       String?
   session         PilatesSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)

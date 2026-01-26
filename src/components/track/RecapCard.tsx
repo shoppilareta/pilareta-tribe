@@ -12,6 +12,7 @@ interface RecapCardProps {
   sessionName?: string | null;
   currentStreak?: number;
   focusAreas?: string[];
+  imageUrl?: string | null;
 }
 
 export function RecapCard({
@@ -23,9 +24,21 @@ export function RecapCard({
   studioName,
   sessionName,
   currentStreak = 0,
-  focusAreas = []
+  focusAreas = [],
+  imageUrl
 }: RecapCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Transform URL for serving via API
+  const getImageSrc = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    if (url.startsWith('/uploads/')) {
+      return '/api' + url;
+    }
+    return url;
+  };
+
+  const imageSrc = getImageSrc(imageUrl);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -64,7 +77,9 @@ export function RecapCard({
         width: '100%',
         maxWidth: '400px',
         aspectRatio: '1',
-        background: 'linear-gradient(135deg, #202219 0%, #2a2b25 50%, #1a1b15 100%)',
+        background: imageSrc
+          ? `linear-gradient(180deg, rgba(26, 27, 21, 0.4) 0%, rgba(26, 27, 21, 0.85) 60%, rgba(26, 27, 21, 0.95) 100%)`
+          : 'linear-gradient(135deg, #202219 0%, #2a2b25 50%, #1a1b15 100%)',
         borderRadius: '1rem',
         padding: '1.5rem',
         display: 'flex',
@@ -75,16 +90,44 @@ export function RecapCard({
         border: '1px solid rgba(246, 237, 221, 0.1)'
       }}
     >
-      {/* Background pattern */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '60%',
-        height: '60%',
-        background: 'radial-gradient(circle at top right, rgba(246, 237, 221, 0.03) 0%, transparent 60%)',
-        pointerEvents: 'none'
-      }} />
+      {/* Background image (if provided) */}
+      {imageSrc && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 0
+        }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageSrc}
+            alt="Workout"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+          {/* Overlay gradient */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, rgba(26, 27, 21, 0.3) 0%, rgba(26, 27, 21, 0.7) 50%, rgba(26, 27, 21, 0.95) 100%)'
+          }} />
+        </div>
+      )}
+
+      {/* Background pattern (when no image) */}
+      {!imageSrc && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '60%',
+          height: '60%',
+          background: 'radial-gradient(circle at top right, rgba(246, 237, 221, 0.03) 0%, transparent 60%)',
+          pointerEvents: 'none'
+        }} />
+      )}
 
       {/* Streak badge */}
       {currentStreak > 1 && (
@@ -96,10 +139,12 @@ export function RecapCard({
           alignItems: 'center',
           gap: '0.375rem',
           padding: '0.375rem 0.75rem',
-          background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.3) 0%, rgba(239, 68, 68, 0.2) 100%)',
+          background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.5) 0%, rgba(239, 68, 68, 0.4) 100%)',
           borderRadius: '9999px',
           fontSize: '0.875rem',
-          fontWeight: 600
+          fontWeight: 600,
+          zIndex: 1,
+          backdropFilter: 'blur(4px)'
         }}>
           <span>🔥</span>
           <span>{currentStreak} day streak</span>
@@ -107,7 +152,7 @@ export function RecapCard({
       )}
 
       {/* Top section - Date */}
-      <div>
+      <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{
           fontSize: '0.8125rem',
           color: 'rgba(246, 237, 221, 0.5)',
@@ -126,7 +171,7 @@ export function RecapCard({
       </div>
 
       {/* Middle section - Main stats */}
-      <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+      <div style={{ textAlign: 'center', padding: '1rem 0', position: 'relative', zIndex: 1 }}>
         <div style={{
           fontSize: '3rem',
           fontWeight: 700,
@@ -160,7 +205,9 @@ export function RecapCard({
         justifyContent: 'space-between',
         alignItems: 'flex-end',
         paddingTop: '1rem',
-        borderTop: '1px solid rgba(246, 237, 221, 0.1)'
+        borderTop: '1px solid rgba(246, 237, 221, 0.1)',
+        position: 'relative',
+        zIndex: 1
       }}>
         {/* Intensity */}
         <div style={{ textAlign: 'center' }}>

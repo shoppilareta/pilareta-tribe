@@ -11,6 +11,7 @@ export interface SessionData {
   codeVerifier?: string;
   state?: string;
   idToken?: string;
+  redirectTo?: string;
 }
 
 const sessionOptions: SessionOptions = {

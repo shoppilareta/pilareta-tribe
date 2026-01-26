@@ -7,12 +7,16 @@ import {
   isNewAccountsMode,
 } from '@/lib/shopify-auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     if (!isNewAccountsMode()) {
       // For classic mode, redirect to a login page with form
       return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL));
     }
+
+    // Get redirect URL from query params
+    const url = new URL(request.url);
+    const redirectTo = url.searchParams.get('redirect') || '/account';
 
     // Generate PKCE parameters
     const codeVerifier = generateCodeVerifier();
@@ -22,6 +26,7 @@ export async function GET() {
     const session = await getSession();
     session.codeVerifier = codeVerifier;
     session.state = state;
+    session.redirectTo = redirectTo;
     await session.save();
 
     // Build authorization URL and redirect
