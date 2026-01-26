@@ -20,6 +20,17 @@ export interface UgcTag {
   slug: string;
 }
 
+export interface WorkoutRecap {
+  id: string;
+  workoutDate: string;
+  durationMinutes: number;
+  workoutType: string;
+  rpe: number;
+  calorieEstimate: number | null;
+  focusAreas: string[];
+  imageUrl: string | null;
+}
+
 export interface UgcPost {
   id: string;
   userId: string;
@@ -50,6 +61,9 @@ export interface UgcPost {
   isLiked: boolean;
   isSaved: boolean;
   isOwner?: boolean;
+  // Workout recap data
+  postType?: 'general' | 'workout_recap';
+  workoutRecap?: WorkoutRecap | null;
 }
 
 interface UseFeedOptions {

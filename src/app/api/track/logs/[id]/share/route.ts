@@ -78,13 +78,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Create the UGC post
+    // If the workout log has an image, use it as the media
     const post = await prisma.ugcPost.create({
       data: {
         userId: session.userId,
         caption: finalCaption,
         studioId: log.studioId,
-        mediaUrl: null, // Workout recaps don't have media initially
-        mediaType: 'workout_recap' as string,
+        mediaUrl: log.imageUrl || null,
+        mediaType: log.imageUrl ? 'image' : 'image', // Always 'image' for display purposes
         postType: 'workout_recap',
         consentGiven: true,
         consentTimestamp: new Date(),

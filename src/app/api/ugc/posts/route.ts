@@ -58,6 +58,18 @@ export async function GET(request: NextRequest) {
             tag: true,
           },
         },
+        workoutRecap: {
+          select: {
+            id: true,
+            workoutDate: true,
+            durationMinutes: true,
+            workoutType: true,
+            rpe: true,
+            calorieEstimate: true,
+            focusAreas: true,
+            imageUrl: true,
+          },
+        },
         _count: {
           select: {
             likes: true,
@@ -126,6 +138,11 @@ export async function GET(request: NextRequest) {
         thumbnailUrl: transformMediaUrl(post.thumbnailUrl),
         isLiked: userInteractions[post.id]?.liked || false,
         isSaved: userInteractions[post.id]?.saved || false,
+        // Transform workout recap image URL if present
+        workoutRecap: post.workoutRecap ? {
+          ...post.workoutRecap,
+          imageUrl: transformMediaUrl(post.workoutRecap.imageUrl),
+        } : null,
       })),
       nextCursor,
       hasMore,
