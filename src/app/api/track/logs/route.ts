@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
     let focusAreas: string[] | undefined;
     let sessionId: string | undefined;
     let studioId: string | undefined;
+    let customStudioName: string | undefined;
     let calorieEstimate: number | undefined;
     let imageFile: File | null = null;
 
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
       notes = formData.get('notes') as string | undefined;
       sessionId = formData.get('sessionId') as string | undefined;
       studioId = formData.get('studioId') as string | undefined;
+      customStudioName = formData.get('customStudioName') as string | undefined;
       const calorieStr = formData.get('calorieEstimate') as string | undefined;
       calorieEstimate = calorieStr ? parseInt(calorieStr, 10) : undefined;
 
@@ -136,6 +138,7 @@ export async function POST(request: NextRequest) {
       focusAreas = body.focusAreas;
       sessionId = body.sessionId;
       studioId = body.studioId;
+      customStudioName = body.customStudioName;
       calorieEstimate = body.calorieEstimate;
     }
 
@@ -230,6 +233,7 @@ export async function POST(request: NextRequest) {
         focusAreas: focusAreas || [],
         sessionId: sessionId || null,
         studioId: studioId || null,
+        customStudioName: customStudioName || null,
         calorieEstimate: calories,
       },
     });

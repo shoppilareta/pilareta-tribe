@@ -12,6 +12,7 @@ interface WorkoutLog {
   calorieEstimate: number | null;
   focusAreas: string[];
   imageUrl?: string | null;
+  customStudioName?: string | null;
   studio?: {
     id: string;
     name: string;
@@ -23,7 +24,7 @@ interface WorkoutLog {
 }
 
 interface ShareModalProps {
-  log: WorkoutLog;
+  log: WorkoutLog & { isShared?: boolean };
   currentStreak: number;
   onClose: () => void;
   onShared: () => void;
@@ -41,8 +42,9 @@ export function ShareModal({ log, currentStreak, onClose, onShared }: ShareModal
     const parts: string[] = [];
     parts.push(`${log.durationMinutes}-min ${log.workoutType} workout`);
 
-    if (log.studio) {
-      parts.push(`at ${log.studio.name}`);
+    const studioName = log.studio?.name || log.customStudioName;
+    if (studioName) {
+      parts.push(`at ${studioName}`);
     } else if (log.session) {
       parts.push(`- ${log.session.name}`);
     }
@@ -187,7 +189,7 @@ export function ShareModal({ log, currentStreak, onClose, onShared }: ShareModal
       >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Share to Community</h2>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Share Workout</h2>
           <button
             onClick={onClose}
             style={{
@@ -237,13 +239,33 @@ export function ShareModal({ log, currentStreak, onClose, onShared }: ShareModal
                 workoutType={log.workoutType}
                 rpe={log.rpe}
                 calorieEstimate={log.calorieEstimate}
-                studioName={log.studio?.name}
+                studioName={log.studio?.name || log.customStudioName || undefined}
                 sessionName={log.session?.name}
                 currentStreak={currentStreak}
                 focusAreas={log.focusAreas}
                 imageUrl={log.imageUrl}
               />
             </div>
+
+            {/* Already shared notice */}
+            {log.isShared && (
+              <div style={{
+                marginBottom: '1rem',
+                padding: '0.75rem',
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                color: 'rgba(34, 197, 94, 0.9)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Already shared to Community
+              </div>
+            )}
 
             {/* Caption */}
             <div style={{ marginBottom: '1.25rem' }}>
@@ -287,7 +309,7 @@ export function ShareModal({ log, currentStreak, onClose, onShared }: ShareModal
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.75rem' }}>
                 Share to...
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: log.isShared ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: '0.75rem' }}>
                 {/* Download */}
                 <button
                   onClick={handleDownload}
@@ -375,38 +397,40 @@ export function ShareModal({ log, currentStreak, onClose, onShared }: ShareModal
                   <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>WhatsApp</span>
                 </button>
 
-                {/* Community */}
-                <button
-                  onClick={handleShare}
-                  disabled={sharing}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '1rem',
-                    background: 'rgba(99, 102, 241, 0.2)',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    borderRadius: '0.75rem',
-                    color: '#f6eddd',
-                    cursor: sharing ? 'not-allowed' : 'pointer',
-                    opacity: sharing ? 0.6 : 1,
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!sharing) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)';
-                  }}
-                >
-                  <svg style={{ width: '1.5rem', height: '1.5rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                    {sharing ? 'Posting...' : 'Community'}
-                  </span>
-                </button>
+                {/* Community - only show if not already shared */}
+                {!log.isShared && (
+                  <button
+                    onClick={handleShare}
+                    disabled={sharing}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '1rem',
+                      background: 'rgba(99, 102, 241, 0.2)',
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      borderRadius: '0.75rem',
+                      color: '#f6eddd',
+                      cursor: sharing ? 'not-allowed' : 'pointer',
+                      opacity: sharing ? 0.6 : 1,
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!sharing) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)';
+                    }}
+                  >
+                    <svg style={{ width: '1.5rem', height: '1.5rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      {sharing ? 'Posting...' : 'Community'}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
 

@@ -52,6 +52,8 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
   const [studioSearch, setStudioSearch] = useState<string>('');
   const [studioResults, setStudioResults] = useState<Studio[]>([]);
   const [showStudioDropdown, setShowStudioDropdown] = useState<boolean>(false);
+  const [customStudioName, setCustomStudioName] = useState<string>('');
+  const [useCustomStudio, setUseCustomStudio] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -120,12 +122,24 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
     setStudioName(studio.name);
     setStudioSearch('');
     setShowStudioDropdown(false);
+    setUseCustomStudio(false);
+    setCustomStudioName('');
   };
 
   const clearStudio = () => {
     setStudioId(null);
     setStudioName('');
     setStudioSearch('');
+    setUseCustomStudio(false);
+    setCustomStudioName('');
+  };
+
+  const useCustomStudioInput = () => {
+    setUseCustomStudio(true);
+    setCustomStudioName(studioSearch);
+    setStudioId(null);
+    setStudioName('');
+    setShowStudioDropdown(false);
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,6 +212,7 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
         }
         if (notes) formData.append('notes', notes);
         if (studioId) formData.append('studioId', studioId);
+        if (useCustomStudio && customStudioName) formData.append('customStudioName', customStudioName);
         if (prefill?.sessionId) formData.append('sessionId', prefill.sessionId);
         formData.append('image', imageFile);
 
@@ -218,6 +233,7 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
             focusAreas: focusAreas.length > 0 ? focusAreas : undefined,
             notes: notes || undefined,
             studioId: studioId || undefined,
+            customStudioName: useCustomStudio && customStudioName ? customStudioName : undefined,
             sessionId: prefill?.sessionId || undefined
           })
         });
@@ -540,6 +556,42 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
                     </svg>
                   </button>
                 </div>
+              ) : useCustomStudio ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Enter studio name..."
+                    value={customStudioName}
+                    onChange={(e) => setCustomStudioName(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '0.625rem',
+                      background: 'rgba(246, 237, 221, 0.1)',
+                      border: '1px solid rgba(246, 237, 221, 0.2)',
+                      borderRadius: '0.5rem',
+                      color: '#f6eddd',
+                      fontSize: '0.9375rem'
+                    }}
+                  />
+                  <button
+                    onClick={clearStudio}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'rgba(246, 237, 221, 0.6)',
+                      cursor: 'pointer',
+                      padding: '0.5rem'
+                    }}
+                  >
+                    <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               ) : (
                 <>
                   <input
@@ -561,7 +613,7 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
                       fontSize: '0.9375rem'
                     }}
                   />
-                  {showStudioDropdown && studioResults.length > 0 && (
+                  {showStudioDropdown && (studioResults.length > 0 || studioSearch.length >= 2) && (
                     <div style={{
                       position: 'absolute',
                       top: '100%',
@@ -572,7 +624,9 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
                       borderRadius: '0.5rem',
                       border: '1px solid rgba(246, 237, 221, 0.2)',
                       overflow: 'hidden',
-                      zIndex: 10
+                      zIndex: 10,
+                      maxHeight: '200px',
+                      overflowY: 'auto'
                     }}>
                       {studioResults.map((studio) => (
                         <button
@@ -594,6 +648,29 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
                           <div style={{ fontSize: '0.8125rem', color: 'rgba(246, 237, 221, 0.6)' }}>{studio.city}</div>
                         </button>
                       ))}
+                      {/* Option to enter custom studio */}
+                      {studioSearch.length >= 2 && (
+                        <button
+                          onClick={useCustomStudioInput}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            width: '100%',
+                            padding: '0.75rem',
+                            textAlign: 'left',
+                            background: 'rgba(99, 102, 241, 0.1)',
+                            border: 'none',
+                            color: '#f6eddd',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span>Use &quot;{studioSearch}&quot; as custom studio</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </>

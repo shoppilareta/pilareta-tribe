@@ -14,6 +14,7 @@ interface WorkoutLog {
   focusAreas: string[];
   isShared: boolean;
   imageUrl?: string | null;
+  customStudioName?: string | null;
   session?: {
     id: string;
     name: string;
@@ -150,11 +151,11 @@ export function RecentLogs({ refreshKey, onLogWorkout }: RecentLogsProps) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8125rem', color: 'rgba(246, 237, 221, 0.6)' }}>
                 <span>{formatDate(log.workoutDate)}</span>
-                {log.studio && (
+                {(log.studio || log.customStudioName) && (
                   <>
                     <span>•</span>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {log.studio.name}
+                      {log.studio?.name || log.customStudioName}
                     </span>
                   </>
                 )}
@@ -174,28 +175,26 @@ export function RecentLogs({ refreshKey, onLogWorkout }: RecentLogsProps) {
               alignItems: 'center',
               gap: '0.75rem'
             }}>
-              {!log.isShared && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShareLog(log);
-                  }}
-                  title="Share to Community"
-                  style={{
-                    background: 'rgba(246, 237, 221, 0.1)',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    padding: '0.375rem',
-                    cursor: 'pointer',
-                    color: 'rgba(246, 237, 221, 0.6)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                </button>
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShareLog(log);
+                }}
+                title="Share"
+                style={{
+                  background: 'rgba(246, 237, 221, 0.1)',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  padding: '0.375rem',
+                  cursor: 'pointer',
+                  color: 'rgba(246, 237, 221, 0.6)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',

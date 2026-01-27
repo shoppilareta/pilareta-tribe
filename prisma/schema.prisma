@@ -608,6 +608,7 @@ model WorkoutLog {
 
   studioId        String?
   studio          Studio? @relation(fields: [studioId], references: [id], onDelete: SetNull)
+  customStudioName String? // For studios not in the database
 
   // Sharing
   isShared        Boolean  @default(false)

@@ -5,10 +5,24 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get('city');
+    const q = searchParams.get('q'); // General search query
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    const where = city ? { city: { contains: city, mode: 'insensitive' as const } } : {};
+    // Build where clause
+    let where: Record<string, unknown> = {};
+
+    if (q) {
+      // Search by name or city
+      where = {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { city: { contains: q, mode: 'insensitive' } },
+        ],
+      };
+    } else if (city) {
+      where = { city: { contains: city, mode: 'insensitive' } };
+    }
 
     const [studios, total] = await Promise.all([
       prisma.studio.findMany({
