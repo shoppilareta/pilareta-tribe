@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { WorkoutRecapCard } from '../WorkoutRecapCard';
+import type { WorkoutRecap } from '../hooks/useFeed';
 
 interface ModerationPost {
   id: string;
@@ -11,6 +13,8 @@ interface ModerationPost {
   instagramUrl?: string | null;
   createdAt: string;
   consentGiven: boolean;
+  postType?: 'general' | 'workout_recap';
+  workoutRecap?: WorkoutRecap | null;
   user: {
     id: string;
     firstName: string | null;
@@ -95,7 +99,17 @@ export function ModerationCard({ post, onModerate }: ModerationCardProps) {
           background: '#000',
         }}
       >
-        {post.mediaType === 'video' ? (
+        {post.postType === 'workout_recap' && post.workoutRecap ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}>
+            <WorkoutRecapCard
+              recap={post.workoutRecap}
+              userName={userName}
+              studioName={post.studio?.name}
+              size="full"
+              backgroundImageUrl={post.mediaUrl}
+            />
+          </div>
+        ) : post.mediaType === 'video' ? (
           <video
             src={post.mediaUrl || undefined}
             poster={post.thumbnailUrl || undefined}

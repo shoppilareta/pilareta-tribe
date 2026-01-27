@@ -45,6 +45,18 @@ export async function GET(request: NextRequest) {
             tag: true,
           },
         },
+        workoutRecap: {
+          select: {
+            id: true,
+            workoutDate: true,
+            durationMinutes: true,
+            workoutType: true,
+            rpe: true,
+            calorieEstimate: true,
+            focusAreas: true,
+            imageUrl: true,
+          },
+        },
       },
     });
 
@@ -71,6 +83,10 @@ export async function GET(request: NextRequest) {
         ...post,
         mediaUrl: transformMediaUrl(post.mediaUrl),
         thumbnailUrl: transformMediaUrl(post.thumbnailUrl),
+        workoutRecap: post.workoutRecap ? {
+          ...post.workoutRecap,
+          imageUrl: transformMediaUrl(post.workoutRecap.imageUrl),
+        } : null,
       })),
       nextCursor,
       hasMore,

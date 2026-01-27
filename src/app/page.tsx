@@ -25,6 +25,18 @@ export default async function HomePage() {
         mediaType: true,
         thumbnailUrl: true,
         instagramUrl: true,
+        postType: true,
+        workoutRecap: {
+          select: {
+            id: true,
+            workoutDate: true,
+            durationMinutes: true,
+            workoutType: true,
+            rpe: true,
+            calorieEstimate: true,
+            focusAreas: true,
+          },
+        },
       },
     }),
     isLoggedIn && session.userId
@@ -429,7 +441,75 @@ export default async function HomePage() {
                       overflow: 'hidden',
                     }}
                   >
-                    {post.mediaType === 'instagram' ? (
+                    {post.postType === 'workout_recap' && post.workoutRecap ? (
+                      // Workout recap mini preview
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          background: post.mediaUrl
+                            ? undefined
+                            : 'linear-gradient(145deg, #3D3426 0%, #2A2520 50%, #1F1B17 100%)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          position: 'relative',
+                        }}
+                      >
+                        {post.mediaUrl && (
+                          <>
+                            <img
+                              src={transformMediaUrl(post.mediaUrl)!}
+                              alt=""
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                              }}
+                            />
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                background: 'linear-gradient(145deg, rgba(61, 52, 38, 0.85) 0%, rgba(42, 37, 32, 0.9) 50%, rgba(31, 27, 23, 0.95) 100%)',
+                              }}
+                            />
+                          </>
+                        )}
+                        <div
+                          style={{
+                            position: 'relative',
+                            zIndex: 2,
+                            fontSize: '1.5rem',
+                            fontWeight: 700,
+                            color: '#F6EDDD',
+                            lineHeight: 1,
+                          }}
+                        >
+                          {post.workoutRecap.durationMinutes}
+                          <span style={{ fontSize: '0.6rem', fontWeight: 500, marginLeft: '2px' }}>min</span>
+                        </div>
+                        <div
+                          style={{
+                            position: 'relative',
+                            zIndex: 2,
+                            fontSize: '0.5rem',
+                            color: '#9CAF88',
+                            textTransform: 'uppercase',
+                            marginTop: '4px',
+                          }}
+                        >
+                          {post.workoutRecap.workoutType}
+                        </div>
+                      </div>
+                    ) : post.mediaType === 'instagram' ? (
                       post.thumbnailUrl ? (
                         <img
                           src={post.thumbnailUrl}

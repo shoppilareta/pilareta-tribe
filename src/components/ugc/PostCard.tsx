@@ -11,11 +11,13 @@ interface PostCardProps {
 }
 
 function PostCardComponent({ post, onClick }: PostCardProps) {
-  // Use displayName from API (includes email fallback) or compute client-side
-  const userName = post.user.displayName ||
-    (post.user.firstName && post.user.lastName
-      ? `${post.user.firstName} ${post.user.lastName}`
-      : post.user.firstName || 'Member');
+  // Hide name for admin users, otherwise use displayName from API
+  const userName = post.user.isAdmin
+    ? 'Pilareta Team'
+    : post.user.displayName ||
+      (post.user.firstName && post.user.lastName
+        ? `${post.user.firstName} ${post.user.lastName}`
+        : post.user.firstName || 'Member');
 
   return (
     <div
@@ -45,13 +47,14 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
           background: 'rgba(246, 237, 221, 0.03)',
         }}
       >
-        {/* Workout Recap without image - show styled recap card */}
-        {post.postType === 'workout_recap' && !post.mediaUrl && post.workoutRecap ? (
+        {/* Workout Recap - show styled recap card (with or without background image) */}
+        {post.postType === 'workout_recap' && post.workoutRecap ? (
           <WorkoutRecapCard
             recap={post.workoutRecap}
             userName={userName}
             studioName={post.studio?.name}
             size="compact"
+            backgroundImageUrl={post.mediaUrl}
           />
         ) : post.mediaType === 'instagram' && post.instagramUrl ? (
           <div

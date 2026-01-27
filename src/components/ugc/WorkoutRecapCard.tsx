@@ -8,6 +8,7 @@ interface WorkoutRecapCardProps {
   studioName?: string;
   streak?: number;
   size?: 'compact' | 'full';
+  backgroundImageUrl?: string | null;
 }
 
 const focusAreaLabels: Record<string, string> = {
@@ -110,7 +111,7 @@ function IntensityRing({ rpe, size }: { rpe: number; size: 'compact' | 'full' })
   );
 }
 
-export function WorkoutRecapCard({ recap, userName, studioName, streak, size = 'full' }: WorkoutRecapCardProps) {
+export function WorkoutRecapCard({ recap, userName, studioName, streak, size = 'full', backgroundImageUrl }: WorkoutRecapCardProps) {
   const workoutDate = new Date(recap.workoutDate);
   const formattedDate = workoutDate.toLocaleDateString('en-US', {
     month: 'short',
@@ -133,14 +134,43 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
           left: 0,
           width: '100%',
           height: '100%',
-          background: 'linear-gradient(145deg, #3D3426 0%, #2A2520 50%, #1F1B17 100%)',
+          background: backgroundImageUrl ? 'transparent' : 'linear-gradient(145deg, #3D3426 0%, #2A2520 50%, #1F1B17 100%)',
           display: 'flex',
           flexDirection: 'column',
           padding: '0.75rem',
         }}
       >
+        {/* Background image with overlay */}
+        {backgroundImageUrl && (
+          <>
+            <img
+              src={backgroundImageUrl}
+              alt=""
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                zIndex: 0,
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(145deg, rgba(61, 52, 38, 0.85) 0%, rgba(42, 37, 32, 0.9) 50%, rgba(31, 27, 23, 0.95) 100%)',
+                zIndex: 1,
+              }}
+            />
+          </>
+        )}
         {/* Top row - Type badge & streak */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 2 }}>
           <div
             style={{
               background: 'rgba(156, 175, 136, 0.3)',
@@ -182,6 +212,8 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
           alignItems: 'center',
           justifyContent: 'center',
           gap: '0.25rem',
+          position: 'relative',
+          zIndex: 2,
         }}>
           <div style={{
             fontSize: '2rem',
@@ -210,6 +242,8 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-end',
+          position: 'relative',
+          zIndex: 2,
         }}>
           {recap.calorieEstimate ? (
             <div style={{ fontSize: '0.7rem', color: 'rgba(246, 237, 221, 0.6)' }}>
@@ -232,6 +266,7 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
             color: 'rgba(246, 237, 221, 0.25)',
             letterSpacing: '0.15em',
             textTransform: 'uppercase',
+            zIndex: 2,
           }}
         >
           Pilareta
@@ -247,7 +282,7 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
         width: '100%',
         maxWidth: '420px',
         aspectRatio: '1',
-        background: 'linear-gradient(145deg, #3D3426 0%, #2A2520 40%, #1F1B17 100%)',
+        background: backgroundImageUrl ? 'transparent' : 'linear-gradient(145deg, #3D3426 0%, #2A2520 40%, #1F1B17 100%)',
         borderRadius: '12px',
         padding: '1.5rem',
         display: 'flex',
@@ -256,6 +291,35 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
         overflow: 'hidden',
       }}
     >
+      {/* Background image with overlay */}
+      {backgroundImageUrl && (
+        <>
+          <img
+            src={backgroundImageUrl}
+            alt=""
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(145deg, rgba(61, 52, 38, 0.8) 0%, rgba(42, 37, 32, 0.85) 40%, rgba(31, 27, 23, 0.9) 100%)',
+              zIndex: 1,
+            }}
+          />
+        </>
+      )}
       {/* Decorative background elements */}
       <div
         style={{
@@ -281,7 +345,7 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
       />
 
       {/* Header - Date & Streak */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2, position: 'relative' }}>
         <div>
           <div style={{ fontSize: '0.75rem', color: 'rgba(246, 237, 221, 0.5)', marginBottom: '2px' }}>
             {formattedDate}
@@ -323,7 +387,8 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1,
+        zIndex: 2,
+        position: 'relative',
         gap: '0.75rem',
       }}>
         {/* Workout type badge */}
@@ -395,7 +460,8 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        zIndex: 1,
+        zIndex: 2,
+        position: 'relative',
         borderTop: '1px solid rgba(246, 237, 221, 0.1)',
         paddingTop: '1rem',
         marginTop: '0.5rem',
@@ -449,6 +515,7 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
           fontWeight: 500,
+          zIndex: 2,
         }}
       >
         Pilareta

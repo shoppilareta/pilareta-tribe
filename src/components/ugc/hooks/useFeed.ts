@@ -7,6 +7,7 @@ export interface UgcUser {
   firstName: string | null;
   lastName: string | null;
   displayName?: string;
+  isAdmin?: boolean;
 }
 
 export interface UgcStudio {
