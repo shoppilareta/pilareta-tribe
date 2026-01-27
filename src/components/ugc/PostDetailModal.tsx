@@ -112,10 +112,11 @@ export function PostDetailModal({
 
   if (!postId) return null;
 
-  const userName =
-    post?.user.firstName && post?.user.lastName
+  // Use displayName from API (includes email fallback) or compute client-side
+  const userName = post?.user.displayName ||
+    (post?.user.firstName && post?.user.lastName
       ? `${post.user.firstName} ${post.user.lastName}`
-      : post?.user.firstName || 'Anonymous';
+      : post?.user.firstName || 'Member');
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

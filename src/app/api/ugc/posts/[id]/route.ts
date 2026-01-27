@@ -4,6 +4,19 @@ import { getSession } from '@/lib/auth';
 import { unlink } from 'fs/promises';
 import path from 'path';
 
+// Helper to get display name from user data
+function getDisplayName(user: { firstName: string | null; lastName: string | null; email: string }): string {
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`;
+  }
+  if (user.firstName) {
+    return user.firstName;
+  }
+  // Fallback to email prefix (capitalize first letter)
+  const emailPrefix = user.email.split('@')[0];
+  return emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+}
+
 // GET /api/ugc/posts/[id] - Get single post
 export async function GET(
   request: NextRequest,
@@ -20,6 +33,7 @@ export async function GET(
             id: true,
             firstName: true,
             lastName: true,
+            email: true,
           },
         },
         studio: {
@@ -126,6 +140,10 @@ export async function GET(
       isLiked,
       isSaved,
       isOwner,
+      user: {
+        ...post.user,
+        displayName: getDisplayName(post.user),
+      },
       workoutRecap: post.workoutRecap ? {
         ...post.workoutRecap,
         imageUrl: transformMediaUrl(post.workoutRecap.imageUrl),

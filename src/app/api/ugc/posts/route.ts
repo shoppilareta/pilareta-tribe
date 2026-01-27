@@ -3,6 +3,19 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { checkUploadRateLimit, saveUploadedFile } from '@/lib/ugc/upload';
 
+// Helper to get display name from user data
+function getDisplayName(user: { firstName: string | null; lastName: string | null; email: string }): string {
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`;
+  }
+  if (user.firstName) {
+    return user.firstName;
+  }
+  // Fallback to email prefix (capitalize first letter)
+  const emailPrefix = user.email.split('@')[0];
+  return emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+}
+
 // GET /api/ugc/posts - Get feed (public)
 export async function GET(request: NextRequest) {
   try {
@@ -44,6 +57,7 @@ export async function GET(request: NextRequest) {
             id: true,
             firstName: true,
             lastName: true,
+            email: true,
           },
         },
         studio: {
@@ -138,6 +152,11 @@ export async function GET(request: NextRequest) {
         thumbnailUrl: transformMediaUrl(post.thumbnailUrl),
         isLiked: userInteractions[post.id]?.liked || false,
         isSaved: userInteractions[post.id]?.saved || false,
+        // Add displayName for the user
+        user: {
+          ...post.user,
+          displayName: getDisplayName(post.user),
+        },
         // Transform workout recap image URL if present
         workoutRecap: post.workoutRecap ? {
           ...post.workoutRecap,

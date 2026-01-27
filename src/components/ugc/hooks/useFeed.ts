@@ -6,6 +6,7 @@ export interface UgcUser {
   id: string;
   firstName: string | null;
   lastName: string | null;
+  displayName?: string;
 }
 
 export interface UgcStudio {
