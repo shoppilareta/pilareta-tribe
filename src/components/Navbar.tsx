@@ -95,17 +95,18 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        {/* Mobile Navigation Menu - styled to match pilareta.com */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-[rgba(246,237,221,0.1)] py-4">
-            <div className="flex flex-col gap-4">
+          <div className="md:hidden border-t border-[rgba(246,237,221,0.1)] py-6">
+            <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 link.external ? (
                   <a
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-sm tracking-wide py-2 transition-opacity opacity-70"
+                    className="text-lg tracking-normal py-3 transition-opacity hover:opacity-100 opacity-70"
+                    style={{ fontFamily: '"Instrument Sans", sans-serif' }}
                   >
                     {link.label}
                   </a>
@@ -114,17 +115,18 @@ export function Navbar() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`text-sm tracking-wide py-2 transition-opacity ${
+                    className={`text-lg tracking-normal py-3 transition-opacity hover:opacity-100 ${
                       pathname === link.href
-                        ? 'opacity-100'
+                        ? 'opacity-100 font-medium'
                         : 'opacity-70'
                     }`}
+                    style={{ fontFamily: '"Instrument Sans", sans-serif' }}
                   >
                     {link.label}
                   </Link>
                 )
               ))}
-              <div className="pt-2 border-t border-[rgba(246,237,221,0.1)]">
+              <div className="pt-4 mt-2 border-t border-[rgba(246,237,221,0.1)]">
                 <AuthButton />
               </div>
             </div>

@@ -92,6 +92,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       notes,
       focusAreas,
       studioId,
+      customStudioName,
       calorieEstimate,
     } = body;
 
@@ -169,8 +170,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         if (!studioExists) {
           return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
         }
+        // Clear custom studio name if selecting a database studio
+        updateData.customStudioName = null;
       }
       updateData.studioId = studioId || null;
+    }
+
+    if (customStudioName !== undefined) {
+      updateData.customStudioName = customStudioName || null;
+      // Clear studio ID if using custom studio name
+      if (customStudioName) {
+        updateData.studioId = null;
+      }
     }
 
     // Recalculate calories if relevant fields changed

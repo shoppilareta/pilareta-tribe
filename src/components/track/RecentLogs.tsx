@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ShareModal } from './ShareModal';
+import { QuickLogModal } from './QuickLogModal';
 
 interface WorkoutLog {
   id: string;
@@ -29,12 +30,16 @@ interface WorkoutLog {
 interface RecentLogsProps {
   refreshKey: number;
   onLogWorkout: () => void;
+  onRefresh?: () => void;
 }
 
-export function RecentLogs({ refreshKey, onLogWorkout }: RecentLogsProps) {
+export function RecentLogs({ refreshKey, onLogWorkout, onRefresh }: RecentLogsProps) {
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareLog, setShareLog] = useState<WorkoutLog | null>(null);
+  const [editLog, setEditLog] = useState<WorkoutLog | null>(null);
+  const [deleteLog, setDeleteLog] = useState<WorkoutLog | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
 
   useEffect(() => {
@@ -95,6 +100,43 @@ export function RecentLogs({ refreshKey, onLogWorkout }: RecentLogsProps) {
     if (rpe <= 5) return 'rgba(234, 179, 8, 0.8)';
     if (rpe <= 7) return 'rgba(249, 115, 22, 0.8)';
     return 'rgba(239, 68, 68, 0.8)';
+  };
+
+  const handleDelete = async () => {
+    if (!deleteLog) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/track/logs/${deleteLog.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setDeleteLog(null);
+        // Trigger refresh
+        if (onRefresh) {
+          onRefresh();
+        } else {
+          window.location.reload();
+        }
+      } else {
+        console.error('Failed to delete workout log');
+      }
+    } catch (error) {
+      console.error('Error deleting workout log:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleEditComplete = () => {
+    setEditLog(null);
+    // Trigger refresh
+    if (onRefresh) {
+      onRefresh();
+    } else {
+      window.location.reload();
+    }
   };
 
   if (loading) {
@@ -173,8 +215,51 @@ export function RecentLogs({ refreshKey, onLogWorkout }: RecentLogsProps) {
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem'
+              gap: '0.5rem'
             }}>
+              {/* Edit button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditLog(log);
+                }}
+                title="Edit"
+                style={{
+                  background: 'rgba(246, 237, 221, 0.1)',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  padding: '0.375rem',
+                  cursor: 'pointer',
+                  color: 'rgba(246, 237, 221, 0.6)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              {/* Delete button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteLog(log);
+                }}
+                title="Delete"
+                style={{
+                  background: 'rgba(246, 237, 221, 0.1)',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  padding: '0.375rem',
+                  cursor: 'pointer',
+                  color: 'rgba(239, 68, 68, 0.7)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+              {/* Share button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -248,9 +333,123 @@ export function RecentLogs({ refreshKey, onLogWorkout }: RecentLogsProps) {
           onShared={() => {
             setShareLog(null);
             // Refresh logs to show shared status
-            window.location.reload();
+            if (onRefresh) {
+              onRefresh();
+            } else {
+              window.location.reload();
+            }
           }}
         />
+      )}
+
+      {/* Edit Modal */}
+      {editLog && (
+        <QuickLogModal
+          onClose={() => setEditLog(null)}
+          onComplete={handleEditComplete}
+          editLog={{
+            id: editLog.id,
+            workoutDate: editLog.workoutDate,
+            durationMinutes: editLog.durationMinutes,
+            workoutType: editLog.workoutType,
+            rpe: editLog.rpe,
+            notes: editLog.notes,
+            focusAreas: editLog.focusAreas,
+            studioId: editLog.studio?.id || null,
+            studioName: editLog.studio?.name,
+            customStudioName: editLog.customStudioName,
+            imageUrl: editLog.imageUrl
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteLog && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          {/* Backdrop */}
+          <div
+            onClick={() => setDeleteLog(null)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.7)',
+              backdropFilter: 'blur(4px)'
+            }}
+          />
+
+          {/* Modal */}
+          <div
+            className="card"
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '20rem',
+              textAlign: 'center'
+            }}
+          >
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                margin: '0 auto 1rem',
+                borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg style={{ width: '1.5rem', height: '1.5rem', color: 'rgba(239, 68, 68, 0.9)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                Delete Workout?
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: 'rgba(246, 237, 221, 0.6)' }}>
+                This will permanently delete your {deleteLog.durationMinutes} min {getTypeLabel(deleteLog.workoutType).toLowerCase()} workout from {formatDate(deleteLog.workoutDate)}.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setDeleteLog(null)}
+                className="btn btn-outline"
+                style={{ flex: 1 }}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  background: 'rgba(239, 68, 68, 0.9)',
+                  color: '#fff',
+                  fontWeight: 500,
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  opacity: deleting ? 0.7 : 1,
+                  transition: 'all 0.2s ease'
+                }}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

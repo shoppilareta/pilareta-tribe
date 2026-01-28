@@ -2,6 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+interface EditLogData {
+  id: string;
+  workoutDate: string;
+  durationMinutes: number;
+  workoutType: string;
+  rpe: number;
+  notes: string | null;
+  focusAreas: string[];
+  studioId?: string | null;
+  studioName?: string;
+  customStudioName?: string | null;
+  imageUrl?: string | null;
+}
+
 interface QuickLogModalProps {
   onClose: () => void;
   onComplete: () => void;
@@ -14,6 +28,7 @@ interface QuickLogModalProps {
     studioId?: string;
     studioName?: string;
   };
+  editLog?: EditLogData;
 }
 
 interface Studio {
@@ -38,26 +53,40 @@ const FOCUS_AREAS = [
   { value: 'mobility', label: 'Mobility' }
 ];
 
-export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalProps) {
-  const [workoutDate, setWorkoutDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [durationMinutes, setDurationMinutes] = useState<number>(prefill?.durationMinutes || 30);
-  const [customDuration, setCustomDuration] = useState<string>('');
-  const [workoutType, setWorkoutType] = useState<string>(prefill?.workoutType || 'reformer');
-  const [rpe, setRpe] = useState<number>(5);
-  const [focusAreas, setFocusAreas] = useState<string[]>(prefill?.focusAreas || []);
-  const [notes, setNotes] = useState<string>('');
-  const [showMore, setShowMore] = useState<boolean>(false);
-  const [studioId, setStudioId] = useState<string | null>(prefill?.studioId || null);
-  const [studioName, setStudioName] = useState<string>(prefill?.studioName || '');
+export function QuickLogModal({ onClose, onComplete, prefill, editLog }: QuickLogModalProps) {
+  const isEditMode = !!editLog;
+
+  // Parse editLog date properly
+  const getInitialDate = () => {
+    if (editLog?.workoutDate) {
+      // Handle both ISO string and date-only formats
+      const dateStr = editLog.workoutDate.split('T')[0];
+      return dateStr;
+    }
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const [workoutDate, setWorkoutDate] = useState<string>(getInitialDate());
+  const [durationMinutes, setDurationMinutes] = useState<number>(editLog?.durationMinutes || prefill?.durationMinutes || 30);
+  const [customDuration, setCustomDuration] = useState<string>(
+    editLog && !DURATION_OPTIONS.includes(editLog.durationMinutes) ? String(editLog.durationMinutes) : ''
+  );
+  const [workoutType, setWorkoutType] = useState<string>(editLog?.workoutType || prefill?.workoutType || 'reformer');
+  const [rpe, setRpe] = useState<number>(editLog?.rpe || 5);
+  const [focusAreas, setFocusAreas] = useState<string[]>(editLog?.focusAreas || prefill?.focusAreas || []);
+  const [notes, setNotes] = useState<string>(editLog?.notes || '');
+  const [showMore, setShowMore] = useState<boolean>(isEditMode);
+  const [studioId, setStudioId] = useState<string | null>(editLog?.studioId || prefill?.studioId || null);
+  const [studioName, setStudioName] = useState<string>(editLog?.studioName || prefill?.studioName || '');
   const [studioSearch, setStudioSearch] = useState<string>('');
   const [studioResults, setStudioResults] = useState<Studio[]>([]);
   const [showStudioDropdown, setShowStudioDropdown] = useState<boolean>(false);
-  const [customStudioName, setCustomStudioName] = useState<string>('');
-  const [useCustomStudio, setUseCustomStudio] = useState<boolean>(false);
+  const [customStudioName, setCustomStudioName] = useState<string>(editLog?.customStudioName || '');
+  const [useCustomStudio, setUseCustomStudio] = useState<boolean>(!!editLog?.customStudioName);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(editLog?.imageUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate date options (today and past 7 days)
@@ -200,8 +229,24 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
     try {
       let response: Response;
 
-      if (imageFile) {
-        // Use FormData when we have an image
+      if (isEditMode) {
+        // Edit mode - use PATCH
+        response = await fetch(`/api/track/logs/${editLog.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workoutDate,
+            durationMinutes,
+            workoutType,
+            rpe,
+            focusAreas: focusAreas.length > 0 ? focusAreas : [],
+            notes: notes || null,
+            studioId: studioId || null,
+            customStudioName: useCustomStudio && customStudioName ? customStudioName : null
+          })
+        });
+      } else if (imageFile) {
+        // Create mode with image - Use FormData
         const formData = new FormData();
         formData.append('workoutDate', workoutDate);
         formData.append('durationMinutes', String(durationMinutes));
@@ -221,7 +266,7 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
           body: formData,
         });
       } else {
-        // Use JSON when no image
+        // Create mode without image - Use JSON
         response = await fetch('/api/track/logs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -243,10 +288,10 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
         onComplete();
       } else {
         const data = await response.json();
-        setError(data.error || 'Failed to log workout');
+        setError(data.error || (isEditMode ? 'Failed to update workout' : 'Failed to log workout'));
       }
     } catch {
-      setError('Failed to log workout');
+      setError(isEditMode ? 'Failed to update workout' : 'Failed to log workout');
     } finally {
       setLoading(false);
     }
@@ -288,7 +333,7 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
       >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Log Workout</h2>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{isEditMode ? 'Edit Workout' : 'Log Workout'}</h2>
           <button
             onClick={onClose}
             style={{
@@ -826,7 +871,7 @@ export function QuickLogModal({ onClose, onComplete, prefill }: QuickLogModalPro
             style={{ flex: 1 }}
             disabled={loading}
           >
-            {loading ? 'Logging...' : 'Log Workout'}
+            {loading ? (isEditMode ? 'Saving...' : 'Logging...') : (isEditMode ? 'Save Changes' : 'Log Workout')}
           </button>
         </div>
       </div>

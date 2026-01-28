@@ -273,6 +273,7 @@ export default function TrackPage() {
         firstName={session.firstName}
         onLogWorkout={() => setShowLogModal(true)}
         refreshKey={refreshKey}
+        onRefresh={() => setRefreshKey((k) => k + 1)}
       />
 
       {showLogModal && (

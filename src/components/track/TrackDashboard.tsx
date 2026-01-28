@@ -29,9 +29,10 @@ interface TrackDashboardProps {
   firstName?: string;
   onLogWorkout: () => void;
   refreshKey: number;
+  onRefresh?: () => void;
 }
 
-export function TrackDashboard({ firstName, onLogWorkout, refreshKey }: TrackDashboardProps) {
+export function TrackDashboard({ firstName, onLogWorkout, refreshKey, onRefresh }: TrackDashboardProps) {
   const [stats, setStats] = useState<WorkoutStats | null>(null);
   const [weeklyProgress, setWeeklyProgress] = useState<boolean[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +156,7 @@ export function TrackDashboard({ firstName, onLogWorkout, refreshKey }: TrackDas
             {activeTab === 'overview' ? (
               <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
                 {/* Recent Logs */}
-                <RecentLogs refreshKey={refreshKey} onLogWorkout={onLogWorkout} />
+                <RecentLogs refreshKey={refreshKey} onLogWorkout={onLogWorkout} onRefresh={onRefresh} />
 
                 {/* Focus Balance Chart */}
                 <FocusBalanceChart focusAreaCounts={stats.focusAreaCounts} />

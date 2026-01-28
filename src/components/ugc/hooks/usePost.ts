@@ -198,6 +198,34 @@ export function usePost() {
     }
   }, []);
 
+  const editPost = useCallback(async (postId: string, caption: string) => {
+    try {
+      const response = await fetch(`/api/ugc/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caption }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update post');
+      }
+
+      setPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              caption: caption.trim() || null,
+            }
+          : prev
+      );
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'An error occurred' };
+    }
+  }, []);
+
   return {
     post,
     loading,
@@ -209,6 +237,7 @@ export function usePost() {
     unsavePost,
     addComment,
     deletePost,
+    editPost,
     setPost,
   };
 }
