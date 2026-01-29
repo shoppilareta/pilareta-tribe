@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { UgcPost } from './hooks/useFeed';
 import { InstagramEmbedCompact } from './InstagramEmbed';
 import { WorkoutRecapCard } from './WorkoutRecapCard';
@@ -11,6 +11,7 @@ interface PostCardProps {
 }
 
 function PostCardComponent({ post, onClick }: PostCardProps) {
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   // Hide name for admin users, otherwise use displayName from API
   const userName = post.user.isAdmin
     ? 'Pilareta Team'
@@ -66,7 +67,7 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
               height: '100%',
             }}
           >
-            {post.thumbnailUrl ? (
+            {post.thumbnailUrl && !thumbnailFailed ? (
               <>
                 <img
                   src={post.thumbnailUrl}
@@ -76,6 +77,7 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
                     height: '100%',
                     objectFit: 'cover',
                   }}
+                  onError={() => setThumbnailFailed(true)}
                 />
                 {/* Instagram badge */}
                 <div
@@ -105,7 +107,34 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
                 </div>
               </>
             ) : (
-              <InstagramEmbedCompact url={post.instagramUrl} postId={post.instagramPostId} />
+              /* Fallback: Instagram-styled placeholder when thumbnail fails */
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCAF45 100%)',
+                }}
+              >
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="1.5"
+                >
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                </svg>
+                <p style={{ margin: '8px 0 0', fontSize: '0.7rem', color: 'white', fontWeight: 500 }}>
+                  View on Instagram
+                </p>
+              </div>
             )}
           </div>
         ) : post.mediaType === 'video' ? (

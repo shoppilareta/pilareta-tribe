@@ -208,8 +208,8 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&#39;/g, "'");
 }
 
-// Helper to fetch Instagram thumbnail via oEmbed API with fallback to og:image
-async function fetchInstagramThumbnail(url: string): Promise<string | null> {
+// Helper to fetch Instagram thumbnail URL via oEmbed API with fallback to og:image
+async function fetchInstagramThumbnailUrl(url: string): Promise<string | null> {
   // Clean the URL - remove tracking parameters
   const cleanUrl = url.split('?')[0];
 
@@ -264,6 +264,59 @@ async function fetchInstagramThumbnail(url: string): Promise<string | null> {
   return null;
 }
 
+// Download Instagram thumbnail and save locally
+async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: string): Promise<string | null> {
+  const thumbnailUrl = await fetchInstagramThumbnailUrl(instagramUrl);
+  if (!thumbnailUrl) return null;
+
+  try {
+    // Download the image
+    const response = await fetch(thumbnailUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length === 0) return null;
+
+    // Determine file extension from content type
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    let ext = '.jpg';
+    if (contentType.includes('png')) ext = '.png';
+    else if (contentType.includes('webp')) ext = '.webp';
+
+    // Save to local uploads directory
+    const { writeFile, mkdir } = await import('fs/promises');
+    const { existsSync } = await import('fs');
+    const path = await import('path');
+
+    const basePath = process.env.NODE_ENV === 'production'
+      ? '/var/www/pilareta-tribe/public/uploads/ugc'
+      : path.join(process.cwd(), 'public/uploads/ugc');
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const dirPath = path.join(basePath, 'thumbnails', `${year}`, `${month}`);
+    const fileName = `${postId}-thumb${ext}`;
+    const filePath = path.join(dirPath, fileName);
+    const publicUrl = `/uploads/ugc/thumbnails/${year}/${month}/${fileName}`;
+
+    if (!existsSync(dirPath)) {
+      await mkdir(dirPath, { recursive: true });
+    }
+
+    await writeFile(filePath, buffer);
+    return publicUrl;
+  } catch (error) {
+    console.error('Error downloading Instagram thumbnail:', error);
+    return null;
+  }
+}
+
 // POST /api/ugc/posts - Create post (auth required)
 export async function POST(request: NextRequest) {
   try {
@@ -309,8 +362,11 @@ export async function POST(request: NextRequest) {
 
       const instagramPostId = extractInstagramPostId(instagramUrl);
 
-      // Try to fetch Instagram thumbnail
-      const thumbnailUrl = await fetchInstagramThumbnail(instagramUrl);
+      // Generate a temp post ID for the thumbnail filename
+      const tempId = `ig-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      // Try to fetch and save Instagram thumbnail locally
+      const thumbnailUrl = await fetchAndSaveInstagramThumbnail(tempId, instagramUrl);
 
       const post = await prisma.ugcPost.create({
         data: {
