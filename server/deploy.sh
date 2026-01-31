@@ -35,6 +35,8 @@ git pull
 
 echo -e "\n${GREEN}[2/5]${NC} Installing dependencies..."
 pnpm install --frozen-lockfile --filter pilareta-tribe --filter @pilareta/shared || pnpm install --filter pilareta-tribe --filter @pilareta/shared
+# Ensure @types/google.maps is available (filtered install may skip it)
+pnpm add -wD @types/google.maps 2>/dev/null || true
 
 echo -e "\n${GREEN}[3/5]${NC} Running database migrations..."
 pnpm prisma db push --skip-generate || true
