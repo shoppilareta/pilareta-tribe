@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     const nextCursor = hasMore ? items[items.length - 1]?.id : null;
 
     // Check if current user has liked/saved posts
-    const session = await getSession();
+    const session = await getSession(request);
     let userInteractions: Record<string, { liked: boolean; saved: boolean }> = {};
 
     if (session?.userId) {
@@ -320,7 +320,7 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
 // POST /api/ugc/posts - Create post (auth required)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }

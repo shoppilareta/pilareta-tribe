@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
+import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
 
-    if (!session.userId) {
+    if (!session?.userId) {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
@@ -23,8 +23,6 @@ export async function GET() {
     });
 
     if (!user) {
-      // User not found, clear session
-      session.destroy();
       return NextResponse.json({ user: null }, { status: 401 });
     }
 

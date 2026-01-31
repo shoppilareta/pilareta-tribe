@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth';
 // GET /api/ugc/saved - Get current user's saved posts
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }

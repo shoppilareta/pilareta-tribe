@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "Pilareta Tribe",
+    "slug": "pilareta-tribe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "pilareta",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#202219"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pilareta.tribe",
+      "associatedDomains": ["applinks:tribe.pilareta.com"],
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Pilareta Tribe reads your pilates workouts from Health to keep your activity log in sync.",
+        "NSHealthUpdateUsageDescription": "Pilareta Tribe saves your pilates workouts to Health so they appear alongside your other fitness data."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#202219"
+      },
+      "package": "com.pilareta.tribe",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "pilareta",
+              "host": "auth",
+              "pathPrefix": "/callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "tribe.pilareta.com",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Pilareta Tribe uses your location to find nearby pilates studios."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#f6eddd"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Check if current user has liked/saved posts
-    const session = await getSession();
+    const session = await getSession(request);
     let userInteractions: Record<string, { liked: boolean; saved: boolean }> = {};
 
     if (session?.userId) {

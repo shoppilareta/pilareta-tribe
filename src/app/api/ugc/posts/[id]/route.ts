@@ -90,7 +90,7 @@ export async function GET(
     }
 
     // Only show approved posts publicly, or if user is admin or owner
-    const session = await getSession();
+    const session = await getSession(request);
     const isOwner = session?.userId === post.userId;
     const isAdmin = session?.isAdmin;
 
@@ -162,7 +162,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
@@ -220,7 +220,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }

@@ -11,7 +11,7 @@ interface RouteParams {
 // GET /api/track/logs/[id] - Get single workout log
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/track/logs/[id] - Update workout log
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
@@ -230,7 +230,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/track/logs/[id] - Delete workout log
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }

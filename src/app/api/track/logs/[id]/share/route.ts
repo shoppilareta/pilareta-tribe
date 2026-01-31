@@ -9,7 +9,7 @@ interface RouteParams {
 // POST /api/track/logs/[id]/share - Share workout to Community
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/track/logs/[id]/share - Unshare workout from Community
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }

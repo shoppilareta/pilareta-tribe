@@ -6,7 +6,7 @@ import { calculateStreak, getWeeklyProgress } from '@/lib/track/streak';
 // GET /api/track/stats - Get user's workout stats
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }

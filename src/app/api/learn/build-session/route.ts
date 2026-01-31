@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getSession } from '@/lib/session';
+import { getSession } from '@/lib/auth';
 
 interface BuildSessionRequest {
   goal: string;
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { goal, duration, level, constraints } = body;
 
     // Get user session (optional - can build sessions without login)
-    const session = await getSession();
+    const session = await getSession(request);
     const userId = session?.userId || null;
 
     // Get focus areas for this goal
