@@ -13,4 +13,7 @@ export {
   addToSyncQueue,
   processSyncQueue,
   getSyncQueueCount,
+  cacheStats,
+  getCachedStats,
+  clearCachedStats,
 } from './syncEngine';

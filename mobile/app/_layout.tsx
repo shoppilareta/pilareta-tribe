@@ -4,8 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { colors } from '@/theme';
-import { useAuthStore } from '@/stores/authStore';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useDeepLinks } from '@/hooks/useDeepLinks';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,9 +17,10 @@ const queryClient = new QueryClient({
   },
 });
 
-function OfflineSyncManager() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+function AppServices() {
   useOfflineSync();
+  useNotifications();
+  useDeepLinks();
   return null;
 }
 
@@ -26,7 +28,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <QueryClientProvider client={queryClient}>
-        <OfflineSyncManager />
+        <AppServices />
         <StatusBar style="light" />
         <Stack
           screenOptions={{

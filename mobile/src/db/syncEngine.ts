@@ -1,6 +1,6 @@
 import { getDatabase } from './schema';
 import { getUnsyncedLogs, markLogSynced } from './workoutOps';
-import { createLog } from '@/api/track';
+import { createLog, getStats } from '@/api/track';
 import type { CreateWorkoutLogRequest } from '@shared/types';
 
 interface SyncQueueItem {
@@ -13,6 +13,19 @@ interface SyncQueueItem {
   maxRetries: number;
   createdAt: string;
   lastAttemptedAt: string | null;
+}
+
+/**
+ * Calculate exponential backoff delay in milliseconds.
+ * Base delay: 5 seconds, doubling each retry (5s, 10s, 20s, 40s, 80s cap).
+ */
+function shouldRetry(item: SyncQueueItem): boolean {
+  if (item.retryCount >= item.maxRetries) return false;
+  if (!item.lastAttemptedAt) return true;
+
+  const backoffMs = Math.min(5000 * Math.pow(2, item.retryCount), 80000);
+  const lastAttempt = new Date(item.lastAttemptedAt).getTime();
+  return Date.now() - lastAttempt >= backoffMs;
 }
 
 export async function addToSyncQueue(
@@ -91,9 +104,10 @@ export async function processSyncQueue(): Promise<{ synced: number; failed: numb
     }
   }
 
-  // 2. Process generic sync queue items
+  // 2. Process generic sync queue items (with exponential backoff)
   const queueItems = await getSyncQueueItems();
   for (const item of queueItems) {
+    if (!shouldRetry(item)) continue;
     try {
       await processQueueItem(item);
       await removeSyncQueueItem(item.id);
@@ -101,6 +115,16 @@ export async function processSyncQueue(): Promise<{ synced: number; failed: numb
     } catch {
       await incrementRetry(item.id);
       failed++;
+    }
+  }
+
+  // 3. Refresh cached stats after syncing
+  if (synced > 0) {
+    try {
+      const statsData = await getStats();
+      await cacheStats('track-stats', statsData);
+    } catch {
+      // Non-critical — stats will refresh on next load
     }
   }
 
@@ -123,4 +147,38 @@ export async function getSyncQueueCount(): Promise<number> {
     `SELECT COUNT(*) as count FROM sync_queue WHERE retry_count < max_retries`,
   );
   return (result as { count: number })?.count || 0;
+}
+
+// ---------------------------------------------------------------------------
+// Stats caching
+// ---------------------------------------------------------------------------
+
+export async function cacheStats(key: string, data: unknown): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO cached_stats (key, data, cached_at) VALUES (?, ?, ?)`,
+    key,
+    JSON.stringify(data),
+    new Date().toISOString(),
+  );
+}
+
+export async function getCachedStats<T>(key: string, maxAgeMs = 5 * 60 * 1000): Promise<T | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync(
+    `SELECT data, cached_at FROM cached_stats WHERE key = ?`,
+    key,
+  );
+  if (!row) return null;
+
+  const { data, cached_at } = row as { data: string; cached_at: string };
+  const age = Date.now() - new Date(cached_at).getTime();
+  if (age > maxAgeMs) return null;
+
+  return JSON.parse(data) as T;
+}
+
+export async function clearCachedStats(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM cached_stats`);
 }
