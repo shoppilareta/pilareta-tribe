@@ -34,48 +34,41 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # Create/update .env file
-            echo ">>> Updating environment variables..."
-            cat > .env << 'ENV_EOF'
-            NEXT_PUBLIC_APP_URL=${{ secrets.APP_URL }}
-            NODE_ENV=production
-            SHOPIFY_STORE_DOMAIN=${{ secrets.SHOPIFY_STORE_DOMAIN }}
-            SHOPIFY_CLIENT_ID=${{ secrets.SHOPIFY_CLIENT_ID }}
-            SHOPIFY_SHOP_ID=${{ secrets.SHOPIFY_SHOP_ID }}
-            SHOPIFY_ACCOUNTS_MODE=${{ secrets.SHOPIFY_ACCOUNTS_MODE }}
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-            ENV_EOF
+            # Load environment from server's .env.local (not overwritten by git)
+            echo ">>> Loading environment variables..."
+            if [ -f .env.local ]; then
+              set -a
+              source .env.local
+              set +a
+            else
+              echo "ERROR: .env.local not found on server"
+              exit 1
+            fi
 
             # Install dependencies
             echo ">>> Installing dependencies..."
-            pnpm install --frozen-lockfile
+            pnpm install --frozen-lockfile --filter pilareta-tribe --filter @pilareta/shared || pnpm install --filter pilareta-tribe --filter @pilareta/shared
+            pnpm add -wD @types/google.maps 2>/dev/null || true
 
             # Generate Prisma client
             echo ">>> Generating Prisma client..."
             pnpm prisma generate
 
-            # Sync database schema (using db push for schemaless setup)
+            # Sync database schema
             echo ">>> Syncing database schema..."
             pnpm prisma db push --skip-generate
 
-            # Seed database if empty (check if exercises table is empty)
-            echo ">>> Checking if database needs seeding..."
-            EXERCISE_COUNT=$(pnpm prisma db execute --stdin <<< "SELECT COUNT(*) FROM \"Exercise\";" 2>/dev/null | grep -oP '\d+' | head -1 || echo "0")
-            if [ "$EXERCISE_COUNT" = "0" ] || [ -z "$EXERCISE_COUNT" ]; then
-              echo ">>> Database is empty, running seed..."
-              pnpm db:seed
-            else
-              echo ">>> Database already seeded ($EXERCISE_COUNT exercises found)"
-            fi
-
             # Build the application
             echo ">>> Building application..."
-            pnpm build
+            npx next build
 
             # Restart the application
             echo ">>> Restarting application..."
-            pm2 restart pilareta-tribe || pm2 start npm --name "pilareta-tribe" -- start
+            if [ -f ecosystem.config.js ]; then
+              pm2 restart ecosystem.config.js --update-env
+            else
+              pm2 restart pilareta-tribe --update-env || pm2 start npm --name "pilareta-tribe" -- start
+            fi
             pm2 save
 
             echo "=== Deployment complete ==="
