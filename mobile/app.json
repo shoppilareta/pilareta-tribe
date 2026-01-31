@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "pilareta",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "owner": "shoppilareta",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -40,6 +40,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#202219"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM"
+        }
       },
       "package": "com.pilareta.tribe",
       "versionCode": 1,
