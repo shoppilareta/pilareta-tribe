@@ -47,7 +47,11 @@ jobs:
 
             # Install dependencies
             echo ">>> Installing dependencies..."
-            pnpm install --frozen-lockfile --filter pilareta-tribe --filter @pilareta/shared || pnpm install --filter pilareta-tribe --filter @pilareta/shared
+            pnpm install --frozen-lockfile --filter pilareta-tribe --filter @pilareta/shared || {
+              echo ">>> Frozen lockfile failed, cleaning node_modules and retrying..."
+              rm -rf node_modules
+              pnpm install --no-frozen-lockfile --filter pilareta-tribe --filter @pilareta/shared
+            }
             pnpm add -wD @types/google.maps 2>/dev/null || true
 
             # Generate Prisma client
