@@ -10,7 +10,12 @@ export default function CommunityLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="create" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="[id]" />
+      <Stack.Screen
+        name="create"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="saved" />
     </Stack>
   );
 }

@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card } from '@/components/ui';
-import { getLog, deleteLog } from '@/api/track';
+import { getLog, deleteLog, unshareLog } from '@/api/track';
 import { QuickLogForm } from '@/components/track/QuickLogForm';
 
 const WORKOUT_TYPE_LABELS: Record<string, string> = {
@@ -152,6 +152,13 @@ export default function LogDetail() {
         </Pressable>
         <Text style={styles.headerTitle}>Workout Details</Text>
         <View style={styles.headerActions}>
+          {!log.isShared && (
+            <Pressable onPress={() => router.push({ pathname: '/(tabs)/track/share', params: { logId: log.id } })} style={styles.actionButton}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
+          )}
           <Pressable onPress={() => setIsEditing(true)} style={styles.actionButton}>
             <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
               <Path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" />
@@ -230,6 +237,43 @@ export default function LogDetail() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Session</Text>
             <Text style={styles.sectionValue}>{log.session.name}</Text>
+          </View>
+        )}
+
+        {/* Shared status */}
+        {log.isShared && (
+          <View style={styles.sharedSection}>
+            <View style={styles.sharedRow}>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth={1.5}>
+                <Path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={styles.sharedText}>Shared to Community</Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                Alert.alert('Unshare Workout', 'This will remove the post from the Community feed.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Unshare',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await unshareLog(log.id);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        queryClient.invalidateQueries({ queryKey: ['track-log', id] });
+                        queryClient.invalidateQueries({ queryKey: ['track-logs'] });
+                        queryClient.invalidateQueries({ queryKey: ['community-feed'] });
+                      } catch {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                      }
+                    },
+                  },
+                ]);
+              }}
+              style={styles.unshareButton}
+            >
+              <Text style={styles.unshareText}>Unshare</Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
@@ -358,5 +402,33 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.base,
     color: colors.fg.primary,
     lineHeight: 22,
+  },
+  sharedSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    backgroundColor: colors.cream05,
+    borderRadius: radius.md,
+    marginBottom: spacing.lg,
+  },
+  sharedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sharedText: {
+    fontSize: typography.sizes.sm,
+    color: 'rgba(34, 197, 94, 0.8)',
+    fontWeight: typography.weights.medium,
+  },
+  unshareButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  unshareText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    textDecorationLine: 'underline',
   },
 });

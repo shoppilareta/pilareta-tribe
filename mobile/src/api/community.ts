@@ -74,6 +74,34 @@ export async function getMyPosts(params?: CursorPaginationParams): Promise<UgcFe
   return apiFetch(`/api/ugc/my-posts${qs ? `?${qs}` : ''}`);
 }
 
+export async function createPost(data: {
+  file?: { uri: string; type: string; name: string };
+  instagramUrl?: string;
+  caption?: string;
+  studioId?: string;
+  tagIds?: string[];
+}): Promise<{ success: boolean; post: UgcPost; message: string }> {
+  const formData = new FormData();
+
+  if (data.file) {
+    formData.append('file', data.file as unknown as Blob);
+  }
+  if (data.instagramUrl) formData.append('instagramUrl', data.instagramUrl);
+  if (data.caption) formData.append('caption', data.caption);
+  if (data.studioId) formData.append('studioId', data.studioId);
+  if (data.tagIds?.length) formData.append('tagIds', JSON.stringify(data.tagIds));
+  formData.append('consentGiven', 'true');
+
+  return apiFetch('/api/ugc/posts', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function deletePost(id: string): Promise<{ success: boolean }> {
+  return apiFetch(`/api/ugc/posts/${id}`, { method: 'DELETE' });
+}
+
 export async function getSavedPosts(params?: CursorPaginationParams): Promise<UgcFeedResponse> {
   const query = new URLSearchParams();
   if (params?.cursor) query.set('cursor', params.cursor);
