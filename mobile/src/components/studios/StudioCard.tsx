@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -15,7 +16,7 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
-export function StudioCard({ studio, distance }: StudioCardProps) {
+export const StudioCard = memo(function StudioCard({ studio, distance }: StudioCardProps) {
   return (
     <Pressable onPress={() => router.push(`/(tabs)/studios/${studio.id}`)}>
       <Card padding="md" style={styles.card}>
@@ -79,7 +80,7 @@ export function StudioCard({ studio, distance }: StudioCardProps) {
       </Card>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.sm },

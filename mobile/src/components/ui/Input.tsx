@@ -23,6 +23,9 @@ export function Input({ label, error, style, ...props }: InputProps) {
         placeholderTextColor={colors.fg.tertiary}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        accessibilityLabel={label || props.placeholder}
+        accessibilityState={{ disabled: props.editable === false }}
+        {...(error ? { accessibilityHint: error } : {})}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}

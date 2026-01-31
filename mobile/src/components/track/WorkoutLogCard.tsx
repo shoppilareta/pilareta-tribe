@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -51,9 +52,14 @@ function getRpeColor(rpe: number): string {
   return 'rgba(239, 68, 68, 0.8)';
 }
 
-export function WorkoutLogCard({ log }: WorkoutLogCardProps) {
+export const WorkoutLogCard = memo(function WorkoutLogCard({ log }: WorkoutLogCardProps) {
   return (
-    <Pressable onPress={() => router.push(`/(tabs)/track/${log.id}`)}>
+    <Pressable
+      onPress={() => router.push(`/(tabs)/track/${log.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`${WORKOUT_TYPE_LABELS[log.workoutType] || log.workoutType} workout, ${formatDuration(log.durationMinutes)}, RPE ${log.rpe}, ${formatLogDate(log.workoutDate)}`}
+      accessibilityHint="Opens workout details"
+    >
       <Card padding="md" style={styles.card}>
         <View style={styles.topRow}>
           <View style={styles.typeContainer}>
@@ -111,7 +117,7 @@ export function WorkoutLogCard({ log }: WorkoutLogCardProps) {
       </Card>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

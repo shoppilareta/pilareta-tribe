@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
@@ -14,7 +15,7 @@ function formatPrice(amount: string, currencyCode: string): string {
   return `${currencyCode} ${num.toFixed(2)}`;
 }
 
-export function ProductCard({ product, onAddToCart }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const image = product.images?.[0];
   const price = product.priceRange.minVariantPrice;
   const hasVariants = product.variants.length > 1;
@@ -46,7 +47,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       </View>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { flex: 1, overflow: 'hidden', padding: 0 },

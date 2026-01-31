@@ -10,6 +10,7 @@ import { StatsOverview } from '@/components/track/StatsOverview';
 import { StreakDisplay } from '@/components/track/StreakDisplay';
 import { WeeklyProgress } from '@/components/track/WeeklyProgress';
 import { RecentLogs } from '@/components/track/RecentLogs';
+import { Skeleton, StatsSkeleton, WorkoutCardSkeleton } from '@/components/ui';
 import Svg, { Path } from 'react-native-svg';
 
 export default function TrackDashboard() {
@@ -75,7 +76,7 @@ export default function TrackDashboard() {
             </Text>
             <Text style={styles.headerSubtitle}>Your Pilates journey at a glance</Text>
           </View>
-          <Pressable onPress={() => router.push('/settings')} style={styles.settingsButton}>
+          <Pressable onPress={() => router.push('/settings')} style={styles.settingsButton} accessibilityRole="button" accessibilityLabel="Settings">
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
               <Path d="M12 15a3 3 0 100-6 3 3 0 000 6z" strokeLinecap="round" strokeLinejoin="round" />
               <Path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" strokeLinecap="round" strokeLinejoin="round" />
@@ -84,7 +85,11 @@ export default function TrackDashboard() {
         </View>
 
         {/* Streak */}
-        {stats && (
+        {isLoading && !stats ? (
+          <View style={styles.section}>
+            <Skeleton width="100%" height={100} borderRadius={12} />
+          </View>
+        ) : stats ? (
           <View style={styles.section}>
             <StreakDisplay
               currentStreak={stats.currentStreak}
@@ -92,15 +97,25 @@ export default function TrackDashboard() {
               lastWorkoutDate={stats.lastWorkoutDate}
             />
           </View>
-        )}
+        ) : null}
 
         {/* Weekly Progress */}
-        <View style={styles.section}>
-          <WeeklyProgress progress={weeklyProgress} />
-        </View>
+        {isLoading && !weeklyProgress.length ? (
+          <View style={styles.section}>
+            <Skeleton width="100%" height={80} borderRadius={12} />
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <WeeklyProgress progress={weeklyProgress} />
+          </View>
+        )}
 
         {/* Stats */}
-        {stats && (
+        {isLoading && !stats ? (
+          <View style={styles.section}>
+            <StatsSkeleton />
+          </View>
+        ) : stats ? (
           <View style={styles.section}>
             <StatsOverview
               totalWorkouts={stats.totalWorkouts}
@@ -111,7 +126,7 @@ export default function TrackDashboard() {
               averageRpe={stats.averageRpe}
             />
           </View>
-        )}
+        ) : null}
 
         {/* Recent Logs */}
         <View style={styles.section}>
@@ -124,6 +139,9 @@ export default function TrackDashboard() {
       <Pressable
         style={styles.fab}
         onPress={() => router.push('/(tabs)/track/log')}
+        accessibilityRole="button"
+        accessibilityLabel="Log a new workout"
+        accessibilityHint="Opens the workout logging form"
       >
         <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.bg.primary} strokeWidth={2.5}>
           <Path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />

@@ -10,6 +10,8 @@ interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export function Button({
@@ -20,6 +22,8 @@ export function Button({
   disabled = false,
   loading = false,
   style,
+  accessibilityLabel,
+  accessibilityHint,
 }: ButtonProps) {
   const handlePress = () => {
     if (disabled || loading) return;
@@ -31,6 +35,10 @@ export function Button({
     <Pressable
       onPress={handlePress}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       style={({ pressed }) => [
         styles.base,
         sizeStyles[size],

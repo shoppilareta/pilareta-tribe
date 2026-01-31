@@ -67,6 +67,7 @@ export default function TabLayout() {
         options={{
           title: 'Track',
           tabBarIcon: ({ color }) => <TrackIcon color={color} size={22} />,
+          tabBarAccessibilityLabel: 'Track your workouts',
         }}
       />
       <Tabs.Screen
@@ -74,6 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Learn',
           tabBarIcon: ({ color }) => <LearnIcon color={color} size={22} />,
+          tabBarAccessibilityLabel: 'Learn exercises and programs',
         }}
       />
       <Tabs.Screen
@@ -81,6 +83,7 @@ export default function TabLayout() {
         options={{
           title: 'Community',
           tabBarIcon: ({ color }) => <CommunityIcon color={color} size={22} />,
+          tabBarAccessibilityLabel: 'Community feed and posts',
         }}
       />
       <Tabs.Screen
@@ -88,6 +91,7 @@ export default function TabLayout() {
         options={{
           title: 'Studios',
           tabBarIcon: ({ color }) => <StudiosIcon color={color} size={22} />,
+          tabBarAccessibilityLabel: 'Find nearby pilates studios',
         }}
       />
       <Tabs.Screen
@@ -95,6 +99,7 @@ export default function TabLayout() {
         options={{
           title: 'Shop',
           tabBarIcon: ({ color }) => <ShopIcon color={color} size={22} />,
+          tabBarAccessibilityLabel: 'Shop merchandise',
         }}
       />
     </Tabs>

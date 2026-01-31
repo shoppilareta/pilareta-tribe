@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -38,7 +38,7 @@ function resolveMediaUrl(url: string | null): string | null {
   return `${API_BASE}${url}`;
 }
 
-export function PostCard({ post, onInteraction }: PostCardProps) {
+export const PostCard = memo(function PostCard({ post, onInteraction }: PostCardProps) {
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [saved, setSaved] = useState(post.isSaved ?? false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
@@ -184,7 +184,7 @@ export function PostCard({ post, onInteraction }: PostCardProps) {
       )}
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.md, overflow: 'hidden', padding: 0 },

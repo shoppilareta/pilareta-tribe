@@ -1,8 +1,10 @@
+import { memo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import { getLogs } from '@/api/track';
 import { WorkoutLogCard } from './WorkoutLogCard';
+import { WorkoutCardSkeleton } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import type { WorkoutLog } from '@shared/types';
 
@@ -27,8 +29,10 @@ export function RecentLogs() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={colors.fg.primary} />
+      <View>
+        <WorkoutCardSkeleton />
+        <WorkoutCardSkeleton />
+        <WorkoutCardSkeleton />
       </View>
     );
   }

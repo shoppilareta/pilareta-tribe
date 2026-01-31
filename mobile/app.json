@@ -8,6 +8,13 @@
     "scheme": "pilareta",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "owner": "pilareta",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/pilareta-tribe"
+    },
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -16,10 +23,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pilareta.tribe",
+      "buildNumber": "1",
       "associatedDomains": ["applinks:tribe.pilareta.com"],
       "infoPlist": {
         "NSHealthShareUsageDescription": "Pilareta Tribe reads your pilates workouts from Health to keep your activity log in sync.",
-        "NSHealthUpdateUsageDescription": "Pilareta Tribe saves your pilates workouts to Health so they appear alongside your other fitness data."
+        "NSHealthUpdateUsageDescription": "Pilareta Tribe saves your pilates workouts to Health so they appear alongside your other fitness data.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
@@ -28,6 +40,17 @@
         "backgroundColor": "#202219"
       },
       "package": "com.pilareta.tribe",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -71,10 +94,32 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#f6eddd"
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#202219",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      },
+      "storeListing": {
+        "shortDescription": "Track your Pilates journey, learn exercises, and connect with your community.",
+        "description": "Pilareta Tribe is the all-in-one Pilates companion. Track your workouts, build streaks, explore exercises and programs, connect with the Pilates community, find studios near you, and shop merchandise.\n\nFeatures:\n- Quick workout logging in 10 seconds\n- Streak tracking and progress stats\n- Shareable workout recap cards\n- Exercise library with guided sessions\n- Community feed for sharing your journey\n- Studio locator with map view\n- Apple Health and Health Connect sync\n- Offline-first with automatic sync\n- Push notification streak reminders",
+        "keywords": "pilates,workout,fitness,tracker,exercise,community,studio,health,wellness,reformer,mat",
+        "categories": {
+          "ios": "Health & Fitness",
+          "android": "Health & Fitness"
+        }
+      }
     }
   }
 }
