@@ -10,7 +10,10 @@ export default function ShopLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="cart" options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="cart"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
     </Stack>
   );
 }

@@ -10,6 +10,7 @@ export default function StudiosLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="[id]" />
     </Stack>
   );
 }
