@@ -8,14 +8,7 @@ import { router } from 'expo-router';
 const PUSH_TOKEN_KEY = 'pilareta_push_token';
 const STREAK_REMINDER_KEY = 'pilareta_streak_reminder';
 
-// Configure how notifications are handled when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+let notificationHandlerSet = false;
 
 interface NotificationState {
   pushToken: string | null;
@@ -40,6 +33,18 @@ export function useNotifications() {
   const responseListener = useRef<Notifications.Subscription>();
 
   useEffect(() => {
+    // Configure notification handler lazily (not at module level)
+    if (!notificationHandlerSet) {
+      notificationHandlerSet = true;
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+    }
+
     (async () => {
       // Load stored preference
       const storedReminder = await SecureStore.getItemAsync(STREAK_REMINDER_KEY);
