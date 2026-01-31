@@ -8,12 +8,12 @@
     "scheme": "pilareta",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "owner": "pilareta",
+    "owner": "shoppilareta",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/pilareta-tribe"
+      "url": "https://u.expo.dev/07834875-89aa-4996-962e-f4fcbfe45ceb"
     },
     "splash": {
       "image": "./assets/images/splash-icon.png",
@@ -24,7 +24,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.pilareta.tribe",
       "buildNumber": "1",
-      "associatedDomains": ["applinks:tribe.pilareta.com"],
+      "associatedDomains": [
+        "applinks:tribe.pilareta.com"
+      ],
       "infoPlist": {
         "NSHealthShareUsageDescription": "Pilareta Tribe reads your pilates workouts from Health to keep your activity log in sync.",
         "NSHealthUpdateUsageDescription": "Pilareta Tribe saves your pilates workouts to Health so they appear alongside your other fitness data.",
@@ -62,7 +64,10 @@
               "pathPrefix": "/callback"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         },
         {
           "action": "VIEW",
@@ -74,7 +79,10 @@
               "pathPrefix": "/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -109,7 +117,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "07834875-89aa-4996-962e-f4fcbfe45ceb"
       },
       "storeListing": {
         "shortDescription": "Track your Pilates journey, learn exercises, and connect with your community.",
@@ -119,6 +127,9 @@
           "ios": "Health & Fitness",
           "android": "Health & Fitness"
         }
+      },
+      "router": {
+        "origin": false
       }
     }
   }
