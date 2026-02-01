@@ -194,6 +194,10 @@ export interface ShopifyProduct {
   title: string;
   handle: string;
   description: string;
+  productType?: string;
+  tags?: string[];
+  availableForSale?: boolean;
+  featuredImage?: { url: string; altText: string | null } | null;
   images: { url: string; altText: string | null }[];
   priceRange: {
     minVariantPrice: { amount: string; currencyCode: string };
@@ -204,5 +208,6 @@ export interface ShopifyProduct {
     title: string;
     price: { amount: string; currencyCode: string };
     availableForSale: boolean;
+    selectedOptions?: { name: string; value: string }[];
   }[];
 }

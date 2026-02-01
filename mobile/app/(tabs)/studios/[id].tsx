@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, TextInput, Alert, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,79 @@ import { Card, Button } from '@/components/ui';
 import { getStudio } from '@/api/studios';
 import { apiFetch } from '@/api/client';
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const PHOTO_HEIGHT = 200;
+
 type DetailTab = 'info' | 'claim' | 'suggest';
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function formatOpeningHours(openingHours: unknown): string[] {
+  if (!openingHours || typeof openingHours !== 'object') return [];
+
+  const oh = openingHours as Record<string, unknown>;
+
+  // Google Places format: { weekday_text: string[] }
+  if (Array.isArray(oh.weekday_text)) {
+    return oh.weekday_text.map(String);
+  }
+
+  // Google Places format: { periods: Array<{ open: { day, time }, close: { day, time } }> }
+  if (Array.isArray(oh.periods)) {
+    const dayHours: Record<number, string> = {};
+    for (const period of oh.periods) {
+      const p = period as Record<string, any>;
+      const openDay = p.open?.day;
+      const openTime = p.open?.time;
+      const closeTime = p.close?.time;
+
+      if (openDay == null || !openTime) continue;
+
+      const fmtTime = (t: string) => {
+        const h = parseInt(t.slice(0, 2), 10);
+        const m = t.slice(2);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        return `${h12}:${m} ${ampm}`;
+      };
+
+      const dayName = DAY_NAMES[openDay] || `Day ${openDay}`;
+      const timeStr = closeTime ? `${fmtTime(openTime)} - ${fmtTime(closeTime)}` : `${fmtTime(openTime)} - Open`;
+      dayHours[openDay] = dayHours[openDay] ? `${dayHours[openDay]}, ${timeStr}` : timeStr;
+    }
+
+    return DAY_NAMES.map((name, i) => `${name}: ${dayHours[i] || 'Closed'}`);
+  }
+
+  // Simple object format: { Monday: "9:00 - 17:00", ... }
+  if (!Array.isArray(oh)) {
+    const entries = Object.entries(oh).filter(([k]) => k !== 'open_now' && k !== 'periods');
+    if (entries.length > 0) {
+      return entries.map(([day, hours]) => `${day}: ${typeof hours === 'string' ? hours : 'See website'}`);
+    }
+  }
+
+  // Array of strings
+  if (Array.isArray(openingHours)) {
+    return openingHours.filter(item => typeof item === 'string').map(String);
+  }
+
+  return [];
+}
+
+function getPhotoUrl(photos: unknown): string | null {
+  if (!Array.isArray(photos) || photos.length === 0) return null;
+  const first = photos[0];
+  if (typeof first === 'string') return first;
+  if (first && typeof first === 'object') {
+    const p = first as Record<string, unknown>;
+    if (typeof p.url === 'string') return p.url;
+    if (typeof p.photo_reference === 'string') {
+      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${p.photo_reference}&key=AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM`;
+    }
+  }
+  return null;
+}
 
 export default function StudioDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,6 +114,8 @@ export default function StudioDetail() {
     );
   }
 
+  const photoUrl = getPhotoUrl(studio.photos);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -71,7 +145,7 @@ export default function StudioDetail() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'info' && <StudioInfo studio={studio} />}
+        {activeTab === 'info' && <StudioInfo studio={studio} photoUrl={photoUrl} />}
         {activeTab === 'claim' && <ClaimForm studioId={studio.id} />}
         {activeTab === 'suggest' && <SuggestEditForm studioId={studio.id} />}
       </ScrollView>
@@ -79,9 +153,18 @@ export default function StudioDetail() {
   );
 }
 
-function StudioInfo({ studio }: { studio: NonNullable<Awaited<ReturnType<typeof getStudio>>['studio']> }) {
+function StudioInfo({ studio, photoUrl }: { studio: NonNullable<Awaited<ReturnType<typeof getStudio>>['studio']>; photoUrl: string | null }) {
+  const hours = formatOpeningHours(studio.openingHours);
+
   return (
     <>
+      {/* Photo */}
+      {photoUrl && (
+        <View style={styles.photoContainer}>
+          <Image source={{ uri: photoUrl }} style={styles.photo} resizeMode="cover" />
+        </View>
+      )}
+
       {/* Rating */}
       {studio.rating != null && (
         <View style={styles.ratingRow}>
@@ -129,15 +212,12 @@ function StudioInfo({ studio }: { studio: NonNullable<Awaited<ReturnType<typeof 
       )}
 
       {/* Opening hours */}
-      {studio.openingHours && typeof studio.openingHours === 'object' && (
+      {hours.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Opening Hours</Text>
           <Card padding="md">
-            {(Array.isArray(studio.openingHours)
-              ? studio.openingHours
-              : Object.entries(studio.openingHours).map(([day, hours]) => `${day}: ${hours}`)
-            ).map((line: string, i: number) => (
-              <Text key={i} style={styles.hoursText}>{String(line)}</Text>
+            {hours.map((line, i) => (
+              <Text key={i} style={styles.hoursText}>{line}</Text>
             ))}
           </Card>
         </View>
@@ -212,19 +292,13 @@ function ClaimForm({ studioId }: { studioId: string }) {
 
   return (
     <View>
-      <Text style={styles.formDescription}>
-        If you own or manage this studio, you can claim it to update its information.
-      </Text>
-
+      <Text style={styles.formDescription}>If you own or manage this studio, you can claim it to update its information.</Text>
       <Text style={styles.fieldLabel}>Your Name *</Text>
       <TextInput style={styles.fieldInput} value={name} onChangeText={setName} placeholder="Full name" placeholderTextColor={colors.fg.muted} />
-
       <Text style={styles.fieldLabel}>Email *</Text>
       <TextInput style={styles.fieldInput} value={email} onChangeText={setEmail} placeholder="Email address" placeholderTextColor={colors.fg.muted} keyboardType="email-address" autoCapitalize="none" />
-
       <Text style={styles.fieldLabel}>Phone (optional)</Text>
       <TextInput style={styles.fieldInput} value={phone} onChangeText={setPhone} placeholder="Phone number" placeholderTextColor={colors.fg.muted} keyboardType="phone-pad" />
-
       <Text style={styles.fieldLabel}>Your Role</Text>
       <View style={styles.roleRow}>
         {roles.map((r) => (
@@ -233,10 +307,8 @@ function ClaimForm({ studioId }: { studioId: string }) {
           </Pressable>
         ))}
       </View>
-
       <Text style={styles.fieldLabel}>Proof of Ownership (optional)</Text>
       <TextInput style={[styles.fieldInput, styles.textArea]} value={proof} onChangeText={setProof} placeholder="How can we verify you own/manage this studio?" placeholderTextColor={colors.fg.muted} multiline textAlignVertical="top" />
-
       <Button title={submitting ? 'Submitting...' : 'Submit Claim'} onPress={handleSubmit} disabled={submitting} />
     </View>
   );
@@ -287,28 +359,19 @@ function SuggestEditForm({ studioId }: { studioId: string }) {
 
   return (
     <View>
-      <Text style={styles.formDescription}>
-        See something wrong? Suggest corrections and we'll review them.
-      </Text>
-
+      <Text style={styles.formDescription}>See something wrong? Suggest corrections and we'll review them.</Text>
       <Text style={styles.fieldLabel}>Your Email (optional)</Text>
       <TextInput style={styles.fieldInput} value={submitterEmail} onChangeText={setSubmitterEmail} placeholder="Email address" placeholderTextColor={colors.fg.muted} keyboardType="email-address" autoCapitalize="none" />
-
       <Text style={styles.fieldLabel}>Studio Name</Text>
       <TextInput style={styles.fieldInput} value={editName} onChangeText={setEditName} placeholder="Corrected name" placeholderTextColor={colors.fg.muted} />
-
       <Text style={styles.fieldLabel}>Address</Text>
       <TextInput style={styles.fieldInput} value={editAddress} onChangeText={setEditAddress} placeholder="Corrected address" placeholderTextColor={colors.fg.muted} />
-
       <Text style={styles.fieldLabel}>Phone Number</Text>
       <TextInput style={styles.fieldInput} value={editPhone} onChangeText={setEditPhone} placeholder="Corrected phone" placeholderTextColor={colors.fg.muted} keyboardType="phone-pad" />
-
       <Text style={styles.fieldLabel}>Website</Text>
       <TextInput style={styles.fieldInput} value={editWebsite} onChangeText={setEditWebsite} placeholder="Corrected website URL" placeholderTextColor={colors.fg.muted} autoCapitalize="none" keyboardType="url" />
-
       <Text style={styles.fieldLabel}>Reason (optional)</Text>
       <TextInput style={[styles.fieldInput, styles.textArea]} value={reason} onChangeText={setReason} placeholder="Why is this change needed?" placeholderTextColor={colors.fg.muted} multiline textAlignVertical="top" />
-
       <Button title={submitting ? 'Submitting...' : 'Submit Suggestion'} onPress={handleSubmit} disabled={submitting} />
     </View>
   );
@@ -329,6 +392,8 @@ const styles = StyleSheet.create({
   tabTextActive: { color: colors.fg.primary },
   scroll: { flex: 1 },
   content: { padding: spacing.md, paddingBottom: 100 },
+  photoContainer: { marginBottom: spacing.md, borderRadius: radius.md, overflow: 'hidden' },
+  photo: { width: '100%', height: PHOTO_HEIGHT, backgroundColor: colors.cream05 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   ratingText: { fontSize: typography.sizes.xl, fontWeight: typography.weights.semibold, color: colors.fg.primary },
   ratingCount: { fontSize: typography.sizes.sm, color: colors.fg.tertiary },

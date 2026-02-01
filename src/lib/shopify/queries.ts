@@ -12,6 +12,7 @@ const PRODUCT_FRAGMENT = `
     description
     descriptionHtml
     availableForSale
+    productType
     tags
     priceRange {
       minVariantPrice {
@@ -104,6 +105,7 @@ function transformProduct(raw: RawShopifyProduct): ShopifyProduct {
     description: raw.description,
     descriptionHtml: raw.descriptionHtml,
     availableForSale: raw.availableForSale,
+    productType: raw.productType,
     tags: raw.tags,
     priceRange: raw.priceRange,
     featuredImage: raw.featuredImage,

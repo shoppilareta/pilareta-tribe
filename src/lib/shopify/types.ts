@@ -39,6 +39,7 @@ export interface ShopifyProduct {
   images: ShopifyImage[];
   variants: ShopifyProductVariant[];
   availableForSale: boolean;
+  productType: string;
   tags: string[];
 }
 
@@ -140,6 +141,7 @@ export interface RawShopifyProduct {
     }[];
   };
   availableForSale: boolean;
+  productType: string;
   tags: string[];
 }
 
