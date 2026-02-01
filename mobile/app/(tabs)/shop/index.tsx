@@ -60,7 +60,7 @@ function getCategoryOrder(label: string): number {
 export default function ShopScreen() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['shop-products'],
     queryFn: getProducts,
   });
@@ -141,6 +141,14 @@ export default function ShopScreen() {
         <View style={styles.centered}>
           <ActivityIndicator color={colors.fg.primary} />
         </View>
+      ) : isError ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptyText}>We couldn't load the shop. Please try again.</Text>
+          <Pressable onPress={() => refetch()} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
       ) : products.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>No products available</Text>
@@ -208,5 +216,7 @@ const styles = StyleSheet.create({
   grid: { paddingBottom: 100 },
   row: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, marginBottom: spacing.sm },
   productWrapper: { flex: 1 },
+  retryButton: { marginTop: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.fg.primary },
+  retryButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
   cartLoading: { position: 'absolute', bottom: spacing.xl, alignSelf: 'center', backgroundColor: colors.bg.card, borderRadius: 999, padding: spacing.sm, borderWidth: 1, borderColor: colors.border.default },
 });

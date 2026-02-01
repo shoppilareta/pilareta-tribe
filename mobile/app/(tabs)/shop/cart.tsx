@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -59,7 +59,7 @@ export default function CartScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Cart</Text>
         {lines.length > 0 && (
-          <Pressable onPress={clearCart} style={styles.clearButton}>
+          <Pressable onPress={() => Alert.alert('Clear Cart', 'Remove all items from your cart?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearCart }])} style={styles.clearButton}>
             <Text style={styles.clearText}>Clear</Text>
           </Pressable>
         )}

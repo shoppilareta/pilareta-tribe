@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
+import { getColorCode } from '@/utils/colorCode';
 import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
 import type { ShopifyProduct } from '@shared/types';
@@ -18,21 +19,14 @@ function formatPrice(amount: string, currencyCode: string): string {
   return `${currencyCode} ${num.toFixed(2)}`;
 }
 
-function getColorCode(colorName: string): string {
-  const map: Record<string, string> = {
-    'black': '#1a1a1a', 'white': '#f5f5f5', 'red': '#dc2626', 'blue': '#2563eb',
-    'navy': '#1e3a5f', 'green': '#16a34a', 'olive': '#6b7f3a', 'grey': '#6b7280',
-    'gray': '#6b7280', 'pink': '#ec4899', 'purple': '#9333ea', 'brown': '#78350f',
-    'beige': '#d4c4a8', 'cream': '#f6eddd', 'tan': '#d2b48c', 'maroon': '#7f1d1d',
-    'orange': '#ea580c', 'yellow': '#eab308', 'coral': '#f87171', 'teal': '#0d9488',
-    'turquoise': '#06b6d4', 'lavender': '#a78bfa', 'mint': '#6ee7b7', 'nude': '#e8c4a0',
-    'burgundy': '#722f37', 'charcoal': '#374151', 'ivory': '#fffff0', 'khaki': '#c3b091',
-    'mauve': '#e0b0ff', 'peach': '#ffcba4', 'plum': '#8e4585', 'rose': '#ff007f',
-    'rust': '#b7410e', 'sage': '#9caf88', 'salmon': '#fa8072', 'sand': '#c2b280',
-    'silver': '#c0c0c0', 'slate': '#708090', 'wine': '#722f37',
-    'dark green': '#1a472a', 'light blue': '#87ceeb',
-  };
-  return map[colorName.toLowerCase().trim()] || '#6b7280';
+const normalizeUrl = (url: string) => url.split('?')[0];
+
+function BackArrow() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
+      <Path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
 }
 
 export default function ProductDetailScreen() {
@@ -41,8 +35,9 @@ export default function ProductDetailScreen() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isAdding, setIsAdding] = useState(false);
+  const imageScrollRef = useRef<ScrollView>(null);
 
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['shop-products'],
     queryFn: getProducts,
   });
@@ -50,6 +45,14 @@ export default function ProductDetailScreen() {
   const product: ShopifyProduct | undefined = useMemo(() => {
     return data?.products?.find((p) => p.handle === handle);
   }, [data, handle]);
+
+  // Build images list (product-level images)
+  const images = useMemo(() => {
+    if (!product) return [];
+    if (product.images.length > 0) return product.images;
+    if (product.featuredImage) return [product.featuredImage];
+    return [];
+  }, [product]);
 
   // Extract unique options (Color, Size, etc.)
   const options = useMemo(() => {
@@ -86,6 +89,17 @@ export default function ProductDetailScreen() {
     ) ?? null;
   }, [product, selectedOptions]);
 
+  // When variant changes and has an image, scroll to it in the gallery
+  useEffect(() => {
+    if (!selectedVariant?.image || images.length === 0) return;
+    const variantUrl = normalizeUrl(selectedVariant.image.url);
+    const idx = images.findIndex((img) => normalizeUrl(img.url) === variantUrl);
+    if (idx >= 0 && idx !== selectedImage) {
+      imageScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: true });
+      setSelectedImage(idx);
+    }
+  }, [selectedVariant]);
+
   // Check if a specific option value is available given other selections
   const isOptionAvailable = (optionName: string, optionValue: string) => {
     if (!product) return false;
@@ -116,9 +130,17 @@ export default function ProductDetailScreen() {
     }
   };
 
-  if (!product) {
+  // Loading state
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.headerBar}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+            <BackArrow />
+          </Pressable>
+          <Text style={styles.headerTitle}>Loading...</Text>
+          <View style={{ width: 36 }} />
+        </View>
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={colors.fg.primary} />
         </View>
@@ -126,16 +148,38 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const images = product.images.length > 0 ? product.images : product.featuredImage ? [product.featuredImage] : [];
+  // Error or not found state
+  if (!product) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.headerBar}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+            <BackArrow />
+          </Pressable>
+          <Text style={styles.headerTitle}>Product</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.errorTitle}>
+            {isError ? 'Something went wrong' : 'Product not found'}
+          </Text>
+          <Text style={styles.errorText}>
+            {isError ? 'Could not load product details.' : 'This product may no longer be available.'}
+          </Text>
+          <Pressable onPress={() => router.back()} style={styles.errorButton}>
+            <Text style={styles.errorButtonText}>Go Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header bar */}
       <View style={styles.headerBar}>
         <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
-            <Path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
+          <BackArrow />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{product.title}</Text>
         <View style={{ width: 36 }} />
@@ -146,6 +190,7 @@ export default function ProductDetailScreen() {
         {images.length > 0 && (
           <View>
             <ScrollView
+              ref={imageScrollRef}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
@@ -281,13 +326,17 @@ export default function ProductDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.primary },
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   headerBar: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border.default,
   },
   backButton: { padding: spacing.xs },
   headerTitle: { flex: 1, fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, textAlign: 'center', marginHorizontal: spacing.sm },
+  errorTitle: { fontSize: typography.sizes.lg, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.xs },
+  errorText: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, textAlign: 'center', marginBottom: spacing.md },
+  errorButton: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.fg.primary },
+  errorButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
   scrollContent: { paddingBottom: 20 },
   heroImage: { width: SCREEN_WIDTH, height: SCREEN_WIDTH, backgroundColor: 'rgba(246,237,221,0.05)' },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm },

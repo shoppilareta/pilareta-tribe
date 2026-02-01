@@ -208,6 +208,7 @@ export interface ShopifyProduct {
     title: string;
     price: { amount: string; currencyCode: string };
     availableForSale: boolean;
+    image?: { url: string; altText: string | null };
     selectedOptions?: { name: string; value: string }[];
   }[];
 }

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
+import { getColorCode } from '@/utils/colorCode';
 import type { ShopifyProduct } from '@shared/types';
 
 interface ProductCardProps {
@@ -13,23 +14,6 @@ function formatPrice(amount: string, currencyCode: string): string {
   const num = parseFloat(amount);
   if (currencyCode === 'INR') return `\u20B9${num.toFixed(0)}`;
   return `${currencyCode} ${num.toFixed(2)}`;
-}
-
-function getColorCode(colorName: string): string {
-  const map: Record<string, string> = {
-    'black': '#1a1a1a', 'white': '#f5f5f5', 'red': '#dc2626', 'blue': '#2563eb',
-    'navy': '#1e3a5f', 'green': '#16a34a', 'olive': '#6b7f3a', 'grey': '#6b7280',
-    'gray': '#6b7280', 'pink': '#ec4899', 'purple': '#9333ea', 'brown': '#78350f',
-    'beige': '#d4c4a8', 'cream': '#f6eddd', 'tan': '#d2b48c', 'maroon': '#7f1d1d',
-    'orange': '#ea580c', 'yellow': '#eab308', 'coral': '#f87171', 'teal': '#0d9488',
-    'turquoise': '#06b6d4', 'lavender': '#a78bfa', 'mint': '#6ee7b7', 'nude': '#e8c4a0',
-    'burgundy': '#722f37', 'charcoal': '#374151', 'ivory': '#fffff0', 'khaki': '#c3b091',
-    'mauve': '#e0b0ff', 'peach': '#ffcba4', 'plum': '#8e4585', 'rose': '#ff007f',
-    'rust': '#b7410e', 'sage': '#9caf88', 'salmon': '#fa8072', 'sand': '#c2b280',
-    'silver': '#c0c0c0', 'slate': '#708090', 'wine': '#722f37',
-    'dark green': '#1a472a', 'light blue': '#87ceeb',
-  };
-  return map[colorName.toLowerCase().trim()] || '#6b7280';
 }
 
 export const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
