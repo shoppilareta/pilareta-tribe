@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import type { ShopifyProduct } from '@/lib/shopify/types';
+import { getColorCode } from '@/lib/colorCode';
 import { useCart } from './CartProvider';
 
 interface ProductQuickViewProps {
@@ -62,6 +63,17 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
       );
     });
   }, [product.variants, selectedOptions]);
+
+  // When variant changes and has an image, switch to it in the gallery
+  useEffect(() => {
+    if (!selectedVariant?.image) return;
+    const images = product.images.length > 0 ? product.images : (product.featuredImage ? [product.featuredImage] : []);
+    const variantUrl = selectedVariant.image.url.split('?')[0];
+    const idx = images.findIndex((img) => img.url.split('?')[0] === variantUrl);
+    if (idx >= 0 && idx !== selectedImage) {
+      setSelectedImage(idx);
+    }
+  }, [selectedVariant, product.images, product.featuredImage, selectedImage]);
 
   // Check if a specific option value is available
   const isOptionAvailable = (optionName: string, optionValue: string) => {
@@ -320,52 +332,3 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
   );
 }
 
-// Helper to convert color names to hex codes
-function getColorCode(colorName: string): string {
-  const colors: Record<string, string> = {
-    'black': '#1a1a1a',
-    'white': '#f5f5f5',
-    'red': '#dc2626',
-    'blue': '#2563eb',
-    'navy': '#1e3a5f',
-    'green': '#16a34a',
-    'olive': '#6b7f3a',
-    'grey': '#6b7280',
-    'gray': '#6b7280',
-    'pink': '#ec4899',
-    'purple': '#9333ea',
-    'brown': '#78350f',
-    'beige': '#d4c4a8',
-    'cream': '#f6eddd',
-    'tan': '#d2b48c',
-    'maroon': '#7f1d1d',
-    'orange': '#ea580c',
-    'yellow': '#eab308',
-    'coral': '#f87171',
-    'teal': '#0d9488',
-    'turquoise': '#06b6d4',
-    'lavender': '#a78bfa',
-    'mint': '#6ee7b7',
-    'nude': '#e8c4a0',
-    'burgundy': '#722f37',
-    'charcoal': '#374151',
-    'ivory': '#fffff0',
-    'khaki': '#c3b091',
-    'mauve': '#e0b0ff',
-    'peach': '#ffcba4',
-    'plum': '#8e4585',
-    'rose': '#ff007f',
-    'rust': '#b7410e',
-    'sage': '#9caf88',
-    'salmon': '#fa8072',
-    'sand': '#c2b280',
-    'silver': '#c0c0c0',
-    'slate': '#708090',
-    'wine': '#722f37',
-    'dark green': '#1a472a',
-    'light blue': '#87ceeb',
-  };
-
-  const normalized = colorName.toLowerCase().trim();
-  return colors[normalized] || '#6b7280';
-}

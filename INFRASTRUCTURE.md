@@ -504,4 +504,77 @@ Uploads:           /var/www/pilareta-tribe/public/uploads
 
 ---
 
-*Last Updated: January 2026*
+## Mobile App (EAS Build)
+
+### Overview
+The mobile app is built with React Native (Expo SDK 52) and distributed via EAS Build. It lives in the `mobile/` directory of the monorepo.
+
+### Expo Account
+```
+Account: shoppilareta
+Project: pilareta-tribe
+Dashboard: https://expo.dev/accounts/shoppilareta/projects/pilareta-tribe
+```
+
+### EAS Build Profiles
+Defined in `mobile/eas.json`:
+
+| Profile | Platform | Output | Use Case |
+|---------|----------|--------|----------|
+| `preview` | Android | APK | Testing on physical devices |
+| `production` | Android | AAB | Google Play Store submission |
+
+### Build Commands
+```bash
+cd mobile
+
+# Android APK for testing
+npx eas build --profile preview --platform android
+
+# Production AAB for Play Store
+npx eas build --profile production --platform android
+
+# Check build status
+npx eas build:list
+
+# Download latest build artifact
+# Visit: https://expo.dev/accounts/shoppilareta/projects/pilareta-tribe/builds
+```
+
+### Mobile Environment
+The mobile app fetches data from the web backend API. No separate `.env` file is needed for builds - the API base URL is configured in the app code pointing to `https://tribe.pilareta.com`.
+
+### Known Build Issues
+
+**expo-modules-core must be pinned to 2.1.4**:
+Versions 2.2.0+ cause Android build failures. Pinned via pnpm override in root `package.json`:
+```json
+"pnpm": { "overrides": { "expo-modules-core": "2.1.4" } }
+```
+
+**react-native-maps auto-linking must be excluded**:
+Transitive dependency that fails without Google Maps API key in native config. Excluded in `mobile/package.json`:
+```json
+"expo": { "autolinking": { "exclude": ["react-native-maps"] } }
+```
+
+### Mobile App Dependencies on Web Backend
+The mobile app relies on these web API endpoints:
+- `GET /api/shopify/products` - Product catalog
+- `POST /api/shopify/cart` - Cart operations (create, add, update, remove)
+- `GET /api/auth/mobile/callback` - OAuth callback for mobile auth
+- `GET /api/studios/*` - Studio locator data
+- `GET /api/learn/*` - Pilates programs and exercises
+
+When deploying backend changes that affect these endpoints, rebuild the mobile app if the response shape changes.
+
+### SSH Key Location
+The SSH key for the production server is at:
+```
+/home/rishabhdara/Projects/pilareta-tribe-key.pem
+```
+(Not in `~/.ssh/` - stored alongside the project directory)
+
+---
+
+*Last Updated: February 2026*
