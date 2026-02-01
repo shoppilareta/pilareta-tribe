@@ -27,6 +27,11 @@
     "react-dom": "19.2.3",
     "three": "^0.182.0"
   },
+  "pnpm": {
+    "overrides": {
+      "expo-modules-core": "2.1.4"
+    }
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
