@@ -15,7 +15,7 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
-// Prevent Metro from resolving duplicate React copies from root
-config.resolver.disableHierarchicalLookup = true;
+// Use standard hierarchical lookup (Expo doctor warns against disabling it)
+// The explicit nodeModulesPaths above handle monorepo resolution
 
 module.exports = config;
