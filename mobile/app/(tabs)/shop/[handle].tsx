@@ -13,6 +13,22 @@ import type { ShopifyProduct } from '@shared/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+/** Parse descriptionHtml into bullet points and plain text segments */
+function parseDescriptionHtml(html: string): { bullets: string[]; plainText: string } {
+  const bullets: string[] = [];
+  // Extract list items
+  const liRegex = /<li[^>]*>(.*?)<\/li>/gi;
+  let match;
+  while ((match = liRegex.exec(html)) !== null) {
+    const text = match[1].replace(/<[^>]+>/g, '').trim();
+    if (text) bullets.push(text);
+  }
+  // Get text outside of lists
+  const withoutLists = html.replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '').replace(/<ol[^>]*>[\s\S]*?<\/ol>/gi, '');
+  const plainText = withoutLists.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  return { bullets, plainText };
+}
+
 function formatPrice(amount: string, currencyCode: string): string {
   const num = parseFloat(amount);
   if (currencyCode === 'INR') return `\u20B9${num.toFixed(0)}`;
@@ -290,10 +306,26 @@ export default function ProductDetailScreen() {
         })}
 
         {/* Description */}
-        {product.description ? (
+        {(product.descriptionHtml || product.description) ? (
           <View style={styles.descriptionSection}>
-            <Text style={styles.descriptionLabel}>Description</Text>
-            <Text style={styles.descriptionText}>{product.description}</Text>
+            <Text style={styles.descriptionLabel}>Product Details</Text>
+            {(() => {
+              const { bullets, plainText } = parseDescriptionHtml(product.descriptionHtml || '');
+              return (
+                <>
+                  {plainText ? <Text style={styles.descriptionText}>{plainText}</Text> : null}
+                  {bullets.map((bullet, idx) => (
+                    <View key={idx} style={styles.bulletRow}>
+                      <Text style={styles.bulletDot}>{'\u2022'}</Text>
+                      <Text style={styles.bulletText}>{bullet}</Text>
+                    </View>
+                  ))}
+                  {bullets.length === 0 && !plainText && product.description ? (
+                    <Text style={styles.descriptionText}>{product.description}</Text>
+                  ) : null}
+                </>
+              );
+            })()}
           </View>
         ) : null}
 
@@ -373,7 +405,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border.default,
   },
   descriptionLabel: { fontSize: typography.sizes.xs, color: colors.fg.muted, textTransform: 'uppercase', letterSpacing: 1, fontWeight: typography.weights.medium, marginBottom: spacing.sm },
-  descriptionText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 22 },
+  descriptionText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 22, marginBottom: spacing.sm },
+  bulletRow: { flexDirection: 'row', paddingRight: spacing.md, marginBottom: 6 },
+  bulletDot: { fontSize: typography.sizes.sm, color: colors.fg.secondary, marginRight: 8, lineHeight: 22 },
+  bulletText: { flex: 1, fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 22 },
   footer: {
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     borderTopWidth: 1, borderTopColor: colors.border.default,

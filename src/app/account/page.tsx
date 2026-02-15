@@ -118,7 +118,7 @@ export default function AccountPage() {
               </svg>
             </Link>
             <Link
-              href="/ugc"
+              href="/community"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(246, 237, 221, 0.05)' }}
             >
               <span>Community</span>

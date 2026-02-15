@@ -620,7 +620,7 @@ export default async function HomePage() {
           </ul>
 
           <Link
-            href="/ugc"
+            href="/community"
             className="btn btn-primary"
             style={{ width: '100%', fontSize: '0.875rem', padding: '0.75rem' }}
           >

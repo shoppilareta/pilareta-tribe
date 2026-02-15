@@ -40,7 +40,7 @@ export function ConsentCheckbox({ checked, onChange, disabled }: ConsentCheckbox
       >
         I confirm that I have the right to share this content and agree to the{' '}
         <a
-          href="/ugc/guidelines"
+          href="/community/guidelines"
           target="_blank"
           rel="noopener noreferrer"
           style={{

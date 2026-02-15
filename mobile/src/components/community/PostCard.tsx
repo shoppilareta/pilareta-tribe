@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -42,11 +42,16 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [saved, setSaved] = useState(post.isSaved ?? false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
+  const [imageFailed, setImageFailed] = useState(false);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
 
   const displayName = post.user?.displayName || post.user?.firstName || 'Anonymous';
   const imageUrl = resolveMediaUrl(post.mediaUrl) || resolveMediaUrl(post.thumbnailUrl);
   const aspectRatio = post.aspectRatio || 1;
+
+  const handleImageError = useCallback(() => {
+    setImageFailed(true);
+  }, []);
 
   const handleLike = async () => {
     if (!isLoggedIn) return;
@@ -105,11 +110,12 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
       {/* Media */}
       {post.mediaType === 'instagram' && post.instagramUrl ? (
         <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
-          {imageUrl ? (
+          {imageUrl && !imageFailed ? (
             <Image
               source={{ uri: imageUrl }}
               style={[styles.image, { width: IMAGE_WIDTH, height: IMAGE_WIDTH / aspectRatio }]}
               resizeMode="cover"
+              onError={handleImageError}
             />
           ) : (
             <View style={[styles.instagramPlaceholder, { width: IMAGE_WIDTH }]}>
@@ -118,15 +124,22 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
             </View>
           )}
         </Pressable>
-      ) : imageUrl ? (
+      ) : imageUrl && !imageFailed ? (
         <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
           <Image
             source={{ uri: imageUrl }}
             style={[styles.image, { width: IMAGE_WIDTH, height: IMAGE_WIDTH / aspectRatio }]}
             resizeMode="cover"
+            onError={handleImageError}
           />
         </Pressable>
-      ) : null}
+      ) : !imageUrl ? null : (
+        <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
+          <View style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: IMAGE_WIDTH }]}>
+            <Text style={styles.instagramLabel}>Image unavailable</Text>
+          </View>
+        </Pressable>
+      )}
 
       {/* Workout recap badge */}
       {post.workoutRecap && (
@@ -197,6 +210,7 @@ const styles = StyleSheet.create({
   studioBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.xs, backgroundColor: colors.cream05, maxWidth: 120 },
   studioText: { fontSize: 10, color: colors.fg.tertiary },
   image: { backgroundColor: colors.cream05 },
+  imagePlaceholder: { backgroundColor: colors.cream05, alignItems: 'center', justifyContent: 'center' },
   instagramPlaceholder: { height: 200, backgroundColor: colors.cream05, alignItems: 'center', justifyContent: 'center' },
   instagramLabel: { fontSize: typography.sizes.base, color: colors.fg.secondary, fontWeight: typography.weights.medium },
   instagramHint: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, marginTop: 4 },

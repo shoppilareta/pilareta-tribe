@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -44,7 +44,7 @@ export default function CartScreen() {
 
   const handleCheckout = () => {
     if (checkoutUrl) {
-      Linking.openURL(checkoutUrl);
+      router.push({ pathname: '/(tabs)/shop/checkout', params: { url: checkoutUrl } });
     }
   };
 
@@ -113,7 +113,7 @@ export default function CartScreen() {
               onPress={handleCheckout}
               disabled={!checkoutUrl || loading}
             />
-            <Text style={styles.checkoutHint}>You'll be redirected to Shopify to complete your order.</Text>
+            <Text style={styles.checkoutHint}>Shipping & payment will open securely in-app.</Text>
           </View>
         </>
       )}

@@ -10,7 +10,7 @@ export function ShareButton({ postId }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/ugc?post=${postId}`;
+    const url = `${window.location.origin}/community?post=${postId}`;
 
     if (navigator.share) {
       try {

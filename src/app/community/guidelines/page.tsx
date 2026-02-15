@@ -12,7 +12,7 @@ export default function CommunityGuidelinesPage() {
       <div style={{ maxWidth: '640px', margin: '0 auto' }}>
         {/* Back link */}
         <Link
-          href="/ugc"
+          href="/community"
           style={{
             display: 'inline-flex',
             alignItems: 'center',

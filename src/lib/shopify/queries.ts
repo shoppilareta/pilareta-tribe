@@ -65,6 +65,15 @@ const PRODUCT_FRAGMENT = `
         }
       }
     }
+    collections(first: 5) {
+      edges {
+        node {
+          id
+          handle
+          title
+        }
+      }
+    }
   }
 `;
 
@@ -107,6 +116,7 @@ function transformProduct(raw: RawShopifyProduct): ShopifyProduct {
     availableForSale: raw.availableForSale,
     productType: raw.productType,
     tags: raw.tags,
+    collections: raw.collections?.edges.map((edge) => edge.node) ?? [],
     priceRange: raw.priceRange,
     featuredImage: raw.featuredImage,
     images: raw.images.edges.map((edge) => edge.node),

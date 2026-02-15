@@ -10,40 +10,51 @@ import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
 import type { ShopifyProduct } from '@shared/types';
 
-// Order and display names for product categories
-const CATEGORY_ORDER: Record<string, number> = {
-  'bra': 1, 'sports bra': 1,
-  'top': 2, 'tops': 2, 't-shirt': 2, 'tank': 2, 'crop top': 2,
-  'legging': 3, 'leggings': 3, 'lower': 3, 'lowers': 3, 'pant': 3, 'pants': 3, 'shorts': 3, 'short': 3,
-  'set': 4, 'sets': 4, 'co-ord': 4, 'coord': 4,
-  'jacket': 5, 'hoodie': 5, 'outerwear': 5, 'sweatshirt': 5,
-  'accessory': 6, 'accessories': 6, 'mat': 6, 'bag': 6, 'socks': 6,
+// Preferred display order for collection-based categories
+const COLLECTION_ORDER: Record<string, number> = {
+  'bras': 1,
+  'tops': 2,
+  'lowers': 3,
+  'sets': 4,
+  'outerwear': 5,
+  'accessories': 6,
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
+// Fallback keyword matching for products not in any recognized collection
+const FALLBACK_LABELS: Record<string, string> = {
   'bra': 'Bras', 'sports bra': 'Bras',
   'top': 'Tops', 'tops': 'Tops', 't-shirt': 'Tops', 'tank': 'Tops', 'crop top': 'Tops',
   'legging': 'Lowers', 'leggings': 'Lowers', 'lower': 'Lowers', 'lowers': 'Lowers',
   'pant': 'Lowers', 'pants': 'Lowers', 'shorts': 'Lowers', 'short': 'Lowers',
+  'skort': 'Lowers', 'skorts': 'Lowers', 'jogger': 'Lowers', 'joggers': 'Lowers',
   'set': 'Sets', 'sets': 'Sets', 'co-ord': 'Sets', 'coord': 'Sets',
   'jacket': 'Outerwear', 'hoodie': 'Outerwear', 'outerwear': 'Outerwear', 'sweatshirt': 'Outerwear',
   'accessory': 'Accessories', 'accessories': 'Accessories', 'mat': 'Accessories', 'bag': 'Accessories', 'socks': 'Accessories',
 };
 
 function categorizeProduct(product: ShopifyProduct): string {
-  // Check productType first (most reliable)
-  const pType = (product.productType || '').toLowerCase().trim();
-  if (pType && CATEGORY_LABELS[pType]) return CATEGORY_LABELS[pType];
-
-  // Fall back to tags
-  for (const tag of product.tags ?? []) {
-    const t = tag.toLowerCase().trim();
-    if (CATEGORY_LABELS[t]) return CATEGORY_LABELS[t];
+  // Primary: use Shopify collection data
+  if (product.collections && product.collections.length > 0) {
+    for (const col of product.collections) {
+      const title = col.title.trim();
+      // Use the collection title directly as category name
+      if (title) return title;
+    }
   }
 
-  // Fall back to title keywords
+  // Fallback: productType
+  const pType = (product.productType || '').toLowerCase().trim();
+  if (pType && FALLBACK_LABELS[pType]) return FALLBACK_LABELS[pType];
+
+  // Fallback: tags
+  for (const tag of product.tags ?? []) {
+    const t = tag.toLowerCase().trim();
+    if (FALLBACK_LABELS[t]) return FALLBACK_LABELS[t];
+  }
+
+  // Fallback: title keywords
   const title = product.title.toLowerCase();
-  for (const [keyword, label] of Object.entries(CATEGORY_LABELS)) {
+  for (const [keyword, label] of Object.entries(FALLBACK_LABELS)) {
     if (title.includes(keyword)) return label;
   }
 
@@ -51,8 +62,11 @@ function categorizeProduct(product: ShopifyProduct): string {
 }
 
 function getCategoryOrder(label: string): number {
-  for (const [key, mapped] of Object.entries(CATEGORY_LABELS)) {
-    if (mapped === label && CATEGORY_ORDER[key] !== undefined) return CATEGORY_ORDER[key];
+  const normalized = label.toLowerCase();
+  if (COLLECTION_ORDER[normalized] !== undefined) return COLLECTION_ORDER[normalized];
+  // Check if any key is a substring of the label
+  for (const [key, order] of Object.entries(COLLECTION_ORDER)) {
+    if (normalized.includes(key)) return order;
   }
   return 99;
 }

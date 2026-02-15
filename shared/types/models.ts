@@ -194,8 +194,10 @@ export interface ShopifyProduct {
   title: string;
   handle: string;
   description: string;
+  descriptionHtml?: string;
   productType?: string;
   tags?: string[];
+  collections?: { id: string; handle: string; title: string }[];
   availableForSale?: boolean;
   featuredImage?: { url: string; altText: string | null } | null;
   images: { url: string; altText: string | null }[];

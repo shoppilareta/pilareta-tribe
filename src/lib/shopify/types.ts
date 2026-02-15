@@ -41,6 +41,7 @@ export interface ShopifyProduct {
   availableForSale: boolean;
   productType: string;
   tags: string[];
+  collections?: { id: string; handle: string; title: string }[];
 }
 
 export interface ShopifyCollection {
@@ -137,6 +138,15 @@ export interface RawShopifyProduct {
           name: string;
           value: string;
         }[];
+      };
+    }[];
+  };
+  collections?: {
+    edges: {
+      node: {
+        id: string;
+        handle: string;
+        title: string;
       };
     }[];
   };

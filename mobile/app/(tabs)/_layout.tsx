@@ -63,6 +63,14 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="shop"
+        options={{
+          title: 'Shop',
+          tabBarIcon: ({ color }) => <ShopIcon color={color} size={22} />,
+          tabBarAccessibilityLabel: 'Shop merchandise',
+        }}
+      />
+      <Tabs.Screen
         name="track"
         options={{
           title: 'Track',
@@ -92,14 +100,6 @@ export default function TabLayout() {
           title: 'Studios',
           tabBarIcon: ({ color }) => <StudiosIcon color={color} size={22} />,
           tabBarAccessibilityLabel: 'Find nearby pilates studios',
-        }}
-      />
-      <Tabs.Screen
-        name="shop"
-        options={{
-          title: 'Shop',
-          tabBarIcon: ({ color }) => <ShopIcon color={color} size={22} />,
-          tabBarAccessibilityLabel: 'Shop merchandise',
         }}
       />
     </Tabs>

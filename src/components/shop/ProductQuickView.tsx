@@ -290,16 +290,23 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
                   })}
                 </div>
 
-                {/* Description */}
-                {product.description && (
+                {/* Product Details */}
+                {(product.descriptionHtml || product.description) && (
                   <div className="mb-8">
                     <h3 className="text-sm text-[#f6eddd]/50 uppercase tracking-wider font-medium mb-4">
-                      Description
+                      Product Details
                     </h3>
                     <div className="bg-[rgba(246,237,221,0.04)] rounded-2xl p-5 border border-[rgba(246,237,221,0.06)]">
-                      <p className="text-sm text-[#f6eddd]/60 leading-relaxed">
-                        {product.description}
-                      </p>
+                      {product.descriptionHtml ? (
+                        <div
+                          className="text-sm text-[#f6eddd]/60 leading-relaxed prose-sm [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1 [&_li]:text-[#f6eddd]/60 [&_p]:mb-2"
+                          dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+                        />
+                      ) : (
+                        <p className="text-sm text-[#f6eddd]/60 leading-relaxed">
+                          {product.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

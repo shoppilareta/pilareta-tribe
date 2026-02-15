@@ -26,9 +26,9 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
   // Handle URL changes for post deep linking
   useEffect(() => {
     if (selectedPostId) {
-      window.history.replaceState(null, '', `/ugc?post=${selectedPostId}`);
+      window.history.replaceState(null, '', `/community?post=${selectedPostId}`);
     } else {
-      window.history.replaceState(null, '', '/ugc');
+      window.history.replaceState(null, '', '/community');
     }
   }, [selectedPostId]);
 

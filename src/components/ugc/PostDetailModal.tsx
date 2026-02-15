@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { usePost, type UgcComment } from './hooks/usePost';
 import type { UgcPost } from './hooks/useFeed';
 import { LikeButton } from './LikeButton';
@@ -30,6 +30,16 @@ export function PostDetailModal({
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [saving, setSaving] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  // Track viewport width for responsive layout
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 768;
 
   useEffect(() => {
     if (postId) {
@@ -184,12 +194,12 @@ export function PostDetailModal({
           position: 'relative',
           background: '#1a1a1a',
           borderRadius: '4px',
-          maxWidth: '1000px',
+          maxWidth: isMobile ? '100%' : '1000px',
           maxHeight: '90vh',
           width: '100%',
           display: 'flex',
-          flexDirection: 'row',
-          overflow: 'hidden',
+          flexDirection: isMobile ? 'column' : 'row',
+          overflow: isMobile ? 'auto' : 'hidden',
         }}
       >
         {/* Close button */}
@@ -246,8 +256,9 @@ export function PostDetailModal({
             {/* Media section */}
             <div
               style={{
-                flex: '1 1 60%',
-                maxWidth: '60%',
+                flex: isMobile ? '0 0 auto' : '1 1 60%',
+                maxWidth: isMobile ? '100%' : '60%',
+                maxHeight: isMobile ? '60vh' : undefined,
                 background: '#000',
                 display: 'flex',
                 alignItems: 'center',
@@ -293,11 +304,12 @@ export function PostDetailModal({
             {/* Info section */}
             <div
               style={{
-                flex: '1 1 40%',
-                maxWidth: '40%',
+                flex: isMobile ? '1 1 auto' : '1 1 40%',
+                maxWidth: isMobile ? '100%' : '40%',
                 display: 'flex',
                 flexDirection: 'column',
-                borderLeft: '1px solid rgba(246, 237, 221, 0.1)',
+                borderLeft: isMobile ? 'none' : '1px solid rgba(246, 237, 221, 0.1)',
+                borderTop: isMobile ? '1px solid rgba(246, 237, 221, 0.1)' : 'none',
               }}
             >
               {/* Header */}
