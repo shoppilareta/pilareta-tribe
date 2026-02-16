@@ -17,8 +17,8 @@ module.exports = {
     // Application name (used in PM2 commands)
     name: 'pilareta-tribe',
 
-    // Start command
-    script: 'npm',
+    // Start command — use next directly so PM2 can track the process
+    script: 'node_modules/.bin/next',
     args: 'start',
 
     // Working directory
