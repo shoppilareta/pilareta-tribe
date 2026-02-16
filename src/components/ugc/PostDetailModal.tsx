@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { usePost, type UgcComment } from './hooks/usePost';
 import type { UgcPost } from './hooks/useFeed';
 import { LikeButton } from './LikeButton';
@@ -9,6 +9,39 @@ import { ShareButton } from './ShareButton';
 import { CommentSection } from './CommentSection';
 import { InstagramEmbed } from './InstagramEmbed';
 import { WorkoutRecapCard } from './WorkoutRecapCard';
+
+function renderCaptionWithMentions(caption: string) {
+  const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
+  const parts: (string | React.ReactElement)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = mentionRegex.exec(caption)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(caption.slice(lastIndex, match.index));
+    }
+    const username = match[1];
+    parts.push(
+      <a
+        key={`mention-${match.index}`}
+        href={`https://instagram.com/${username}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={{ color: '#f59e0b', textDecoration: 'none', fontWeight: 500 }}
+      >
+        @{username}
+      </a>
+    );
+    lastIndex = mentionRegex.lastIndex;
+  }
+
+  if (lastIndex < caption.length) {
+    parts.push(caption.slice(lastIndex));
+  }
+
+  return <>{parts}</>;
+}
 
 interface PostDetailModalProps {
   postId: string | null;
@@ -459,7 +492,7 @@ export function PostDetailModal({
                         lineHeight: 1.5,
                       }}
                     >
-                      {post.caption}
+                      {renderCaptionWithMentions(post.caption)}
                     </p>
                   )
                 )}

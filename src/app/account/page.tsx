@@ -100,6 +100,15 @@ export default function AccountPage() {
           <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginBottom: '1rem' }}>Quick Links</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <Link
+              href="/account/orders"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(246, 237, 221, 0.05)' }}
+            >
+              <span>Order History</span>
+              <svg style={{ width: '1rem', height: '1rem', opacity: 0.5 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+            <Link
               href="/studio-locator"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(246, 237, 221, 0.05)' }}
             >

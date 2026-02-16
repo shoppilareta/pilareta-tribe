@@ -10,14 +10,18 @@ import { StatsOverview } from '@/components/track/StatsOverview';
 import { StreakDisplay } from '@/components/track/StreakDisplay';
 import { WeeklyProgress } from '@/components/track/WeeklyProgress';
 import { RecentLogs } from '@/components/track/RecentLogs';
+import { MonthlyCalendar } from '@/components/track/MonthlyCalendar';
 import { Skeleton, StatsSkeleton, WorkoutCardSkeleton } from '@/components/ui';
 import Svg, { Path } from 'react-native-svg';
+
+type ViewMode = 'dashboard' | 'calendar';
 
 const logo = require('@/../../assets/images/logo.png');
 
 export default function TrackDashboard() {
   const { isAuthenticated, user } = useAuthStore();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
 
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['track-stats', refreshKey],
@@ -121,36 +125,76 @@ export default function TrackDashboard() {
           </Pressable>
         </View>
 
-        {/* Streak */}
-        {isLoading && !stats ? (
-          <View style={styles.section}><Skeleton width="100%" height={100} borderRadius={12} /></View>
-        ) : stats ? (
-          <View style={styles.section}>
-            <StreakDisplay currentStreak={stats.currentStreak} longestStreak={stats.longestStreak} lastWorkoutDate={stats.lastWorkoutDate} />
-          </View>
-        ) : null}
-
-        {/* Weekly Progress */}
-        {isLoading && !weeklyProgress.length ? (
-          <View style={styles.section}><Skeleton width="100%" height={80} borderRadius={12} /></View>
-        ) : (
-          <View style={styles.section}><WeeklyProgress progress={weeklyProgress} /></View>
-        )}
-
-        {/* Stats */}
-        {isLoading && !stats ? (
-          <View style={styles.section}><StatsSkeleton /></View>
-        ) : stats ? (
-          <View style={styles.section}>
-            <StatsOverview totalWorkouts={stats.totalWorkouts} totalMinutes={stats.totalMinutes} weeklyMinutes={stats.weeklyMinutes} monthlyMinutes={stats.monthlyMinutes} totalCalories={stats.totalCalories} averageRpe={stats.averageRpe} />
-          </View>
-        ) : null}
-
-        {/* Recent Logs */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Workouts</Text>
-          <RecentLogs />
+        {/* View Mode Toggle */}
+        <View style={styles.viewToggleRow}>
+          <Pressable
+            style={[styles.viewToggleButton, viewMode === 'dashboard' && styles.viewToggleActive]}
+            onPress={() => setViewMode('dashboard')}
+            accessibilityRole="button"
+            accessibilityLabel="Dashboard view"
+            accessibilityState={{ selected: viewMode === 'dashboard' }}
+          >
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={viewMode === 'dashboard' ? colors.fg.primary : colors.fg.tertiary} strokeWidth={1.5}>
+              <Path d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 7a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7zm-10 2a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={[styles.viewToggleText, viewMode === 'dashboard' && styles.viewToggleTextActive]}>
+              Dashboard
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.viewToggleButton, viewMode === 'calendar' && styles.viewToggleActive]}
+            onPress={() => setViewMode('calendar')}
+            accessibilityRole="button"
+            accessibilityLabel="Calendar view"
+            accessibilityState={{ selected: viewMode === 'calendar' }}
+          >
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={viewMode === 'calendar' ? colors.fg.primary : colors.fg.tertiary} strokeWidth={1.5}>
+              <Path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={[styles.viewToggleText, viewMode === 'calendar' && styles.viewToggleTextActive]}>
+              Calendar
+            </Text>
+          </Pressable>
         </View>
+
+        {viewMode === 'dashboard' ? (
+          <>
+            {/* Streak */}
+            {isLoading && !stats ? (
+              <View style={styles.section}><Skeleton width="100%" height={100} borderRadius={12} /></View>
+            ) : stats ? (
+              <View style={styles.section}>
+                <StreakDisplay currentStreak={stats.currentStreak} longestStreak={stats.longestStreak} lastWorkoutDate={stats.lastWorkoutDate} />
+              </View>
+            ) : null}
+
+            {/* Weekly Progress */}
+            {isLoading && !weeklyProgress.length ? (
+              <View style={styles.section}><Skeleton width="100%" height={80} borderRadius={12} /></View>
+            ) : (
+              <View style={styles.section}><WeeklyProgress progress={weeklyProgress} /></View>
+            )}
+
+            {/* Stats */}
+            {isLoading && !stats ? (
+              <View style={styles.section}><StatsSkeleton /></View>
+            ) : stats ? (
+              <View style={styles.section}>
+                <StatsOverview totalWorkouts={stats.totalWorkouts} totalMinutes={stats.totalMinutes} weeklyMinutes={stats.weeklyMinutes} monthlyMinutes={stats.monthlyMinutes} totalCalories={stats.totalCalories} averageRpe={stats.averageRpe} />
+              </View>
+            ) : null}
+
+            {/* Recent Logs */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Recent Workouts</Text>
+              <RecentLogs />
+            </View>
+          </>
+        ) : (
+          <View style={styles.section}>
+            <MonthlyCalendar currentStreak={stats?.currentStreak} />
+          </View>
+        )}
       </ScrollView>
 
       {/* FAB */}
@@ -187,6 +231,11 @@ const styles = StyleSheet.create({
   greeting: { fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.fg.primary, marginBottom: 2 },
   headerSubtitle: { fontSize: typography.sizes.sm, color: colors.fg.tertiary },
   settingsButton: { padding: spacing.sm },
+  viewToggleRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, backgroundColor: colors.cream05, borderRadius: radius.sm, padding: 3 },
+  viewToggleButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm, borderRadius: radius.xs },
+  viewToggleActive: { backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border.default },
+  viewToggleText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.medium, color: colors.fg.tertiary },
+  viewToggleTextActive: { color: colors.fg.primary },
   section: { marginBottom: spacing.md },
   sectionTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.sm },
   fab: { position: 'absolute', right: spacing.md, bottom: spacing.md, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.button.primaryBg, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },

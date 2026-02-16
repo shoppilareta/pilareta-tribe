@@ -14,6 +14,10 @@ const WORKOUT_TYPE_LABELS: Record<string, string> = {
   reformer: 'Reformer',
   mat: 'Mat',
   tower: 'Tower',
+  yoga: 'Yoga',
+  running: 'Running',
+  stretching: 'Stretching',
+  strength_training: 'Strength Training',
   other: 'Other',
 };
 
@@ -24,6 +28,15 @@ const FOCUS_AREA_LABELS: Record<string, string> = {
   arms: 'Arms',
   back: 'Back',
   mobility: 'Mobility',
+  flexibility: 'Flexibility',
+  balance: 'Balance',
+  mindfulness: 'Mindfulness',
+  cardio: 'Cardio',
+  endurance: 'Endurance',
+  recovery: 'Recovery',
+  upper_body: 'Upper Body',
+  lower_body: 'Lower Body',
+  full_body: 'Full Body',
 };
 
 function formatDate(dateStr: string): string {

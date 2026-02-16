@@ -24,10 +24,36 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const tag = searchParams.get('tag');
     const studioId = searchParams.get('studioId');
+    const feed = searchParams.get('feed'); // "following" to filter to followed users
 
     const where: Record<string, unknown> = {
       status: 'approved',
     };
+
+    // If feed=following, filter to posts from users the current user follows
+    if (feed === 'following') {
+      const session = await getSession(request);
+      if (!session?.userId) {
+        return NextResponse.json({ error: 'Authentication required for following feed' }, { status: 401 });
+      }
+
+      const followedUsers = await prisma.userFollow.findMany({
+        where: { followerId: session.userId },
+        select: { followingId: true },
+      });
+
+      const followedUserIds = followedUsers.map((f) => f.followingId);
+
+      if (followedUserIds.length === 0) {
+        return NextResponse.json({
+          posts: [],
+          nextCursor: null,
+          hasMore: false,
+        });
+      }
+
+      where.userId = { in: followedUserIds };
+    }
 
     if (tag) {
       where.tags = {

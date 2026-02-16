@@ -1,5 +1,5 @@
 import { useState, memo, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image, Dimensions, Linking } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
@@ -180,7 +180,36 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
         <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)} style={styles.captionContainer}>
           <Text style={styles.caption} numberOfLines={3}>
             <Text style={styles.captionUser}>{displayName} </Text>
-            {post.caption}
+            {(() => {
+              const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
+              const parts: (string | React.ReactElement)[] = [];
+              let lastIndex = 0;
+              let match: RegExpExecArray | null;
+              const caption = post.caption!;
+
+              while ((match = mentionRegex.exec(caption)) !== null) {
+                if (match.index > lastIndex) {
+                  parts.push(caption.slice(lastIndex, match.index));
+                }
+                const username = match[1];
+                parts.push(
+                  <Text
+                    key={`mention-${match.index}`}
+                    style={{ color: '#f59e0b', fontWeight: '600' }}
+                    onPress={() => Linking.openURL(`https://instagram.com/${username}`)}
+                  >
+                    @{username}
+                  </Text>
+                );
+                lastIndex = mentionRegex.lastIndex;
+              }
+
+              if (lastIndex < caption.length) {
+                parts.push(caption.slice(lastIndex));
+              }
+
+              return parts;
+            })()}
           </Text>
         </Pressable>
       )}

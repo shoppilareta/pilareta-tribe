@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, Switch, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Switch, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -68,6 +68,21 @@ export default function SettingsScreen() {
                   <Text style={styles.profileEmail}>{user?.email}</Text>
                 </View>
               </View>
+              <View style={styles.divider} />
+              <Pressable
+                style={styles.contactRow}
+                onPress={() => router.push('/profile')}
+              >
+                <View style={styles.settingIconRow}>
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                    <Path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                  <Text style={styles.settingLabel}>Edit Profile</Text>
+                </View>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+                  <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </Pressable>
             </View>
           </View>
         )}
@@ -134,6 +149,62 @@ export default function SettingsScreen() {
             )}
           </View>
         </View>
+
+        {/* Contact Us */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contact Us</Text>
+          <View style={styles.card}>
+            <Pressable
+              style={styles.contactRow}
+              onPress={() => Linking.openURL('https://wa.me/919910220744?text=Hi%20Pilareta')}
+            >
+              <View style={styles.settingIconRow}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                  <Path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.settingLabel}>WhatsApp</Text>
+              </View>
+              <Text style={styles.contactHint}>Chat with us</Text>
+            </Pressable>
+            <View style={styles.divider} />
+            <Pressable
+              style={styles.contactRow}
+              onPress={() => Linking.openURL('mailto:shop@pilareta.com')}
+            >
+              <View style={styles.settingIconRow}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                  <Path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M22 6l-10 7L2 6" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.settingLabel}>Email</Text>
+              </View>
+              <Text style={styles.contactHint}>shop@pilareta.com</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Orders */}
+        {isAuthenticated && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Shopping</Text>
+            <View style={styles.card}>
+              <Pressable
+                style={styles.contactRow}
+                onPress={() => router.push('/orders')}
+              >
+                <View style={styles.settingIconRow}>
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                    <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                  <Text style={styles.settingLabel}>Your Orders</Text>
+                </View>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+                  <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* About */}
         <View style={styles.section}>
@@ -286,6 +357,16 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border.default,
     marginVertical: spacing.sm,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  contactHint: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
   },
   logoutButton: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',

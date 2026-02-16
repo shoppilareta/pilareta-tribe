@@ -12,6 +12,7 @@ import type { UgcPost } from '@shared/types';
 
 export default function CommunityFeed() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [activeFeed, setActiveFeed] = useState<'discover' | 'following'>('discover');
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
 
   const { data: tagsData } = useQuery({
@@ -28,8 +29,13 @@ export default function CommunityFeed() {
     refetch,
     isRefetching,
   } = useInfiniteQuery({
-    queryKey: ['community-feed', selectedTag],
-    queryFn: ({ pageParam }) => getFeed({ cursor: pageParam, limit: 15, tag: selectedTag || undefined }),
+    queryKey: ['community-feed', selectedTag, activeFeed],
+    queryFn: ({ pageParam }) => getFeed({
+      cursor: pageParam,
+      limit: 15,
+      tag: selectedTag || undefined,
+      feed: activeFeed === 'following' ? 'following' : undefined,
+    }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -67,6 +73,28 @@ export default function CommunityFeed() {
           )}
         </View>
       </View>
+
+      {/* Feed Tabs */}
+      {isLoggedIn && (
+        <View style={styles.feedTabs}>
+          <Pressable
+            onPress={() => setActiveFeed('discover')}
+            style={[styles.feedTab, activeFeed === 'discover' && styles.feedTabActive]}
+          >
+            <Text style={[styles.feedTabText, activeFeed === 'discover' && styles.feedTabTextActive]}>
+              Discover
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveFeed('following')}
+            style={[styles.feedTab, activeFeed === 'following' && styles.feedTabActive]}
+          >
+            <Text style={[styles.feedTabText, activeFeed === 'following' && styles.feedTabTextActive]}>
+              Following
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Tag filters */}
       {tags.length > 0 && (
@@ -136,6 +164,11 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.sizes['2xl'], fontWeight: typography.weights.bold, color: colors.fg.primary },
   headerActions: { flexDirection: 'row', gap: spacing.md },
   headerButton: { padding: spacing.xs },
+  feedTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border.default },
+  feedTab: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  feedTabActive: { borderBottomColor: colors.fg.primary },
+  feedTabText: { fontSize: typography.sizes.sm, color: colors.fg.tertiary },
+  feedTabTextActive: { color: colors.fg.primary, fontWeight: typography.weights.semibold },
   tagsContainer: { borderBottomWidth: 1, borderBottomColor: colors.border.default },
   tagsList: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
   tagChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.full, backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border.default },

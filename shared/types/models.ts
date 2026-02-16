@@ -189,6 +189,22 @@ export interface UgcTag {
   postCount?: number;
 }
 
+export interface UserProfile {
+  id: string;
+  userId: string;
+  displayName: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  weight: number | null;
+  height: number | null;
+  age: number | null;
+  dailyCalorieTarget: number | null;
+  weeklyCalorieTarget: number | null;
+  fitnessGoal: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ShopifyProduct {
   id: string;
   title: string;

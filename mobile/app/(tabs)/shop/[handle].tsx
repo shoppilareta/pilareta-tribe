@@ -105,6 +105,17 @@ export default function ProductDetailScreen() {
     ) ?? null;
   }, [product, selectedOptions]);
 
+  // Prefetch all product images when detail screen opens
+  useEffect(() => {
+    if (!product) return;
+    const urls = new Set<string>();
+    images.forEach((img) => urls.add(img.url));
+    product.variants.forEach((v) => {
+      if (v.image?.url) urls.add(v.image.url);
+    });
+    urls.forEach((url) => Image.prefetch(url));
+  }, [product, images]);
+
   // When variant changes and has an image, scroll to it in the gallery
   useEffect(() => {
     if (!selectedVariant?.image || images.length === 0) return;

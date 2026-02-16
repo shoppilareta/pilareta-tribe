@@ -108,9 +108,11 @@ function DeferredServices() {
     const { useOfflineSync } = require('@/hooks/useOfflineSync');
     const { useNotifications } = require('@/hooks/useNotifications');
     const { useDeepLinks } = require('@/hooks/useDeepLinks');
+    const { usePushNotifications } = require('@/hooks/usePushNotifications');
     useOfflineSync();
     useNotifications();
     useDeepLinks();
+    usePushNotifications();
   } catch {}
   return null;
 }

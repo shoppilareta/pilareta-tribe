@@ -2,6 +2,10 @@ export const WorkoutType = {
   REFORMER: 'reformer',
   MAT: 'mat',
   TOWER: 'tower',
+  YOGA: 'yoga',
+  RUNNING: 'running',
+  STRETCHING: 'stretching',
+  STRENGTH_TRAINING: 'strength_training',
   OTHER: 'other',
 } as const;
 export type WorkoutType = (typeof WorkoutType)[keyof typeof WorkoutType];
@@ -14,6 +18,15 @@ export const FocusArea = {
   BACK: 'back',
   POSTURE: 'posture',
   MOBILITY: 'mobility',
+  FLEXIBILITY: 'flexibility',
+  BALANCE: 'balance',
+  MINDFULNESS: 'mindfulness',
+  CARDIO: 'cardio',
+  ENDURANCE: 'endurance',
+  RECOVERY: 'recovery',
+  UPPER_BODY: 'upper_body',
+  LOWER_BODY: 'lower_body',
+  FULL_BODY: 'full_body',
 } as const;
 export type FocusArea = (typeof FocusArea)[keyof typeof FocusArea];
 

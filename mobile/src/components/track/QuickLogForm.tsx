@@ -13,23 +13,49 @@ import * as Haptics from 'expo-haptics';
 import { Button } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import { createLog, updateLog } from '@/api/track';
+import { scheduleInactivityReminder } from '@/hooks/useInactivityReminder';
 import type { CreateWorkoutLogRequest, UpdateWorkoutLogRequest } from '@shared/types';
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 const WORKOUT_TYPES = [
-  { value: 'reformer', label: 'Reformer' },
-  { value: 'mat', label: 'Mat' },
-  { value: 'tower', label: 'Tower' },
-  { value: 'other', label: 'Other' },
+  { label: 'Reformer', value: 'reformer', group: 'Pilates' },
+  { label: 'Mat', value: 'mat', group: 'Pilates' },
+  { label: 'Tower', value: 'tower', group: 'Pilates' },
+  { label: 'Yoga', value: 'yoga', group: 'Other' },
+  { label: 'Running', value: 'running', group: 'Other' },
+  { label: 'Stretching', value: 'stretching', group: 'Other' },
+  { label: 'Strength', value: 'strength_training', group: 'Other' },
+  { label: 'Other', value: 'other', group: 'Other' },
 ];
-const FOCUS_AREAS = [
+const ALL_FOCUS_AREAS = [
   { value: 'core', label: 'Core' },
   { value: 'glutes', label: 'Glutes' },
   { value: 'legs', label: 'Legs' },
   { value: 'arms', label: 'Arms' },
   { value: 'back', label: 'Back' },
   { value: 'mobility', label: 'Mobility' },
+  { value: 'flexibility', label: 'Flexibility' },
+  { value: 'balance', label: 'Balance' },
+  { value: 'mindfulness', label: 'Mindfulness' },
+  { value: 'cardio', label: 'Cardio' },
+  { value: 'endurance', label: 'Endurance' },
+  { value: 'recovery', label: 'Recovery' },
+  { value: 'upper_body', label: 'Upper Body' },
+  { value: 'lower_body', label: 'Lower Body' },
+  { value: 'full_body', label: 'Full Body' },
 ];
+
+// Suggested focus areas per workout type (highlighted but all remain selectable)
+const SUGGESTED_FOCUS_AREAS: Record<string, string[]> = {
+  reformer: ['core', 'glutes', 'legs', 'arms', 'back', 'mobility'],
+  mat: ['core', 'glutes', 'legs', 'arms', 'back', 'mobility'],
+  tower: ['core', 'glutes', 'legs', 'arms', 'back', 'mobility'],
+  yoga: ['flexibility', 'balance', 'mindfulness', 'core'],
+  running: ['cardio', 'endurance', 'legs'],
+  stretching: ['flexibility', 'mobility', 'recovery'],
+  strength_training: ['upper_body', 'lower_body', 'core', 'full_body'],
+  other: ALL_FOCUS_AREAS.map((a) => a.value),
+};
 
 interface EditLogData {
   id: string;
@@ -121,6 +147,7 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      scheduleInactivityReminder(); // Reset 7-day inactivity reminder
       onComplete();
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -191,22 +218,41 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
 
       {/* Type */}
       <Text style={styles.sectionLabel}>Type</Text>
-      <View style={styles.chipRow}>
-        {WORKOUT_TYPES.map((t) => (
-          <Pressable
-            key={t.value}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setWorkoutType(t.value);
-            }}
-            style={[styles.chip, workoutType === t.value && styles.chipSelected]}
-          >
-            <Text style={[styles.chipText, workoutType === t.value && styles.chipTextSelected]}>
-              {t.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+        <View style={styles.typeChipRow}>
+          {/* Pilates group */}
+          {WORKOUT_TYPES.filter((t) => t.group === 'Pilates').map((t) => (
+            <Pressable
+              key={t.value}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setWorkoutType(t.value);
+              }}
+              style={[styles.chip, workoutType === t.value && styles.chipSelected]}
+            >
+              <Text style={[styles.chipText, workoutType === t.value && styles.chipTextSelected]}>
+                {t.label}
+              </Text>
+            </Pressable>
+          ))}
+          <View style={styles.typeDivider} />
+          {/* Other group */}
+          {WORKOUT_TYPES.filter((t) => t.group === 'Other').map((t) => (
+            <Pressable
+              key={t.value}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setWorkoutType(t.value);
+              }}
+              style={[styles.chip, workoutType === t.value && styles.chipSelected]}
+            >
+              <Text style={[styles.chipText, workoutType === t.value && styles.chipTextSelected]}>
+                {t.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
 
       {/* RPE Slider */}
       <Text style={styles.sectionLabel}>Intensity (RPE)</Text>
@@ -249,19 +295,37 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
           {/* Focus Areas */}
           <Text style={styles.sectionLabel}>Focus Areas</Text>
           <View style={styles.chipRow}>
-            {FOCUS_AREAS.map((area) => (
-              <Pressable
-                key={area.value}
-                onPress={() => toggleFocusArea(area.value)}
-                style={[styles.chip, focusAreas.includes(area.value) && styles.chipSelected]}
-              >
-                <Text
-                  style={[styles.chipText, focusAreas.includes(area.value) && styles.chipTextSelected]}
-                >
-                  {area.label}
-                </Text>
-              </Pressable>
-            ))}
+            {(() => {
+              const suggested = SUGGESTED_FOCUS_AREAS[workoutType] || SUGGESTED_FOCUS_AREAS.other;
+              // Show suggested areas first, then the rest
+              const suggestedAreas = ALL_FOCUS_AREAS.filter((a) => suggested.includes(a.value));
+              const otherAreas = ALL_FOCUS_AREAS.filter((a) => !suggested.includes(a.value));
+              return [...suggestedAreas, ...otherAreas].map((area) => {
+                const isSuggested = suggested.includes(area.value);
+                const isSelected = focusAreas.includes(area.value);
+                return (
+                  <Pressable
+                    key={area.value}
+                    onPress={() => toggleFocusArea(area.value)}
+                    style={[
+                      styles.chip,
+                      isSelected && styles.chipSelected,
+                      !isSelected && isSuggested && styles.chipSuggested,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        isSelected && styles.chipTextSelected,
+                        !isSelected && isSuggested && styles.chipTextSuggested,
+                      ]}
+                    >
+                      {area.label}
+                    </Text>
+                  </Pressable>
+                );
+              });
+            })()}
           </View>
 
           {/* Notes */}
@@ -318,6 +382,17 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  typeChipRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingRight: spacing.md,
+  },
+  typeDivider: {
+    width: 1,
+    backgroundColor: colors.fg.muted,
+    marginHorizontal: spacing.xs,
+    opacity: 0.3,
+  },
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -330,6 +405,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.fg.primary,
     borderColor: colors.fg.primary,
   },
+  chipSuggested: {
+    borderColor: colors.fg.tertiary,
+  },
   chipText: {
     fontSize: typography.sizes.sm,
     color: colors.fg.secondary,
@@ -337,6 +415,9 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: colors.bg.primary,
+  },
+  chipTextSuggested: {
+    color: colors.fg.secondary,
   },
   customInput: {
     width: 48,

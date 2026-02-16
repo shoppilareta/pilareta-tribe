@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
-import { ProductCard } from '@/components/shop';
+import { ProductCard, BannerCarousel } from '@/components/shop';
 import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
 import type { ShopifyProduct } from '@shared/types';
@@ -170,6 +170,7 @@ export default function ShopScreen() {
         </View>
       ) : (
         <SectionList
+          ListHeaderComponent={<BannerCarousel />}
           sections={filteredSections}
           keyExtractor={(item) => item.map((p) => p.id).join('-')}
           renderSectionHeader={({ section }) => (

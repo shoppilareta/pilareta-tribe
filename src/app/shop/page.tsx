@@ -1,6 +1,6 @@
 import { getProducts } from '@/lib/shopify/queries';
 import { isShopifyConfigured } from '@/lib/shopify/client';
-import { ProductGrid } from '@/components/shop';
+import { ProductGrid, BannerCarousel } from '@/components/shop';
 import Link from 'next/link';
 import type { ShopifyProduct } from '@/lib/shopify/types';
 
@@ -42,6 +42,9 @@ export default async function ShopPage() {
 
   return (
     <div className="container py-8 md:py-12">
+      {/* Banners */}
+      <BannerCarousel />
+
       {/* Header */}
       <div className="mb-8 md:mb-12 w-full">
         <h1 className="text-3xl md:text-4xl font-light mb-3">Shop Pilareta</h1>

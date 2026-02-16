@@ -10,15 +10,19 @@ import type { UgcPost } from '@shared/types';
 export async function getFeed(params?: CursorPaginationParams & {
   tag?: string;
   studioId?: string;
+  feed?: string; // "following" to show only posts from followed users
 }): Promise<UgcFeedResponse> {
   const query = new URLSearchParams();
   if (params?.cursor) query.set('cursor', params.cursor);
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.tag) query.set('tag', params.tag);
   if (params?.studioId) query.set('studioId', params.studioId);
+  if (params?.feed) query.set('feed', params.feed);
 
   const qs = query.toString();
-  return apiFetch(`/api/ugc/posts${qs ? `?${qs}` : ''}`, { skipAuth: true });
+  // When feed=following, we need auth; otherwise public
+  const skipAuth = params?.feed !== 'following';
+  return apiFetch(`/api/ugc/posts${qs ? `?${qs}` : ''}`, { skipAuth });
 }
 
 export async function getPost(id: string): Promise<UgcPost> {

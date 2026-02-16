@@ -1,66 +1,181 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { colors, typography, spacing, radius } from '@/theme';
 import { initiateLogin, exchangeCode } from '@/api/auth';
+import { apiFetch, API_BASE } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
+import Svg, { Path } from 'react-native-svg';
+
+// Try to load Apple Authentication (iOS only)
+let AppleAuthentication: typeof import('expo-apple-authentication') | null = null;
+try {
+  AppleAuthentication = require('expo-apple-authentication');
+} catch {
+  // Not available (Android or missing native module)
+}
+
+// Try to load AuthSession for Facebook
+let AuthSession: typeof import('expo-auth-session') | null = null;
+try {
+  AuthSession = require('expo-auth-session');
+} catch {
+  // Not available
+}
 
 export default function LoginScreen() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
   const { setTokens, setUser } = useAuthStore();
 
-  const handleLogin = async () => {
-    setLoading(true);
+  const navigateAfterLogin = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/track');
+    }
+  };
+
+  // Email login (Shopify OAuth)
+  const handleEmailLogin = async () => {
+    setLoading('email');
     try {
-      // Step 1: Get auth URL and PKCE params from server
       const { authUrl, state, codeVerifier } = await initiateLogin();
 
-      // Step 2: Open Shopify login in system browser
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
         'pilareta://auth/callback'
       );
 
       if (result.type !== 'success' || !result.url) {
-        setLoading(false);
+        setLoading(null);
         return;
       }
 
-      // Step 3: Extract authorization code from callback URL
       const url = new URL(result.url);
       const code = url.searchParams.get('code');
       const returnedState = url.searchParams.get('state');
 
       if (!code || returnedState !== state) {
         Alert.alert('Sign In Failed', 'Authentication was cancelled or failed. Please try again.');
-        setLoading(false);
+        setLoading(null);
         return;
       }
 
-      // Step 4: Exchange code for tokens
       const { accessToken, refreshToken, user, expiresAt } = await exchangeCode({
         code,
         state,
         codeVerifier,
       });
 
-      // Step 5: Store tokens and user data
       await setTokens(accessToken, refreshToken, expiresAt);
       await setUser(user);
-
-      // Step 6: Navigate back
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/(tabs)/track');
-      }
+      navigateAfterLogin();
     } catch (error) {
       console.error('Login error:', error);
       Alert.alert('Sign In Failed', 'Something went wrong. Please try again.');
     } finally {
-      setLoading(false);
+      setLoading(null);
+    }
+  };
+
+  // Apple Sign In (iOS only)
+  const handleAppleLogin = async () => {
+    if (!AppleAuthentication) return;
+    setLoading('apple');
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        Alert.alert('Sign In Failed', 'Could not get Apple identity token.');
+        setLoading(null);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/auth/mobile/apple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identityToken: credential.identityToken,
+          email: credential.email,
+          firstName: credential.fullName?.givenName,
+          lastName: credential.fullName?.familyName,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Apple sign in failed');
+      }
+
+      const { accessToken, refreshToken, user, expiresAt } = await response.json();
+      await setTokens(accessToken, refreshToken, expiresAt);
+      await setUser(user);
+      navigateAfterLogin();
+    } catch (error: any) {
+      if (error?.code !== 'ERR_REQUEST_CANCELED') {
+        console.error('Apple login error:', error);
+        Alert.alert('Sign In Failed', 'Apple sign in failed. Please try again.');
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  // Facebook Sign In
+  const handleFacebookLogin = async () => {
+    setLoading('facebook');
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(
+        `https://www.facebook.com/v18.0/dialog/oauth?client_id=${process.env.EXPO_PUBLIC_FACEBOOK_APP_ID || ''}&redirect_uri=${encodeURIComponent('pilareta://auth/callback')}&scope=email,public_profile&response_type=token`,
+        'pilareta://auth/callback'
+      );
+
+      if (result.type !== 'success' || !result.url) {
+        setLoading(null);
+        return;
+      }
+
+      // Extract access token from fragment
+      const fragment = result.url.split('#')[1] || '';
+      const params = new URLSearchParams(fragment);
+      const fbToken = params.get('access_token');
+
+      if (!fbToken) {
+        Alert.alert('Sign In Failed', 'Could not get Facebook access token.');
+        setLoading(null);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/auth/mobile/facebook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: fbToken,
+          platform: Platform.OS,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Facebook sign in failed');
+      }
+
+      const { accessToken, refreshToken, user, expiresAt } = await response.json();
+      await setTokens(accessToken, refreshToken, expiresAt);
+      await setUser(user);
+      navigateAfterLogin();
+    } catch (error) {
+      console.error('Facebook login error:', error);
+      Alert.alert('Sign In Failed', 'Facebook sign in failed. Please try again.');
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -71,6 +186,9 @@ export default function LoginScreen() {
       router.replace('/(tabs)/shop');
     }
   };
+
+  const isLoading = loading !== null;
+  const showApple = Platform.OS === 'ios' && AppleAuthentication != null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -84,19 +202,65 @@ export default function LoginScreen() {
           Sign in to track workouts, build streaks, and connect with the community.
         </Text>
 
+        {/* Email login */}
         <Pressable
-          style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
+          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+          onPress={handleEmailLogin}
+          disabled={isLoading}
         >
-          {loading ? (
+          {loading === 'email' ? (
             <ActivityIndicator color={colors.button.primaryText} />
           ) : (
             <Text style={styles.loginButtonText}>Sign in with email</Text>
           )}
         </Pressable>
 
-        <Pressable style={styles.skipButton} onPress={handleSkip} disabled={loading}>
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Apple Sign In (iOS only) */}
+        {showApple && (
+          <Pressable
+            style={[styles.socialButton, styles.appleButton, isLoading && styles.loginButtonDisabled]}
+            onPress={handleAppleLogin}
+            disabled={isLoading}
+          >
+            {loading === 'apple' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="#fff">
+                  <Path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                </Svg>
+                <Text style={[styles.socialButtonText, { color: '#fff' }]}>Sign in with Apple</Text>
+              </>
+            )}
+          </Pressable>
+        )}
+
+        {/* Facebook Sign In */}
+        <Pressable
+          style={[styles.socialButton, styles.facebookButton, isLoading && styles.loginButtonDisabled]}
+          onPress={handleFacebookLogin}
+          disabled={isLoading}
+        >
+          {loading === 'facebook' ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="#fff">
+                <Path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+              </Svg>
+              <Text style={[styles.socialButtonText, { color: '#fff' }]}>Sign in with Facebook</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable style={styles.skipButton} onPress={handleSkip} disabled={isLoading}>
           <Text style={styles.skipButtonText}>Continue as Guest</Text>
         </Pressable>
       </View>
@@ -152,6 +316,42 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     color: colors.button.primaryText,
   },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border.default,
+  },
+  dividerText: {
+    paddingHorizontal: spacing.md,
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+  },
+  socialButton: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    marginBottom: spacing.sm,
+  },
+  socialButtonText: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  facebookButton: {
+    backgroundColor: '#1877F2',
+  },
   skipButton: {
     width: '100%',
     borderWidth: 1,
@@ -159,6 +359,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingVertical: 16,
     alignItems: 'center',
+    marginTop: spacing.sm,
   },
   skipButtonText: {
     fontSize: typography.sizes.md,

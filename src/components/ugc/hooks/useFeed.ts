@@ -72,6 +72,7 @@ interface UseFeedOptions {
   tag?: string;
   studioId?: string;
   limit?: number;
+  feed?: string; // "following" to show only posts from followed users
 }
 
 export function useFeed(options: UseFeedOptions = {}) {
@@ -98,6 +99,7 @@ export function useFeed(options: UseFeedOptions = {}) {
         if (options.limit) params.append('limit', String(options.limit));
         if (options.tag) params.append('tag', options.tag);
         if (options.studioId) params.append('studioId', options.studioId);
+        if (options.feed) params.append('feed', options.feed);
 
         const response = await fetch(`/api/ugc/posts?${params}`);
         const data = await response.json();
@@ -120,7 +122,7 @@ export function useFeed(options: UseFeedOptions = {}) {
         setLoadingMore(false);
       }
     },
-    [options.tag, options.studioId, options.limit]
+    [options.tag, options.studioId, options.limit, options.feed]
   );
 
   const loadMore = useCallback(() => {

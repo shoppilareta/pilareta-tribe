@@ -6,3 +6,4 @@ export { ProductCard } from './ProductCard';
 export { ProductGrid } from './ProductGrid';
 export { ProductQuickView } from './ProductQuickView';
 export { ShopTile } from './ShopTile';
+export { BannerCarousel } from './BannerCarousel';

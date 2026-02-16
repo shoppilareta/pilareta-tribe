@@ -39,19 +39,44 @@ interface Studio {
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 const WORKOUT_TYPES = [
-  { value: 'reformer', label: 'Reformer' },
-  { value: 'mat', label: 'Mat' },
-  { value: 'tower', label: 'Tower' },
-  { value: 'other', label: 'Other' }
+  { label: 'Reformer', value: 'reformer', group: 'Pilates' },
+  { label: 'Mat', value: 'mat', group: 'Pilates' },
+  { label: 'Tower', value: 'tower', group: 'Pilates' },
+  { label: 'Yoga', value: 'yoga', group: 'Other' },
+  { label: 'Running', value: 'running', group: 'Other' },
+  { label: 'Stretching', value: 'stretching', group: 'Other' },
+  { label: 'Strength', value: 'strength_training', group: 'Other' },
+  { label: 'Other', value: 'other', group: 'Other' },
 ];
-const FOCUS_AREAS = [
+const ALL_FOCUS_AREAS = [
   { value: 'core', label: 'Core' },
   { value: 'glutes', label: 'Glutes' },
   { value: 'legs', label: 'Legs' },
   { value: 'arms', label: 'Arms' },
   { value: 'back', label: 'Back' },
-  { value: 'mobility', label: 'Mobility' }
+  { value: 'mobility', label: 'Mobility' },
+  { value: 'flexibility', label: 'Flexibility' },
+  { value: 'balance', label: 'Balance' },
+  { value: 'mindfulness', label: 'Mindfulness' },
+  { value: 'cardio', label: 'Cardio' },
+  { value: 'endurance', label: 'Endurance' },
+  { value: 'recovery', label: 'Recovery' },
+  { value: 'upper_body', label: 'Upper Body' },
+  { value: 'lower_body', label: 'Lower Body' },
+  { value: 'full_body', label: 'Full Body' },
 ];
+
+// Suggested focus areas per workout type (highlighted but all remain selectable)
+const SUGGESTED_FOCUS_AREAS: Record<string, string[]> = {
+  reformer: ['core', 'glutes', 'legs', 'arms', 'back', 'mobility'],
+  mat: ['core', 'glutes', 'legs', 'arms', 'back', 'mobility'],
+  tower: ['core', 'glutes', 'legs', 'arms', 'back', 'mobility'],
+  yoga: ['flexibility', 'balance', 'mindfulness', 'core'],
+  running: ['cardio', 'endurance', 'legs'],
+  stretching: ['flexibility', 'mobility', 'recovery'],
+  strength_training: ['upper_body', 'lower_body', 'core', 'full_body'],
+  other: ALL_FOCUS_AREAS.map((a) => a.value),
+};
 
 export function QuickLogModal({ onClose, onComplete, prefill, editLog }: QuickLogModalProps) {
   const isEditMode = !!editLog;
@@ -441,8 +466,27 @@ export function QuickLogModal({ onClose, onComplete, prefill, editLog }: QuickLo
           <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>
             Type
           </label>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {WORKOUT_TYPES.map((type) => (
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {WORKOUT_TYPES.filter((t) => t.group === 'Pilates').map((type) => (
+              <button
+                key={type.value}
+                onClick={() => setWorkoutType(type.value)}
+                style={{
+                  padding: '0.5rem 0.875rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid rgba(246, 237, 221, 0.2)',
+                  background: workoutType === type.value ? 'rgba(246, 237, 221, 0.2)' : 'transparent',
+                  color: '#f6eddd',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: workoutType === type.value ? 500 : 400
+                }}
+              >
+                {type.label}
+              </button>
+            ))}
+            <div style={{ width: '1px', height: '1.5rem', background: 'rgba(246, 237, 221, 0.2)', margin: '0 0.125rem' }} />
+            {WORKOUT_TYPES.filter((t) => t.group === 'Other').map((type) => (
               <button
                 key={type.value}
                 onClick={() => setWorkoutType(type.value)}
@@ -552,23 +596,32 @@ export function QuickLogModal({ onClose, onComplete, prefill, editLog }: QuickLo
                 Focus Areas
               </label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {FOCUS_AREAS.map((area) => (
-                  <button
-                    key={area.value}
-                    onClick={() => toggleFocusArea(area.value)}
-                    style={{
-                      padding: '0.375rem 0.75rem',
-                      borderRadius: '0.5rem',
-                      border: '1px solid rgba(246, 237, 221, 0.2)',
-                      background: focusAreas.includes(area.value) ? 'rgba(99, 102, 241, 0.3)' : 'transparent',
-                      color: '#f6eddd',
-                      cursor: 'pointer',
-                      fontSize: '0.8125rem'
-                    }}
-                  >
-                    {area.label}
-                  </button>
-                ))}
+                {(() => {
+                  const suggested = SUGGESTED_FOCUS_AREAS[workoutType] || SUGGESTED_FOCUS_AREAS.other;
+                  const suggestedAreas = ALL_FOCUS_AREAS.filter((a) => suggested.includes(a.value));
+                  const otherAreas = ALL_FOCUS_AREAS.filter((a) => !suggested.includes(a.value));
+                  return [...suggestedAreas, ...otherAreas].map((area) => {
+                    const isSuggested = suggested.includes(area.value);
+                    const isSelected = focusAreas.includes(area.value);
+                    return (
+                      <button
+                        key={area.value}
+                        onClick={() => toggleFocusArea(area.value)}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          borderRadius: '0.5rem',
+                          border: `1px solid ${isSelected ? 'rgba(99, 102, 241, 0.5)' : isSuggested ? 'rgba(246, 237, 221, 0.3)' : 'rgba(246, 237, 221, 0.15)'}`,
+                          background: isSelected ? 'rgba(99, 102, 241, 0.3)' : 'transparent',
+                          color: isSelected ? '#f6eddd' : isSuggested ? '#f6eddd' : 'rgba(246, 237, 221, 0.5)',
+                          cursor: 'pointer',
+                          fontSize: '0.8125rem'
+                        }}
+                      >
+                        {area.label}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </div>
 

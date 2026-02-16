@@ -5,6 +5,7 @@ import type {
   UgcComment,
   UgcTag,
   User,
+  UserProfile,
   Studio,
   Exercise,
   Program,
@@ -138,6 +139,23 @@ export interface BuildSessionRequest {
 export interface BuildSessionResponse {
   sessionId: string;
   session: PilatesSession;
+}
+
+// --- Profile ---
+
+export interface UserProfileResponse {
+  profile: UserProfile;
+}
+
+export interface UpdateUserProfileRequest {
+  displayName?: string | null;
+  bio?: string | null;
+  weight?: number | null;
+  height?: number | null;
+  age?: number | null;
+  dailyCalorieTarget?: number | null;
+  weeklyCalorieTarget?: number | null;
+  fitnessGoal?: string | null;
 }
 
 // --- Shop ---

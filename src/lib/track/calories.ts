@@ -1,5 +1,5 @@
 /**
- * Calorie estimation for Pilates workouts
+ * Calorie estimation for workouts
  *
  * This is an ESTIMATE based on MET values and should be clearly labeled as such.
  * Actual calorie burn varies significantly based on:
@@ -11,13 +11,21 @@
  * MET values source: Compendium of Physical Activities
  * - Mat Pilates: ~3.0 METs (general conditioning)
  * - Reformer Pilates: ~3.5-4.0 METs (moderate-vigorous)
+ * - Yoga: ~2.5 METs (hatha yoga, general)
+ * - Running: ~8.0 METs (jogging, general)
+ * - Stretching: ~2.3 METs (mild stretching)
+ * - Strength Training: ~5.0 METs (moderate effort)
  */
 
 // Base MET values by workout type
 const BASE_METS: Record<string, number> = {
-  mat: 3.0,
   reformer: 3.5,
+  mat: 3.0,
   tower: 3.8,
+  yoga: 2.5,
+  running: 8.0,
+  stretching: 2.3,
+  strength_training: 5.0,
   other: 3.2,
 };
 
@@ -30,7 +38,7 @@ const DEFAULT_WEIGHT_KG = 65;
  * Formula: Calories = MET × Weight(kg) × Duration(hours)
  *
  * @param durationMinutes - Workout duration in minutes
- * @param workoutType - Type of Pilates (mat, reformer, tower, other)
+ * @param workoutType - Type of workout (reformer, mat, tower, yoga, running, stretching, strength_training, other)
  * @param rpe - Rate of Perceived Exertion (1-10)
  * @param weightKg - Optional body weight in kg (default: 65kg)
  * @returns Estimated calories burned (rounded to nearest whole number)
@@ -109,5 +117,5 @@ export function isValidDuration(minutes: number): boolean {
  * Validate workout type
  */
 export function isValidWorkoutType(type: string): boolean {
-  return ['reformer', 'mat', 'tower', 'other'].includes(type.toLowerCase());
+  return ['reformer', 'mat', 'tower', 'yoga', 'running', 'stretching', 'strength_training', 'other'].includes(type.toLowerCase());
 }

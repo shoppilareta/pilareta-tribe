@@ -13,7 +13,7 @@ datasource db {
 
 model User {
   id                    String                   @id @default(cuid())
-  shopifyId             String                   @unique
+  shopifyId             String?                  @unique
   email                 String                   @unique
   firstName             String?
   lastName              String?
@@ -31,6 +31,10 @@ model User {
   exerciseCompletions   UserExerciseCompletion[]
   workoutLogs           WorkoutLog[]
   workoutStats          UserWorkoutStats?
+  profile               UserProfile?
+  followers             UserFollow[]             @relation("following")
+  following             UserFollow[]             @relation("follower")
+  pushTokens            PushToken[]
 }
 
 model Session {
@@ -593,7 +597,7 @@ model WorkoutLog {
 
   // Core metrics (fast logging)
   durationMinutes Int
-  workoutType     String   // "reformer" | "mat" | "tower" | "other"
+  workoutType     String   // "reformer" | "mat" | "tower" | "yoga" | "running" | "stretching" | "strength_training" | "other"
   rpe             Int      // 1-10 Rate of Perceived Exertion
   notes           String?  @db.Text
 
@@ -645,4 +649,89 @@ model UserWorkoutStats {
   focusAreaCounts Json?
 
   updatedAt       DateTime  @updatedAt
+}
+
+// ============================================
+// SHOP BANNERS
+// ============================================
+
+model ShopBanner {
+  id        String    @id @default(cuid())
+  title     String
+  subtitle  String?
+  imageUrl  String
+  linkUrl   String?
+  linkText  String?
+  position  Int       @default(0)
+  isActive  Boolean   @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+// ============================================
+// USER PROFILE & CALORIE TARGETS
+// ============================================
+
+model UserProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName         String?
+  bio                 String?  @db.Text
+  avatarUrl           String?
+  weight              Float?   // kg
+  height              Float?   // cm
+  age                 Int?
+  dailyCalorieTarget  Int?
+  weeklyCalorieTarget Int?
+  fitnessGoal         String?  // weight_loss | maintenance | muscle_gain | flexibility | general
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ============================================
+// FOLLOW SYSTEM
+// ============================================
+
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// ============================================
+// PUSH NOTIFICATIONS
+// ============================================
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   // "ios" | "android"
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AdminNotification {
+  id             String   @id @default(cuid())
+  title          String
+  body           String   @db.Text
+  data           Json?
+  segment        String   @default("all") // "all" | "active" | "inactive"
+  sentAt         DateTime @default(now())
+  sentBy         String
+  recipientCount Int      @default(0)
 }

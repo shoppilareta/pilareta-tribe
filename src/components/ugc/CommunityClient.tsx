@@ -18,9 +18,11 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId || null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [activeFeed, setActiveFeed] = useState<'discover' | 'following'>('discover');
 
   const { posts, loading, loadingMore, hasMore, loadMore, refresh, updatePostInteraction } = useFeed({
     tag: selectedTag || undefined,
+    feed: activeFeed === 'following' ? 'following' : undefined,
   });
 
   // Handle URL changes for post deep linking
@@ -135,8 +137,63 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
         </button>
       </div>
 
+      {/* Feed Tabs */}
+      {isLoggedIn && (
+        <div
+          style={{
+            display: 'flex',
+            borderBottom: '1px solid rgba(246, 237, 221, 0.1)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveFeed('discover')}
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeFeed === 'discover'
+                ? '2px solid #f6eddd'
+                : '2px solid transparent',
+              color: activeFeed === 'discover'
+                ? '#f6eddd'
+                : 'rgba(246, 237, 221, 0.5)',
+              fontSize: '0.875rem',
+              fontWeight: activeFeed === 'discover' ? 600 : 400,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Discover
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFeed('following')}
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeFeed === 'following'
+                ? '2px solid #f6eddd'
+                : '2px solid transparent',
+              color: activeFeed === 'following'
+                ? '#f6eddd'
+                : 'rgba(246, 237, 221, 0.5)',
+              fontSize: '0.875rem',
+              fontWeight: activeFeed === 'following' ? 600 : 400,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Following
+          </button>
+        </div>
+      )}
+
       {/* Featured Section */}
-      <FeaturedSection onPostClick={handlePostClick} />
+      {activeFeed === 'discover' && <FeaturedSection onPostClick={handlePostClick} />}
 
       {/* Filter Bar */}
       <FilterBar selectedTag={selectedTag} onTagChange={handleTagChange} />

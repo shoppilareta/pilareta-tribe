@@ -10,7 +10,16 @@ const FOCUS_AREAS = [
   { key: 'legs', label: 'Legs', color: 'rgba(34, 197, 94, 0.8)' },
   { key: 'arms', label: 'Arms', color: 'rgba(249, 115, 22, 0.8)' },
   { key: 'back', label: 'Back', color: 'rgba(59, 130, 246, 0.8)' },
-  { key: 'mobility', label: 'Mobility', color: 'rgba(168, 85, 247, 0.8)' }
+  { key: 'mobility', label: 'Mobility', color: 'rgba(168, 85, 247, 0.8)' },
+  { key: 'flexibility', label: 'Flexibility', color: 'rgba(139, 92, 246, 0.8)' },
+  { key: 'balance', label: 'Balance', color: 'rgba(20, 184, 166, 0.8)' },
+  { key: 'mindfulness', label: 'Mindfulness', color: 'rgba(244, 114, 182, 0.8)' },
+  { key: 'cardio', label: 'Cardio', color: 'rgba(239, 68, 68, 0.8)' },
+  { key: 'endurance', label: 'Endurance', color: 'rgba(234, 179, 8, 0.8)' },
+  { key: 'recovery', label: 'Recovery', color: 'rgba(74, 222, 128, 0.8)' },
+  { key: 'upper_body', label: 'Upper Body', color: 'rgba(251, 146, 60, 0.8)' },
+  { key: 'lower_body', label: 'Lower Body', color: 'rgba(56, 189, 248, 0.8)' },
+  { key: 'full_body', label: 'Full Body', color: 'rgba(192, 132, 252, 0.8)' },
 ];
 
 export function FocusBalanceChart({ focusAreaCounts }: FocusBalanceChartProps) {
@@ -32,20 +41,25 @@ export function FocusBalanceChart({ focusAreaCounts }: FocusBalanceChartProps) {
   // Calculate max for scaling
   const maxCount = Math.max(...Object.values(focusAreaCounts), 1);
 
-  // Get counts for each focus area
-  const areaData = FOCUS_AREAS.map((area) => ({
+  // Get counts for each focus area (all areas for bar chart)
+  const allAreaData = FOCUS_AREAS.map((area) => ({
     ...area,
     count: focusAreaCounts[area.key] || 0,
     percentage: ((focusAreaCounts[area.key] || 0) / maxCount) * 100
   }));
 
+  // For radar chart, only show areas that have data (minimum 3 for a polygon)
+  const areasWithData = allAreaData.filter((a) => a.count > 0);
+  const radarData = areasWithData.length >= 3 ? areasWithData : allAreaData.slice(0, Math.max(areasWithData.length, 6));
+
   // Calculate radar chart points
   const centerX = 100;
   const centerY = 100;
   const maxRadius = 70;
+  const angleStep = 360 / radarData.length;
 
   const getPoint = (index: number, value: number) => {
-    const angle = (index * 60 - 90) * (Math.PI / 180);
+    const angle = (index * angleStep - 90) * (Math.PI / 180);
     const radius = (value / maxCount) * maxRadius;
     return {
       x: centerX + radius * Math.cos(angle),
@@ -53,7 +67,7 @@ export function FocusBalanceChart({ focusAreaCounts }: FocusBalanceChartProps) {
     };
   };
 
-  const points = areaData.map((area, index) => getPoint(index, area.count));
+  const points = radarData.map((area, index) => getPoint(index, area.count));
   const polygonPoints = points.map((p) => `${p.x},${p.y}`).join(' ');
 
   return (
@@ -77,8 +91,8 @@ export function FocusBalanceChart({ focusAreaCounts }: FocusBalanceChartProps) {
           ))}
 
           {/* Axis lines */}
-          {areaData.map((_, index) => {
-            const angle = (index * 60 - 90) * (Math.PI / 180);
+          {radarData.map((_, index) => {
+            const angle = (index * angleStep - 90) * (Math.PI / 180);
             const endX = centerX + maxRadius * Math.cos(angle);
             const endY = centerY + maxRadius * Math.sin(angle);
             return (
@@ -109,13 +123,13 @@ export function FocusBalanceChart({ focusAreaCounts }: FocusBalanceChartProps) {
               cx={point.x}
               cy={point.y}
               r="4"
-              fill={areaData[index].color}
+              fill={radarData[index].color}
             />
           ))}
 
           {/* Labels */}
-          {areaData.map((area, index) => {
-            const angle = (index * 60 - 90) * (Math.PI / 180);
+          {radarData.map((area, index) => {
+            const angle = (index * angleStep - 90) * (Math.PI / 180);
             const labelRadius = maxRadius + 18;
             const x = centerX + labelRadius * Math.cos(angle);
             const y = centerY + labelRadius * Math.sin(angle);
@@ -138,12 +152,12 @@ export function FocusBalanceChart({ focusAreaCounts }: FocusBalanceChartProps) {
 
       {/* Bar breakdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {areaData
+        {allAreaData
           .filter((area) => area.count > 0)
           .sort((a, b) => b.count - a.count)
           .map((area) => (
             <div key={area.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.8125rem', width: '60px', color: 'rgba(246, 237, 221, 0.7)' }}>
+              <span style={{ fontSize: '0.8125rem', width: '80px', color: 'rgba(246, 237, 221, 0.7)' }}>
                 {area.label}
               </span>
               <div style={{ flex: 1, height: '8px', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '4px', overflow: 'hidden' }}>
