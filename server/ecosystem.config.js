@@ -24,8 +24,8 @@ module.exports = {
     // Working directory
     cwd: '/var/www/pilareta-tribe',
 
-    // Number of instances (1 for Next.js, or 'max' for clustering)
-    instances: 1,
+    // Fork mode — Next.js manages its own workers internally
+    exec_mode: 'fork',
 
     // Auto-restart on crash
     autorestart: true,
