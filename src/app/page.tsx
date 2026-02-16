@@ -558,6 +558,9 @@ export default async function HomePage() {
                           height: '100%',
                           objectFit: 'cover',
                         }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                     )}
                   </div>

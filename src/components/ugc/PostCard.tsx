@@ -233,6 +233,12 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
               height: '100%',
               objectFit: 'cover',
             }}
+            onError={(e) => {
+              // Hide broken image and show a placeholder background
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.parentElement!.style.background =
+                'linear-gradient(135deg, rgba(246,237,221,0.08) 0%, rgba(246,237,221,0.03) 100%)';
+            }}
           />
         )}
 
