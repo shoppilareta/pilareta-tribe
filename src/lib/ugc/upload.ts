@@ -7,10 +7,9 @@ import {
   validateFileSize,
   getExtensionFromContentType,
 } from './validation';
+import { getUgcUploadsPath } from '@/lib/uploads';
 
-const UPLOAD_BASE_PATH = process.env.NODE_ENV === 'production'
-  ? '/var/www/pilareta-tribe/public/uploads/ugc'
-  : path.join(process.cwd(), 'public/uploads/ugc');
+const UPLOAD_BASE_PATH = getUgcUploadsPath();
 
 const PUBLIC_URL_BASE = '/uploads/ugc';
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, stat } from 'fs/promises';
 import path from 'path';
+import { getUploadsBasePath } from '@/lib/uploads';
 
 const MIME_TYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -26,10 +27,8 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
     }
 
-    // Construct absolute path to the file in public/uploads
-    const uploadsBase = process.env.NODE_ENV === 'production'
-      ? '/var/www/pilareta-tribe/public/uploads'
-      : path.join(process.cwd(), 'public', 'uploads');
+    // Construct absolute path to the file in uploads directory
+    const uploadsBase = getUploadsBasePath();
     const absolutePath = path.join(uploadsBase, filePath);
 
     // Ensure the path is within the uploads directory

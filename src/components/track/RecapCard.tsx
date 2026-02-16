@@ -106,6 +106,10 @@ export function RecapCard({
               height: '100%',
               objectFit: 'cover'
             }}
+            onError={(e) => {
+              // Hide broken image — the gradient background will show through
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
           {/* Overlay gradient */}
           <div style={{

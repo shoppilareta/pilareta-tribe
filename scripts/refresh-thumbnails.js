@@ -68,7 +68,7 @@ async function downloadAndSave(postId, imageUrl) {
     else if (ct.includes('webp')) ext = '.webp';
 
     const basePath = process.env.NODE_ENV === 'production'
-      ? '/var/www/pilareta-tribe/public/uploads/ugc'
+      ? '/var/data/pilareta-uploads/ugc'
       : path.join(process.cwd(), 'public/uploads/ugc');
 
     const now = new Date();
@@ -103,10 +103,11 @@ async function downloadAndSave(postId, imageUrl) {
   for (const post of posts) {
     // Skip posts that already have local thumbnails AND the file exists on disk
     if (post.thumbnailUrl && post.thumbnailUrl.startsWith('/uploads/')) {
-      const basePath = process.env.NODE_ENV === 'production'
-        ? '/var/www/pilareta-tribe/public'
-        : path.join(process.cwd(), 'public');
-      const filePath = path.join(basePath, post.thumbnailUrl);
+      const uploadsBase = process.env.NODE_ENV === 'production'
+        ? '/var/data/pilareta-uploads'
+        : path.join(process.cwd(), 'public/uploads');
+      const relativePath = post.thumbnailUrl.replace(/^\/uploads\//, '');
+      const filePath = path.join(uploadsBase, relativePath);
       if (existsSync(filePath)) {
         skipped++;
         continue;

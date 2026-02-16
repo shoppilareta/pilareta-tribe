@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { getUgcUploadsPath } from '@/lib/uploads';
 
 // Helper to decode HTML entities in URLs
 function decodeHtmlEntities(str: string): string {
@@ -84,9 +85,7 @@ async function downloadAndSaveImage(postId: string, imageUrl: string): Promise<s
     if (contentType.includes('png')) ext = '.png';
     else if (contentType.includes('webp')) ext = '.webp';
 
-    const basePath = process.env.NODE_ENV === 'production'
-      ? '/var/www/pilareta-tribe/public/uploads/ugc'
-      : path.join(process.cwd(), 'public/uploads/ugc');
+    const basePath = getUgcUploadsPath();
 
     const now = new Date();
     const year = now.getFullYear();

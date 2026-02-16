@@ -155,6 +155,7 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
                 objectFit: 'cover',
                 zIndex: 0,
               }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
             <div
               style={{
@@ -306,6 +307,7 @@ export function WorkoutRecapCard({ recap, userName, studioName, streak, size = '
               objectFit: 'cover',
               zIndex: 0,
             }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
           <div
             style={{

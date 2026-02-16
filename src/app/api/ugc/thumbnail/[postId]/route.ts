@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { getUploadsBasePath, getUgcUploadsPath } from '@/lib/uploads';
 
 function decodeHtmlEntities(str: string): string {
   return str
@@ -73,9 +74,7 @@ async function downloadAndSave(postId: string, imageUrl: string): Promise<string
     if (contentType.includes('png')) ext = '.png';
     else if (contentType.includes('webp')) ext = '.webp';
 
-    const basePath = process.env.NODE_ENV === 'production'
-      ? '/var/www/pilareta-tribe/public/uploads/ugc'
-      : path.join(process.cwd(), 'public/uploads/ugc');
+    const basePath = getUgcUploadsPath();
 
     const now = new Date();
     const year = now.getFullYear();
@@ -115,13 +114,13 @@ export async function GET(
     return NextResponse.json({ error: 'Post not found' }, { status: 404 });
   }
 
-  const basePath = process.env.NODE_ENV === 'production'
-    ? '/var/www/pilareta-tribe/public'
-    : path.join(process.cwd(), 'public');
+  const uploadsBase = getUploadsBasePath();
 
   // Case 1: Post has a local thumbnail that exists on disk
   if (post.thumbnailUrl && post.thumbnailUrl.startsWith('/uploads/')) {
-    const filePath = path.join(basePath, post.thumbnailUrl);
+    // Strip /uploads/ prefix since uploadsBase already points to the uploads root
+    const relativePath = post.thumbnailUrl.replace(/^\/uploads\//, '');
+    const filePath = path.join(uploadsBase, relativePath);
     if (existsSync(filePath)) {
       try {
         const buffer = await readFile(filePath);
@@ -159,7 +158,7 @@ export async function GET(
       data: { thumbnailUrl: localUrl },
     });
 
-    const filePath = path.join(basePath, localUrl);
+    const filePath = path.join(uploadsBase, localUrl.replace(/^\/uploads\//, ''));
     try {
       const buffer = await readFile(filePath);
       const ext = path.extname(filePath).toLowerCase();

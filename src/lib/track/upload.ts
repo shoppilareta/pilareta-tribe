@@ -7,10 +7,9 @@ import {
   getExtensionFromContentType,
   ALLOWED_IMAGE_TYPES,
 } from '@/lib/ugc/validation';
+import { getTrackUploadsPath } from '@/lib/uploads';
 
-const UPLOAD_BASE_PATH = process.env.NODE_ENV === 'production'
-  ? '/var/www/pilareta-tribe/public/uploads/track'
-  : path.join(process.cwd(), 'public/uploads/track');
+const UPLOAD_BASE_PATH = getTrackUploadsPath();
 
 const PUBLIC_URL_BASE = '/uploads/track';
 

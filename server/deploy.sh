@@ -19,10 +19,23 @@ NC='\033[0m' # No Color
 # Configuration
 APP_DIR="/var/www/pilareta-tribe"
 ECOSYSTEM_FILE="ecosystem.config.js"
+UPLOADS_DIR="/var/data/pilareta-uploads"
 
 echo -e "${YELLOW}========================================${NC}"
 echo -e "${YELLOW}  Pilareta Tribe Deployment${NC}"
 echo -e "${YELLOW}========================================${NC}"
+
+# Ensure persistent uploads directory exists (outside git repo)
+if [ ! -d "$UPLOADS_DIR" ]; then
+    echo -e "${YELLOW}Creating persistent uploads directory: $UPLOADS_DIR${NC}"
+    sudo mkdir -p "$UPLOADS_DIR"/{ugc/{images,thumbnails},track}
+    sudo chown -R ec2-user:ec2-user "$UPLOADS_DIR"
+    # Migrate any existing uploads from public/uploads
+    if [ -d "$APP_DIR/public/uploads" ] && [ "$(ls -A $APP_DIR/public/uploads 2>/dev/null)" ]; then
+        echo -e "${YELLOW}Migrating existing uploads to persistent directory...${NC}"
+        cp -rn "$APP_DIR/public/uploads/"* "$UPLOADS_DIR/" 2>/dev/null || true
+    fi
+fi
 
 # Navigate to app directory
 cd "$APP_DIR" || {

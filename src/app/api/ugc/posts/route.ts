@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { checkUploadRateLimit, saveUploadedFile } from '@/lib/ugc/upload';
+import { getUgcUploadsPath } from '@/lib/uploads';
 
 // Helper to get display name from user data
 function getDisplayName(user: { firstName: string | null; lastName: string | null; email: string }): string {
@@ -320,9 +321,7 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
     const { existsSync } = await import('fs');
     const path = await import('path');
 
-    const basePath = process.env.NODE_ENV === 'production'
-      ? '/var/www/pilareta-tribe/public/uploads/ugc'
-      : path.join(process.cwd(), 'public/uploads/ugc');
+    const basePath = getUgcUploadsPath();
 
     const now = new Date();
     const year = now.getFullYear();
