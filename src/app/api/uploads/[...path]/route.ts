@@ -27,10 +27,13 @@ export async function GET(
     }
 
     // Construct absolute path to the file in public/uploads
-    const absolutePath = path.join(process.cwd(), 'public', 'uploads', filePath);
+    const uploadsBase = process.env.NODE_ENV === 'production'
+      ? '/var/www/pilareta-tribe/public/uploads'
+      : path.join(process.cwd(), 'public', 'uploads');
+    const absolutePath = path.join(uploadsBase, filePath);
 
     // Ensure the path is within the uploads directory
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    const uploadsDir = uploadsBase;
     if (!absolutePath.startsWith(uploadsDir)) {
       return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
     }

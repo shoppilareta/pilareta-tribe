@@ -290,7 +290,8 @@ async function fetchInstagramThumbnailUrl(url: string): Promise<string | null> {
   return null;
 }
 
-// Download Instagram thumbnail and save locally
+// Download Instagram thumbnail and save locally.
+// Returns local path on success, or the CDN URL as fallback if local save fails.
 async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: string): Promise<string | null> {
   const thumbnailUrl = await fetchInstagramThumbnailUrl(instagramUrl);
   if (!thumbnailUrl) return null;
@@ -303,10 +304,10 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
       },
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) return thumbnailUrl; // Return CDN URL as fallback
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length === 0) return null;
+    if (buffer.length === 0) return thumbnailUrl;
 
     // Determine file extension from content type
     const contentType = response.headers.get('content-type') || 'image/jpeg';
@@ -339,7 +340,7 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
     return publicUrl;
   } catch (error) {
     console.error('Error downloading Instagram thumbnail:', error);
-    return null;
+    return thumbnailUrl; // Return CDN URL as fallback
   }
 }
 

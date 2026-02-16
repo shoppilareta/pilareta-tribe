@@ -510,9 +510,9 @@ export default async function HomePage() {
                         </div>
                       </div>
                     ) : post.mediaType === 'instagram' ? (
-                      post.thumbnailUrl ? (
+                      post.thumbnailUrl || post.id ? (
                         <img
-                          src={post.thumbnailUrl}
+                          src={post.thumbnailUrl ? transformMediaUrl(post.thumbnailUrl)! : `/api/ugc/thumbnail/${post.id}`}
                           alt=""
                           style={{
                             width: '100%',

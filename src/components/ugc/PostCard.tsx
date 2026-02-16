@@ -45,6 +45,7 @@ interface PostCardProps {
 
 function PostCardComponent({ post, onClick }: PostCardProps) {
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
+  const [useDynamicThumb, setUseDynamicThumb] = useState(false);
   // Hide name for admin users, otherwise use displayName from API
   const userName = post.user.isAdmin
     ? 'Pilareta Team'
@@ -100,17 +101,29 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
               height: '100%',
             }}
           >
-            {post.thumbnailUrl && !thumbnailFailed ? (
+            {!thumbnailFailed ? (
               <>
                 <img
-                  src={post.thumbnailUrl}
+                  src={
+                    !post.thumbnailUrl || useDynamicThumb
+                      ? `/api/ugc/thumbnail/${post.id}`
+                      : post.thumbnailUrl
+                  }
                   alt={post.caption || 'Instagram post'}
                   style={{
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
                   }}
-                  onError={() => setThumbnailFailed(true)}
+                  onError={() => {
+                    if (!useDynamicThumb && post.thumbnailUrl) {
+                      // thumbnailUrl failed (expired CDN URL), try dynamic endpoint
+                      setUseDynamicThumb(true);
+                    } else {
+                      // Dynamic endpoint also failed — show placeholder
+                      setThumbnailFailed(true);
+                    }
+                  }}
                 />
                 {/* Instagram badge */}
                 <div
