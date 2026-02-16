@@ -33,6 +33,11 @@ const nextConfig: NextConfig = {
         destination: '/community/:path*',
         permanent: true,
       },
+      {
+        source: '/admin/ugc',
+        destination: '/admin/community',
+        permanent: true,
+      },
     ];
   },
 };

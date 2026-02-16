@@ -69,11 +69,11 @@ export default function AdminDashboardPage() {
 
   const metricCards = [
     { label: 'Total Users', value: stats.counts.totalUsers, sub: `${stats.counts.signupsLast30Days} in last 30d`, href: '/admin/users' },
-    { label: 'Total Posts', value: stats.counts.totalPosts, sub: `${stats.counts.pendingPosts} pending`, href: '/admin/ugc' },
+    { label: 'Total Posts', value: stats.counts.totalPosts, sub: `${stats.counts.pendingPosts} pending`, href: '/admin/community' },
     { label: 'Studios', value: stats.counts.totalStudios, sub: `${stats.counts.pendingClaims} claims pending`, href: '/admin/studios' },
     { label: 'Active Banners', value: stats.counts.activeBanners, sub: 'Shop banners', href: '/admin/shop' },
     { label: 'Workout Logs', value: stats.counts.totalWorkoutLogs, sub: 'All time' },
-    { label: 'Pending Reviews', value: stats.counts.pendingPosts + stats.counts.pendingClaims + stats.counts.pendingEditSuggestions, sub: 'Posts + claims + edits', href: '/admin/ugc' },
+    { label: 'Pending Reviews', value: stats.counts.pendingPosts + stats.counts.pendingClaims + stats.counts.pendingEditSuggestions, sub: 'Posts + claims + edits', href: '/admin/community' },
   ];
 
   return (
