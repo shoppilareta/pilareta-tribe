@@ -48,8 +48,6 @@ module.exports = {
     log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
 
     // Graceful shutdown
-    kill_timeout: 5000,
-    wait_ready: true,
-    listen_timeout: 10000
+    kill_timeout: 5000
   }]
 };
