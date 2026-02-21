@@ -24,11 +24,11 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tribe.pilareta.com';
 export async function POST() {
   try {
     const codeVerifier = generateCodeVerifier();
-    const state = generateState();
+    // Prefix state with "mobile:" so the web callback can detect
+    // this is a mobile OAuth flow and redirect to the deep link
+    // instead of running the web session flow.
+    const state = `mobile:${generateState()}`;
 
-    // Build the Shopify authorization URL
-    // Note: redirect_uri for mobile will be handled differently -
-    // the mobile app will intercept the redirect via deep link
     const authUrl = await buildAuthorizationUrl(codeVerifier, state);
 
     return NextResponse.json({

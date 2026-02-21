@@ -15,6 +15,12 @@ export async function GET(request: NextRequest) {
   // Handle OAuth errors
   if (error) {
     console.error('OAuth error:', error, errorDescription);
+    // Mobile flow: redirect error to deep link
+    if (state?.startsWith('mobile:')) {
+      return NextResponse.redirect(
+        `pilareta://auth/callback?error=${encodeURIComponent(errorDescription || error)}`
+      );
+    }
     return NextResponse.redirect(
       `${appUrl}/?error=${encodeURIComponent(errorDescription || error)}`
     );
@@ -22,6 +28,13 @@ export async function GET(request: NextRequest) {
 
   if (!code || !state) {
     return NextResponse.redirect(`${appUrl}/?error=Missing+code+or+state`);
+  }
+
+  // Mobile flow: redirect code & state to the app deep link.
+  // The mobile app will exchange the code via POST /api/auth/mobile/callback.
+  if (state.startsWith('mobile:')) {
+    const params = new URLSearchParams({ code, state });
+    return NextResponse.redirect(`pilareta://auth/callback?${params.toString()}`);
   }
 
   try {
