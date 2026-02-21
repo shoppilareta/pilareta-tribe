@@ -22,7 +22,15 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(result);
+    // Return both field name variants for web (latitude/longitude) and mobile (lat/lng)
+    return NextResponse.json({
+      lat: result.latitude,
+      lng: result.longitude,
+      latitude: result.latitude,
+      longitude: result.longitude,
+      formattedAddress: result.formattedName,
+      formattedName: result.formattedName,
+    });
   } catch (error) {
     console.error('Error geocoding location:', error);
 

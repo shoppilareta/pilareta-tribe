@@ -57,7 +57,7 @@ export default function CommunityFeed() {
       <View style={styles.header}>
         <Text style={styles.title}>Community</Text>
         <View style={styles.headerActions}>
-          {isLoggedIn && (
+          {isLoggedIn ? (
             <>
               <Pressable onPress={() => router.push('/(tabs)/community/saved')} style={styles.headerButton} hitSlop={8}>
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
@@ -70,6 +70,10 @@ export default function CommunityFeed() {
                 </Svg>
               </Pressable>
             </>
+          ) : (
+            <Pressable onPress={() => router.push('/auth/login')} style={styles.signInButton}>
+              <Text style={styles.signInButtonText}>Sign In</Text>
+            </Pressable>
           )}
         </View>
       </View>
@@ -182,4 +186,6 @@ const styles = StyleSheet.create({
   emptyButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
   feedList: { padding: spacing.md },
   footerLoader: { padding: spacing.lg },
+  signInButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.fg.primary },
+  signInButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
 });
