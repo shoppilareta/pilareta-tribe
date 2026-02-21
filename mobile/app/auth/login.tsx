@@ -49,6 +49,7 @@ export default function LoginScreen() {
       );
 
       if (result.type !== 'success' || !result.url) {
+        console.warn('Email auth session result:', result.type, result);
         setLoading(null);
         return;
       }

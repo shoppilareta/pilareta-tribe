@@ -15,10 +15,12 @@ export async function GET(request: NextRequest) {
   // Handle OAuth errors
   if (error) {
     console.error('OAuth error:', error, errorDescription);
-    // Mobile flow: redirect error to deep link
+    // Mobile flow: redirect error to deep link via HTML (NextResponse.redirect doesn't work with custom URL schemes)
     if (state?.startsWith('mobile:')) {
-      return NextResponse.redirect(
-        `pilareta://auth/callback?error=${encodeURIComponent(errorDescription || error)}`
+      const redirectUrl = `pilareta://auth/callback?error=${encodeURIComponent(errorDescription || error)}`;
+      return new NextResponse(
+        `<html><head><meta charset="utf-8"></head><body><script>window.location.href="${redirectUrl}";</script></body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
       );
     }
     return NextResponse.redirect(
@@ -30,11 +32,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appUrl}/?error=Missing+code+or+state`);
   }
 
-  // Mobile flow: redirect code & state to the app deep link.
+  // Mobile flow: redirect code & state to the app deep link via HTML.
+  // NextResponse.redirect doesn't work with custom URL schemes (pilareta://).
   // The mobile app will exchange the code via POST /api/auth/mobile/callback.
   if (state.startsWith('mobile:')) {
     const params = new URLSearchParams({ code, state });
-    return NextResponse.redirect(`pilareta://auth/callback?${params.toString()}`);
+    const redirectUrl = `pilareta://auth/callback?${params.toString()}`;
+    return new NextResponse(
+      `<html><head><meta charset="utf-8"></head><body><script>window.location.href="${redirectUrl}";</script></body></html>`,
+      { status: 200, headers: { 'Content-Type': 'text/html' } }
+    );
   }
 
   try {
