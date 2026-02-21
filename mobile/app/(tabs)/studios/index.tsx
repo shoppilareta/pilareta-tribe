@@ -63,10 +63,16 @@ export default function StudiosScreen() {
     enabled: searchQuery.length >= 2,
   });
 
-  const studios = searchQuery.length >= 2
-    ? (searchData?.studios ?? [])
-    : (nearbyData?.studios ?? []);
-  const isLoading = searchQuery.length >= 2 ? searchLoading : nearbyLoading;
+  // After geocoding a city, prefer nearby results for that location.
+  // Only use text search when typing without submitting.
+  const studios = searchLocation
+    ? (nearbyData?.studios ?? [])
+    : searchQuery.length >= 2
+      ? (searchData?.studios ?? [])
+      : (nearbyData?.studios ?? []);
+  const isLoading = searchLocation
+    ? nearbyLoading
+    : searchQuery.length >= 2 ? searchLoading : nearbyLoading;
 
   const handleSearch = async () => {
     const q = searchQuery.trim();

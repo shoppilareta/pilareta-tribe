@@ -8,6 +8,7 @@ import { colors, typography, spacing, radius } from '@/theme';
 import { ProductCard, BannerCarousel } from '@/components/shop';
 import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
+import { useAuthStore } from '@/stores/authStore';
 import type { ShopifyProduct } from '@shared/types';
 
 // Preferred display order for collection-based categories
@@ -81,6 +82,7 @@ export default function ShopScreen() {
 
   const { totalItems, loading: cartLoading } = useCartStore();
   const cartCount = totalItems();
+  const isAuthenticated = !!useAuthStore((s) => s.accessToken);
 
   const products = data?.products ?? [];
 
@@ -115,16 +117,25 @@ export default function ShopScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Shop</Text>
-        <Pressable onPress={() => router.push('/(tabs)/shop/cart')} style={styles.cartButton} hitSlop={8}>
-          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
-            <Path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-          {cartCount > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartCount}</Text>
-            </View>
+        <View style={styles.headerActions}>
+          {isAuthenticated && (
+            <Pressable onPress={() => router.push('/orders')} style={styles.cartButton} hitSlop={8}>
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
+                <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
           )}
-        </Pressable>
+          <Pressable onPress={() => router.push('/(tabs)/shop/cart')} style={styles.cartButton} hitSlop={8}>
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
+              <Path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
       </View>
 
       {/* Category pills */}
@@ -214,6 +225,7 @@ function chunkPairs<T>(arr: T[]): T[][] {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title: { fontSize: typography.sizes['2xl'], fontWeight: typography.weights.bold, color: colors.fg.primary },
   cartButton: { padding: spacing.xs, position: 'relative' },
   cartBadge: { position: 'absolute', top: -2, right: -4, backgroundColor: 'rgba(239, 68, 68, 0.9)', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },

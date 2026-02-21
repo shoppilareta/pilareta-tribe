@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     // Decode the ID token to get customer info
     const customerInfo = decodeIdToken(tokens.id_token);
 
+    // Ensure shopifyId is a string (Shopify JWT sub claim may be a number)
+    const shopifyId = String(customerInfo.sub);
+
     // Try to get first/last name from Customer Account API
     let firstName = customerInfo.given_name || null;
     let lastName = customerInfo.family_name || null;
@@ -45,14 +48,14 @@ export async function POST(request: NextRequest) {
 
     // Create or update the user
     const user = await prisma.user.upsert({
-      where: { shopifyId: customerInfo.sub },
+      where: { shopifyId },
       update: {
         email: customerInfo.email,
-        firstName,
-        lastName,
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
       },
       create: {
-        shopifyId: customerInfo.sub,
+        shopifyId,
         email: customerInfo.email,
         firstName,
         lastName,
