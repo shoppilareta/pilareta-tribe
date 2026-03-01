@@ -33,6 +33,11 @@ interface ShopifyOrder {
 }
 
 export async function getCustomerOrders(userId: string): Promise<ShopifyOrder[]> {
+  if (!SHOP_ID) {
+    console.error('SHOPIFY_SHOP_ID environment variable is not set');
+    throw new Error('Shop configuration error');
+  }
+
   // Get the user's active session with access token
   const session = await prisma.session.findFirst({
     where: { userId, expiresAt: { gt: new Date() } },

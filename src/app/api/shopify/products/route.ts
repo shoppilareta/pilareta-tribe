@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { getProducts } from '@/lib/shopify/queries';
 import { isShopifyConfigured } from '@/lib/shopify/client';
 
-// Cache products for 5 minutes
-export const revalidate = 300;
+// Cache products for 1 minute so new products/descriptions show quickly
+export const revalidate = 60;
 
 export async function GET() {
   try {
@@ -14,7 +14,7 @@ export async function GET() {
       );
     }
 
-    const products = await getProducts(50);
+    const products = await getProducts(250);
 
     return NextResponse.json({ products });
   } catch (error) {

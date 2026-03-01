@@ -6,6 +6,7 @@ import * as Linking from 'expo-linking';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { getOrders, type ShopifyOrder } from '@/api/orders';
+import { useAuthStore } from '@/stores/authStore';
 
 function formatPrice(amount: string, currency: string) {
   const num = parseFloat(amount);
@@ -69,9 +70,11 @@ function OrderCard({ order }: { order: ShopifyOrder }) {
 }
 
 export default function OrdersScreen() {
+  const isAuthenticated = !!useAuthStore((s) => s.accessToken);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
     queryFn: getOrders,
+    enabled: isAuthenticated,
   });
 
   const orders = data?.orders ?? [];
@@ -88,14 +91,22 @@ export default function OrdersScreen() {
         <View style={{ width: 22 }} />
       </View>
 
-      {isLoading ? (
+      {!isAuthenticated ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>Sign in to view orders</Text>
+          <Text style={styles.emptyText}>Your order history will appear here after you sign in.</Text>
+          <Pressable onPress={() => router.push('/auth/login')} style={styles.retryButton}>
+            <Text style={styles.retryText}>Sign In</Text>
+          </Pressable>
+        </View>
+      ) : isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.fg.primary} />
         </View>
       ) : isError ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>Something went wrong</Text>
-          <Text style={styles.emptyText}>Sign in to view your orders.</Text>
+          <Text style={styles.emptyTitle}>Unable to load orders</Text>
+          <Text style={styles.emptyText}>Please try again.</Text>
           <Pressable onPress={() => refetch()} style={styles.retryButton}>
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>

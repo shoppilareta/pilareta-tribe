@@ -22,13 +22,19 @@ export function ProductCard({ product }: ProductCardProps) {
   const { minVariantPrice, maxVariantPrice } = product.priceRange;
   const hasMultiplePrices = minVariantPrice.amount !== maxVariantPrice.amount;
 
-  // Extract unique colors from variants
-  const colors = Array.from(new Set(
-    product.variants
-      .flatMap(v => v.selectedOptions)
-      .filter(opt => opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour')
-      .map(opt => opt.value)
-  ));
+  // Extract unique colors with variant image URLs for swatches
+  const colorSwatches = (() => {
+    const seen = new Map<string, string | undefined>();
+    for (const v of product.variants) {
+      for (const opt of v.selectedOptions) {
+        const isColor = opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour';
+        if (isColor && !seen.has(opt.value)) {
+          seen.set(opt.value, v.image?.url);
+        }
+      }
+    }
+    return Array.from(seen.entries()).map(([name, imageUrl]) => ({ name, imageUrl }));
+  })();
 
   // Extract unique sizes from variants
   const sizes = Array.from(new Set(
@@ -95,18 +101,28 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
 
           {/* Color Swatches */}
-          {colors.length > 0 && (
+          {colorSwatches.length > 0 && (
             <div className="flex items-center gap-2 pt-1">
-              {colors.slice(0, 6).map(color => (
-                <div
-                  key={color}
-                  className="w-6 h-6 rounded-full border border-[rgba(246,237,221,0.2)]"
-                  style={{ backgroundColor: getColorCode(color) }}
-                  title={color}
-                />
+              {colorSwatches.slice(0, 6).map(s => (
+                s.imageUrl ? (
+                  <img
+                    key={s.name}
+                    src={s.imageUrl}
+                    alt={s.name}
+                    title={s.name}
+                    className="w-6 h-6 rounded-full border border-[rgba(246,237,221,0.2)] object-cover"
+                  />
+                ) : (
+                  <div
+                    key={s.name}
+                    className="w-6 h-6 rounded-full border border-[rgba(246,237,221,0.2)]"
+                    style={{ backgroundColor: getColorCode(s.name) }}
+                    title={s.name}
+                  />
+                )
               ))}
-              {colors.length > 6 && (
-                <span className="text-xs opacity-40">+{colors.length - 6}</span>
+              {colorSwatches.length > 6 && (
+                <span className="text-xs opacity-40">+{colorSwatches.length - 6}</span>
               )}
             </div>
           )}

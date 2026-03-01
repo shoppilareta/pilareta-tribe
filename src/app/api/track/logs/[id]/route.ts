@@ -94,6 +94,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       studioId,
       customStudioName,
       calorieEstimate,
+      distanceKm,
+      incline,
+      pace,
+      laps,
+      totalSets,
+      totalReps,
+      weightKg,
     } = body;
 
     // Build update data
@@ -183,6 +190,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         updateData.studioId = null;
       }
     }
+
+    // Type-specific fields
+    if (distanceKm !== undefined) updateData.distanceKm = distanceKm;
+    if (incline !== undefined) updateData.incline = incline;
+    if (pace !== undefined) updateData.pace = pace;
+    if (laps !== undefined) updateData.laps = laps;
+    if (totalSets !== undefined) updateData.totalSets = totalSets;
+    if (totalReps !== undefined) updateData.totalReps = totalReps;
+    if (weightKg !== undefined) updateData.weightKg = weightKg;
 
     // Recalculate calories if relevant fields changed
     if (durationMinutes !== undefined || workoutType !== undefined || rpe !== undefined) {

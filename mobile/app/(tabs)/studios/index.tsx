@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, Pressable, ActivityIndicat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { StudioCard } from '@/components/studios';
@@ -176,6 +176,7 @@ export default function StudiosScreen() {
       {viewMode === 'map' && (
         <MapView
           ref={mapRef}
+          provider={PROVIDER_GOOGLE}
           style={styles.map}
           region={region}
           onRegionChangeComplete={setRegion}

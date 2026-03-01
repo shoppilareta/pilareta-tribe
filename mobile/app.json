@@ -16,7 +16,7 @@
       "url": "https://u.expo.dev/07834875-89aa-4996-962e-f4fcbfe45ceb"
     },
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/pilareta-logo-full.png",
       "resizeMode": "contain",
       "backgroundColor": "#202219"
     },
@@ -33,7 +33,8 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
-        "usesNonExemptEncryption": false
+        "usesNonExemptEncryption": false,
+        "googleMapsApiKey": "AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM"
       }
     },
     "android": {
@@ -112,8 +113,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#202219",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200
+          "image": "./assets/images/pilareta-logo-full.png",
+          "imageWidth": 300
         }
       ]
     ],

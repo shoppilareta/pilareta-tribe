@@ -101,6 +101,13 @@ export async function POST(request: NextRequest) {
     let studioId: string | undefined;
     let customStudioName: string | undefined;
     let calorieEstimate: number | undefined;
+    let distanceKm: number | undefined;
+    let incline: number | undefined;
+    let pace: string | undefined;
+    let laps: number | undefined;
+    let totalSets: number | undefined;
+    let totalReps: number | undefined;
+    let weightKg: number | undefined;
     let imageFile: File | null = null;
 
     if (contentType.includes('multipart/form-data')) {
@@ -127,6 +134,20 @@ export async function POST(request: NextRequest) {
       }
 
       imageFile = formData.get('image') as File | null;
+
+      const distStr = formData.get('distanceKm') as string | undefined;
+      distanceKm = distStr ? parseFloat(distStr) : undefined;
+      const incStr = formData.get('incline') as string | undefined;
+      incline = incStr ? parseFloat(incStr) : undefined;
+      pace = (formData.get('pace') as string) || undefined;
+      const lapsStr = formData.get('laps') as string | undefined;
+      laps = lapsStr ? parseInt(lapsStr, 10) : undefined;
+      const setsStr = formData.get('totalSets') as string | undefined;
+      totalSets = setsStr ? parseInt(setsStr, 10) : undefined;
+      const repsStr = formData.get('totalReps') as string | undefined;
+      totalReps = repsStr ? parseInt(repsStr, 10) : undefined;
+      const weightStr = formData.get('weightKg') as string | undefined;
+      weightKg = weightStr ? parseFloat(weightStr) : undefined;
     } else {
       // Handle JSON body (backwards compatible)
       const body = await request.json();
@@ -140,6 +161,13 @@ export async function POST(request: NextRequest) {
       studioId = body.studioId;
       customStudioName = body.customStudioName;
       calorieEstimate = body.calorieEstimate;
+      distanceKm = body.distanceKm;
+      incline = body.incline;
+      pace = body.pace;
+      laps = body.laps;
+      totalSets = body.totalSets;
+      totalReps = body.totalReps;
+      weightKg = body.weightKg;
     }
 
     // Validation
@@ -235,6 +263,13 @@ export async function POST(request: NextRequest) {
         studioId: studioId || null,
         customStudioName: customStudioName || null,
         calorieEstimate: calories,
+        distanceKm: distanceKm ?? null,
+        incline: incline ?? null,
+        pace: pace ?? null,
+        laps: laps ?? null,
+        totalSets: totalSets ?? null,
+        totalReps: totalReps ?? null,
+        weightKg: weightKg ?? null,
       },
     });
 

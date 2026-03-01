@@ -68,6 +68,13 @@ export interface CreateWorkoutLogRequest {
   studioId?: string;
   customStudioName?: string;
   calorieEstimate?: number;
+  distanceKm?: number;
+  incline?: number;
+  pace?: string;
+  laps?: number;
+  totalSets?: number;
+  totalReps?: number;
+  weightKg?: number;
 }
 
 export interface UpdateWorkoutLogRequest {
@@ -80,6 +87,13 @@ export interface UpdateWorkoutLogRequest {
   studioId?: string | null;
   customStudioName?: string | null;
   calorieEstimate?: number | null;
+  distanceKm?: number | null;
+  incline?: number | null;
+  pace?: string | null;
+  laps?: number | null;
+  totalSets?: number | null;
+  totalReps?: number | null;
+  weightKg?: number | null;
 }
 
 // --- UGC ---

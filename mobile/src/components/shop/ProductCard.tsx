@@ -22,17 +22,17 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
   const hasMultiplePrices = product.priceRange.minVariantPrice.amount !== product.priceRange.maxVariantPrice.amount;
   const inStock = product.availableForSale !== false && product.variants.some((v) => v.availableForSale);
 
-  const productColors = useMemo(() => {
-    const seen = new Set<string>();
-    return product.variants
-      .flatMap((v) => v.selectedOptions ?? [])
-      .filter((opt) => {
+  const colorSwatches = useMemo(() => {
+    const seen = new Map<string, string | undefined>();
+    for (const v of product.variants) {
+      for (const opt of v.selectedOptions ?? []) {
         const isColor = opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour';
-        if (!isColor || seen.has(opt.value)) return false;
-        seen.add(opt.value);
-        return true;
-      })
-      .map((opt) => opt.value);
+        if (isColor && !seen.has(opt.value)) {
+          seen.set(opt.value, v.image?.url);
+        }
+      }
+    }
+    return Array.from(seen.entries()).map(([name, imageUrl]) => ({ name, imageUrl }));
   }, [product.variants]);
 
   return (
@@ -51,13 +51,17 @@ export const ProductCard = memo(function ProductCard({ product }: ProductCardPro
           <Text style={styles.price}>
             {hasMultiplePrices ? 'From ' : ''}{formatPrice(price.amount, price.currencyCode)}
           </Text>
-          {productColors.length > 0 && (
+          {colorSwatches.length > 0 && (
             <View style={styles.swatchRow}>
-              {productColors.slice(0, 5).map((c) => (
-                <View key={c} style={[styles.swatch, { backgroundColor: getColorCode(c) }]} />
+              {colorSwatches.slice(0, 5).map((s) => (
+                s.imageUrl ? (
+                  <Image key={s.name} source={{ uri: s.imageUrl }} style={styles.swatchImage} />
+                ) : (
+                  <View key={s.name} style={[styles.swatch, { backgroundColor: getColorCode(s.name) }]} />
+                )
               ))}
-              {productColors.length > 5 && (
-                <Text style={styles.moreColors}>+{productColors.length - 5}</Text>
+              {colorSwatches.length > 5 && (
+                <Text style={styles.moreColors}>+{colorSwatches.length - 5}</Text>
               )}
             </View>
           )}
@@ -77,5 +81,6 @@ const styles = StyleSheet.create({
   price: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: 6 },
   swatchRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(246,237,221,0.2)' },
+  swatchImage: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(246,237,221,0.2)', overflow: 'hidden' },
   moreColors: { fontSize: 10, color: colors.fg.muted, marginLeft: 2 },
 });

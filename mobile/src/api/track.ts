@@ -59,6 +59,13 @@ export async function createLogWithImage(
   if (data.studioId) formData.append('studioId', data.studioId);
   if (data.customStudioName) formData.append('customStudioName', data.customStudioName);
   if (data.calorieEstimate) formData.append('calorieEstimate', String(data.calorieEstimate));
+  if (data.distanceKm != null) formData.append('distanceKm', String(data.distanceKm));
+  if (data.incline != null) formData.append('incline', String(data.incline));
+  if (data.pace) formData.append('pace', data.pace);
+  if (data.laps != null) formData.append('laps', String(data.laps));
+  if (data.totalSets != null) formData.append('totalSets', String(data.totalSets));
+  if (data.totalReps != null) formData.append('totalReps', String(data.totalReps));
+  if (data.weightKg != null) formData.append('weightKg', String(data.weightKg));
 
   return apiFetch('/api/track/logs', {
     method: 'POST',

@@ -1,18 +1,82 @@
+import { useState, useEffect, Component, type ReactNode } from 'react';
 import { View, Text, StyleSheet, Pressable, Switch, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { useAuthStore } from '@/stores/authStore';
-import { useHealth } from '@/hooks/useHealth';
-import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
+import { getStats } from '@/api/track';
+import { getFollowers, getFollowing } from '@/api/social';
 
-export default function SettingsScreen() {
+// Error boundary to prevent settings crash if a hook/module fails
+class SettingsErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()}>
+              <Text style={styles.closeText}>Close</Text>
+            </Pressable>
+            <Text style={styles.title}>Account</Text>
+            <View style={{ width: 50 }} />
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
+            <Text style={{ color: colors.fg.primary, fontSize: typography.sizes.lg, marginBottom: spacing.sm }}>Something went wrong</Text>
+            <Text style={{ color: colors.fg.tertiary, fontSize: typography.sizes.sm, textAlign: 'center' }}>Settings could not be loaded. Please restart the app.</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Safe hook loaders — return null if the hook module can't load
+function useSafeHealth() {
+  try {
+    const { useHealth } = require('@/hooks/useHealth');
+    return useHealth();
+  } catch {
+    return { available: false, enabled: false, authorized: false, loading: false, toggle: async () => false };
+  }
+}
+
+function useSafeNotifications() {
+  try {
+    const { useNotifications } = require('@/hooks/useNotifications');
+    return useNotifications();
+  } catch {
+    return { streakReminderEnabled: false, toggleStreakReminder: () => {} };
+  }
+}
+
+function SettingsContent() {
   const { user, isAuthenticated } = useAuthStore();
   const { logout } = useAuth();
-  const health = useHealth();
-  const notifications = useNotifications();
+  const health = useSafeHealth();
+  const notifications = useSafeNotifications();
+
+  // Fetch stats and social counts
+  const [stats, setStats] = useState<{ currentStreak: number; totalWorkouts: number; totalMinutes: number } | null>(null);
+  const [socialCounts, setSocialCounts] = useState<{ followers: number; following: number } | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    getStats().then((data) => {
+      setStats({ currentStreak: data.stats.currentStreak, totalWorkouts: data.stats.totalWorkouts, totalMinutes: data.stats.totalMinutes });
+    }).catch(() => {});
+    Promise.all([
+      getFollowers(user.id, { limit: 1 }).catch(() => null),
+      getFollowing(user.id, { limit: 1 }).catch(() => null),
+    ]).then(([frs, fwg]) => {
+      // Use hasMore + returned count as approximation if count isn't returned directly
+      setSocialCounts({ followers: frs?.followers?.length ?? 0, following: fwg?.following?.length ?? 0 });
+    });
+  }, [isAuthenticated, user?.id]);
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -23,7 +87,7 @@ export default function SettingsScreen() {
         onPress: async () => {
           await logout();
           router.dismissAll();
-          router.replace('/(tabs)/track');
+          router.replace('/(tabs)/shop');
         },
       },
     ]);
@@ -45,7 +109,7 @@ export default function SettingsScreen() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.closeText}>Close</Text>
         </Pressable>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.title}>Account</Text>
         <View style={{ width: 50 }} />
       </View>
 
@@ -86,6 +150,75 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
+
+        {/* Your Stats */}
+        {isAuthenticated && stats && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Stats</Text>
+            <View style={styles.card}>
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{stats.currentStreak}</Text>
+                  <Text style={styles.statLabel}>Day Streak</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{stats.totalWorkouts}</Text>
+                  <Text style={styles.statLabel}>Workouts</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{Math.round(stats.totalMinutes / 60)}h</Text>
+                  <Text style={styles.statLabel}>Total Time</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Friends */}
+        {isAuthenticated && socialCounts && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Friends</Text>
+            <View style={styles.card}>
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{socialCounts.followers}</Text>
+                  <Text style={styles.statLabel}>Followers</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{socialCounts.following}</Text>
+                  <Text style={styles.statLabel}>Following</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Orders — always visible */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Shopping</Text>
+          <View style={styles.card}>
+            <Pressable
+              style={styles.contactRow}
+              onPress={() => {
+                if (isAuthenticated) {
+                  router.push('/orders');
+                } else {
+                  router.push('/auth/login');
+                }
+              }}
+            >
+              <View style={styles.settingIconRow}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                  <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.settingLabel}>Your Orders</Text>
+              </View>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+                <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
+          </View>
+        </View>
 
         {/* Notifications */}
         <View style={styles.section}>
@@ -183,29 +316,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Orders */}
-        {isAuthenticated && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Shopping</Text>
-            <View style={styles.card}>
-              <Pressable
-                style={styles.contactRow}
-                onPress={() => router.push('/orders')}
-              >
-                <View style={styles.settingIconRow}>
-                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
-                    <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                  <Text style={styles.settingLabel}>Your Orders</Text>
-                </View>
-                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
-                  <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
         {/* About */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
@@ -230,6 +340,14 @@ export default function SettingsScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+export default function SettingsScreen() {
+  return (
+    <SettingsErrorBoundary>
+      <SettingsContent />
+    </SettingsErrorBoundary>
   );
 }
 
@@ -319,7 +437,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     color: colors.fg.tertiary,
     lineHeight: 18,
-    marginLeft: 26, // align with label text (icon width + gap)
+    marginLeft: 26,
   },
   statusRow: {
     flexDirection: 'row',
@@ -367,6 +485,26 @@ const styles = StyleSheet.create({
   contactHint: {
     fontSize: typography.sizes.sm,
     color: colors.fg.tertiary,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  statValue: {
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.fg.primary,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.fg.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   logoutButton: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',

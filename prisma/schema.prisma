@@ -605,6 +605,15 @@ model WorkoutLog {
   calorieEstimate Int?
   focusAreas      String[] // ["core", "glutes", "legs", "arms", "back", "mobility"]
 
+  // Type-specific fields
+  distanceKm      Float?   // Running: distance in km
+  incline         Float?   // Running: incline percentage
+  pace            String?  // Running: pace e.g. "5:30"
+  laps            Int?     // Running: number of laps
+  totalSets       Int?     // Strength: total sets
+  totalReps       Int?     // Strength: total reps
+  weightKg        Float?   // Strength: weight in kg
+
   // Workout image (optional)
   imageUrl        String?  // Local file path: /uploads/track/...
 

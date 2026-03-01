@@ -9,6 +9,7 @@ import { colors, typography, spacing, radius } from '@/theme';
 import { getColorCode } from '@/utils/colorCode';
 import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
+import { ImageZoomModal } from '@/components/ui/ImageZoomModal';
 import type { ShopifyProduct } from '@shared/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,6 +50,7 @@ export default function ProductDetailScreen() {
   const { handle } = useLocalSearchParams<{ handle: string }>();
   const { addItem, loading: cartLoading } = useCartStore();
   const [selectedImage, setSelectedImage] = useState(0);
+  const [zoomVisible, setZoomVisible] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isAdding, setIsAdding] = useState(false);
   const imageScrollRef = useRef<ScrollView>(null);
@@ -84,6 +86,21 @@ export default function ProductDetailScreen() {
       name,
       values: Array.from(values),
     }));
+  }, [product]);
+
+  // Map color names to variant image URLs for swatches
+  const colorImageMap = useMemo(() => {
+    if (!product) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const v of product.variants) {
+      for (const opt of v.selectedOptions ?? []) {
+        const isColor = opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour';
+        if (isColor && !map.has(opt.value) && v.image?.url) {
+          map.set(opt.value, v.image.url);
+        }
+      }
+    }
+    return map;
   }, [product]);
 
   // Set default options on mount
@@ -227,7 +244,9 @@ export default function ProductDetailScreen() {
               }}
             >
               {images.map((img, idx) => (
-                <Image key={idx} source={{ uri: img.url }} style={styles.heroImage} resizeMode="cover" />
+                <Pressable key={idx} onPress={() => setZoomVisible(true)}>
+                  <Image source={{ uri: img.url }} style={styles.heroImage} resizeMode="cover" />
+                </Pressable>
               ))}
             </ScrollView>
             {images.length > 1 && (
@@ -267,6 +286,7 @@ export default function ProductDetailScreen() {
                   const available = isOptionAvailable(option.name, value);
 
                   if (isColor) {
+                    const variantImageUrl = colorImageMap.get(value);
                     return (
                       <Pressable
                         key={value}
@@ -278,11 +298,19 @@ export default function ProductDetailScreen() {
                         }}
                         style={[
                           styles.colorSwatch,
-                          { backgroundColor: getColorCode(value) },
+                          !variantImageUrl && { backgroundColor: getColorCode(value) },
                           isSelected && styles.colorSwatchSelected,
                           !available && styles.optionDisabled,
                         ]}
-                      />
+                      >
+                        {variantImageUrl && (
+                          <Image
+                            source={{ uri: variantImageUrl }}
+                            style={styles.colorSwatchImage}
+                            resizeMode="cover"
+                          />
+                        )}
+                      </Pressable>
                     );
                   }
 
@@ -343,6 +371,14 @@ export default function ProductDetailScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Image zoom modal */}
+      <ImageZoomModal
+        visible={zoomVisible}
+        images={images}
+        initialIndex={selectedImage}
+        onClose={() => setZoomVisible(false)}
+      />
+
       {/* Sticky add to cart footer */}
       <View style={styles.footer}>
         <Pressable
@@ -399,6 +435,9 @@ const styles = StyleSheet.create({
   },
   colorSwatchSelected: {
     borderColor: colors.fg.primary, borderWidth: 3,
+  },
+  colorSwatchImage: {
+    width: '100%', height: '100%', borderRadius: 18,
   },
   optionDisabled: { opacity: 0.25 },
   sizePill: {

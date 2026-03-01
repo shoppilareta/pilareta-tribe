@@ -6,7 +6,6 @@
   "expo": {
     "autolinking": {
       "exclude": [
-        "react-native-maps",
         "expo-apple-authentication"
       ]
     }

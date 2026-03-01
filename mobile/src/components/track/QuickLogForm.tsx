@@ -8,11 +8,14 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import Svg, { Path } from 'react-native-svg';
 import { Button } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
-import { createLog, updateLog } from '@/api/track';
+import { createLog, createLogWithImage, updateLog } from '@/api/track';
 import { scheduleInactivityReminder } from '@/hooks/useInactivityReminder';
 import type { CreateWorkoutLogRequest, UpdateWorkoutLogRequest } from '@shared/types';
 
@@ -111,6 +114,19 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
   const [notes, setNotes] = useState(editLog?.notes || '');
   const [showMore, setShowMore] = useState(isEditMode);
   const [loading, setLoading] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+
+  // Type-specific fields
+  const [distanceKm, setDistanceKm] = useState('');
+  const [pace, setPace] = useState('');
+  const [incline, setIncline] = useState('');
+  const [laps, setLaps] = useState('');
+  const [totalSets, setTotalSets] = useState('');
+  const [totalReps, setTotalReps] = useState('');
+  const [weightKg, setWeightKg] = useState('');
+
+  const isRunning = workoutType === 'running';
+  const isStrength = workoutType === 'strength_training';
 
   const toggleFocusArea = (area: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -119,10 +135,35 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
     );
   };
 
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     try {
       const duration = customDuration ? parseInt(customDuration, 10) : durationMinutes;
+
+      const typeFields = {
+        ...(isRunning && {
+          distanceKm: distanceKm ? parseFloat(distanceKm) : undefined,
+          pace: pace || undefined,
+          incline: incline ? parseFloat(incline) : undefined,
+          laps: laps ? parseInt(laps, 10) : undefined,
+        }),
+        ...(isStrength && {
+          totalSets: totalSets ? parseInt(totalSets, 10) : undefined,
+          totalReps: totalReps ? parseInt(totalReps, 10) : undefined,
+          weightKg: weightKg ? parseFloat(weightKg) : undefined,
+        }),
+      };
 
       if (isEditMode && editLog) {
         const data: UpdateWorkoutLogRequest = {
@@ -132,6 +173,7 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
           rpe,
           focusAreas,
           notes: notes || null,
+          ...typeFields,
         };
         await updateLog(editLog.id, data);
       } else {
@@ -142,8 +184,13 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
           rpe,
           focusAreas,
           notes: notes || undefined,
+          ...typeFields,
         };
-        await createLog(data);
+        if (imageUri) {
+          await createLogWithImage(data, imageUri);
+        } else {
+          await createLog(data);
+        }
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -279,6 +326,126 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
           <Text style={styles.rpeLabelText}>All-out</Text>
         </View>
       </View>
+
+      {/* Type-specific fields */}
+      {isRunning && (
+        <View>
+          <Text style={styles.sectionLabel}>Running Details</Text>
+          <View style={styles.fieldRow}>
+            <View style={styles.fieldCol}>
+              <Text style={styles.fieldLabel}>Distance (km)</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="0.0"
+                placeholderTextColor={colors.fg.muted}
+                value={distanceKm}
+                onChangeText={setDistanceKm}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.fieldCol}>
+              <Text style={styles.fieldLabel}>Pace (min/km)</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="5:30"
+                placeholderTextColor={colors.fg.muted}
+                value={pace}
+                onChangeText={setPace}
+              />
+            </View>
+          </View>
+          <View style={styles.fieldRow}>
+            <View style={styles.fieldCol}>
+              <Text style={styles.fieldLabel}>Incline %</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="0"
+                placeholderTextColor={colors.fg.muted}
+                value={incline}
+                onChangeText={setIncline}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.fieldCol}>
+              <Text style={styles.fieldLabel}>Laps</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="0"
+                placeholderTextColor={colors.fg.muted}
+                value={laps}
+                onChangeText={(t) => setLaps(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+              />
+            </View>
+          </View>
+        </View>
+      )}
+
+      {isStrength && (
+        <View>
+          <Text style={styles.sectionLabel}>Strength Details</Text>
+          <View style={styles.fieldRow}>
+            <View style={styles.fieldCol}>
+              <Text style={styles.fieldLabel}>Sets</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="0"
+                placeholderTextColor={colors.fg.muted}
+                value={totalSets}
+                onChangeText={(t) => setTotalSets(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={styles.fieldCol}>
+              <Text style={styles.fieldLabel}>Reps</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="0"
+                placeholderTextColor={colors.fg.muted}
+                value={totalReps}
+                onChangeText={(t) => setTotalReps(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={styles.fieldCol}>
+              <Text style={styles.fieldLabel}>Weight (kg)</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="0.0"
+                placeholderTextColor={colors.fg.muted}
+                value={weightKg}
+                onChangeText={setWeightKg}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Image picker */}
+      {!isEditMode && (
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={styles.sectionLabel}>Photo</Text>
+          {imageUri ? (
+            <View style={styles.imagePreviewWrap}>
+              <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+              <Pressable onPress={() => setImageUri(null)} style={styles.imageRemove}>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2}>
+                  <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={pickImage} style={styles.imagePickerButton}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={1.5}>
+                <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M12 17a4 4 0 100-8 4 4 0 000 8z" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={styles.imagePickerText}>Add a photo</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* More options toggle */}
       <Pressable
@@ -490,6 +657,66 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.base,
     color: colors.fg.primary,
     minHeight: 80,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  fieldCol: {
+    flex: 1,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    color: colors.fg.muted,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  fieldInput: {
+    backgroundColor: colors.cream10,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: typography.sizes.sm,
+    color: colors.fg.primary,
+    fontWeight: typography.weights.medium,
+  },
+  imagePreviewWrap: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  imageRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.sm,
+    backgroundColor: colors.cream10,
+    alignSelf: 'flex-start',
+  },
+  imagePickerText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
   },
   actions: {
     flexDirection: 'row',

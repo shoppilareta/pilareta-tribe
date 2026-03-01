@@ -17,6 +17,13 @@ export interface WorkoutLog {
   notes: string | null;
   calorieEstimate: number | null;
   focusAreas: string[];
+  distanceKm: number | null;
+  incline: number | null;
+  pace: string | null;
+  laps: number | null;
+  totalSets: number | null;
+  totalReps: number | null;
+  weightKg: number | null;
   imageUrl: string | null;
   sessionId: string | null;
   studioId: string | null;

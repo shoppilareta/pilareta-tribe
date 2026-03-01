@@ -1,10 +1,19 @@
 import { memo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import type { Studio } from '@shared/types';
+
+const GOOGLE_MAPS_KEY = 'AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM';
+
+function getStudioPhotoUrl(studio: Studio): string | null {
+  if (!studio.photos || !Array.isArray(studio.photos) || studio.photos.length === 0) return null;
+  const ref = (studio.photos[0] as { photo_reference?: string })?.photo_reference;
+  if (!ref) return null;
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=120&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`;
+}
 
 interface StudioCardProps {
   studio: Studio;
@@ -17,9 +26,15 @@ function formatDistance(meters: number): string {
 }
 
 export const StudioCard = memo(function StudioCard({ studio, distance }: StudioCardProps) {
+  const photoUrl = getStudioPhotoUrl(studio);
+
   return (
     <Pressable onPress={() => router.push(`/(tabs)/studios/${studio.id}`)}>
       <Card padding="md" style={styles.card}>
+        {photoUrl && (
+          <Image source={{ uri: photoUrl }} style={styles.studioPhoto} />
+        )}
+        <View style={styles.cardContent}>
         <View style={styles.topRow}>
           <View style={styles.nameContainer}>
             <Text style={styles.name} numberOfLines={1}>{studio.name}</Text>
@@ -77,13 +92,16 @@ export const StudioCard = memo(function StudioCard({ studio, distance }: StudioC
             )}
           </View>
         )}
+        </View>
       </Card>
     </Pressable>
   );
 });
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.sm },
+  card: { marginBottom: spacing.sm, flexDirection: 'row' },
+  studioPhoto: { width: 56, height: 56, borderRadius: radius.sm, marginRight: spacing.sm, backgroundColor: 'rgba(246,237,221,0.05)' },
+  cardContent: { flex: 1 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
   nameContainer: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flex: 1 },
   name: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, flex: 1 },

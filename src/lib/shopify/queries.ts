@@ -40,7 +40,7 @@ const PRODUCT_FRAGMENT = `
         }
       }
     }
-    variants(first: 10) {
+    variants(first: 50) {
       edges {
         node {
           id
