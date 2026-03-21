@@ -52,10 +52,14 @@ pnpm install --frozen-lockfile --filter pilareta-tribe --filter @pilareta/shared
 pnpm add -wD @types/google.maps 2>/dev/null || true
 
 echo -e "\n${GREEN}[3/5]${NC} Running database migrations..."
+# Load .env.local so Prisma gets the real DATABASE_URL (not the placeholder in .env)
+set -a; source "$APP_DIR/.env.local" 2>/dev/null; set +a
+pnpm prisma generate
 pnpm prisma db push --skip-generate || true
 
 echo -e "\n${GREEN}[4/5]${NC} Building application..."
-npx next build
+# Increase Node heap for build on small instances (916MB RAM)
+NODE_OPTIONS="--max-old-space-size=700" npx next build
 
 echo -e "\n${GREEN}[5/5]${NC} Restarting PM2..."
 if [ -f "$ECOSYSTEM_FILE" ]; then
