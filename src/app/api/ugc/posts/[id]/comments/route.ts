@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { moderateContent } from '@/lib/moderation';
 
 // GET /api/ugc/posts/[id]/comments - Get comments
 export async function GET(
@@ -80,6 +81,12 @@ export async function POST(
 
     if (content.length > 1000) {
       return NextResponse.json({ error: 'Comment is too long (max 1000 characters)' }, { status: 400 });
+    }
+
+    // Check for profanity
+    const moderation = moderateContent(content);
+    if (!moderation.clean) {
+      return NextResponse.json({ error: 'Comment contains inappropriate content' }, { status: 400 });
     }
 
     // Check post exists and is approved

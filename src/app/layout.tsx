@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Navbar } from '@/components/Navbar';
 import { CartProvider, CartDrawer } from '@/components/shop';
+import { CsrfInit } from '@/components/CsrfInit';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <CsrfInit />
         <CartProvider>
           <Navbar />
           <main>{children}</main>

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { isAdmin } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 // GET /api/admin/exercises - List all exercises
 export async function GET(request: NextRequest) {
   try {
-    const admin = await isAdmin();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    const session = await getSession(request);
+    if (!session?.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);

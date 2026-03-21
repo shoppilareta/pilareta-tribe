@@ -5,8 +5,8 @@ import { getSession } from '@/lib/auth';
 // GET /api/ugc/admin/posts - Get all posts with filters (admin only)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.userId || !session.isAdmin) {
+    const session = await getSession(request);
+    if (!session?.isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

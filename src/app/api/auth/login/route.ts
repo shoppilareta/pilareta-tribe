@@ -6,9 +6,15 @@ import {
   buildAuthorizationUrl,
   isNewAccountsMode,
 } from '@/lib/shopify-auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(request: Request) {
   try {
+    const limiter = await rateLimit(request, { limit: 10, window: 60 });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     if (!isNewAccountsMode()) {
       // For classic mode, redirect to a login page with form
       return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL));

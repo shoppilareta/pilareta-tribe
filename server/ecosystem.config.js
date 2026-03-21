@@ -34,7 +34,8 @@ module.exports = {
     watch: false,
 
     // Restart if memory exceeds this limit
-    max_memory_restart: '1G',
+    // Instance has ~916MB RAM — leave room for PostgreSQL, Nginx, OS
+    max_memory_restart: '450M',
 
     // Environment variables (base config, actual secrets in .env.local)
     env: {

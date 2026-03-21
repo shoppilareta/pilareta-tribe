@@ -8,8 +8,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession();
-    if (!session?.userId || !session.isAdmin) {
+    const session = await getSession(request);
+    if (!session?.isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -71,8 +71,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession();
-    if (!session?.userId || !session.isAdmin) {
+    const session = await getSession(request);
+    if (!session?.isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

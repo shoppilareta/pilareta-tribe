@@ -3,6 +3,9 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { checkUploadRateLimit, saveUploadedFile } from '@/lib/ugc/upload';
 import { getUgcUploadsPath } from '@/lib/uploads';
+import { rateLimit } from '@/lib/rate-limit';
+import { moderateContent } from '@/lib/moderation';
+import { checkUserStorageLimit } from '@/lib/upload-limits';
 
 // Helper to get display name from user data
 function getDisplayName(user: { firstName: string | null; lastName: string | null; email: string }): string {
@@ -346,15 +349,20 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
 // POST /api/ugc/posts - Create post (auth required)
 export async function POST(request: NextRequest) {
   try {
+    const limiter = await rateLimit(request, { limit: 5, window: 60 });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Check rate limit (admins are exempt)
-    const rateLimit = await checkUploadRateLimit(session.userId, session.isAdmin || false);
-    if (!rateLimit.allowed) {
-      return NextResponse.json({ error: rateLimit.error }, { status: 429 });
+    // Check upload rate limit (admins are exempt)
+    const uploadLimit = await checkUploadRateLimit(session.userId, session.isAdmin || false);
+    if (!uploadLimit.allowed) {
+      return NextResponse.json({ error: uploadLimit.error }, { status: 429 });
     }
 
     const formData = await request.formData();
@@ -376,6 +384,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Moderate caption content
+    const captionModeration = caption ? moderateContent(caption) : { clean: true, flaggedWords: [] as string[] };
+    const moderationNote = !captionModeration.clean
+      ? `Auto-flagged: caption contains potentially inappropriate language (${captionModeration.flaggedWords.join(', ')})`
+      : null;
 
     // Handle Instagram URL
     if (instagramUrl) {
@@ -407,6 +421,7 @@ export async function POST(request: NextRequest) {
           consentGiven: true,
           consentTimestamp: new Date(),
           status: 'pending',
+          moderationNote,
         },
       });
 
@@ -435,6 +450,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
 
+    // Check per-user storage cap before saving file
+    const storageCheck = await checkUserStorageLimit(session.userId);
+    if (!storageCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Storage limit reached (500MB)' },
+        { status: 413 }
+      );
+    }
+
     // Create post first to get ID
     const post = await prisma.ugcPost.create({
       data: {
@@ -446,6 +470,7 @@ export async function POST(request: NextRequest) {
         consentGiven: true,
         consentTimestamp: new Date(),
         status: 'pending',
+        moderationNote,
       },
     });
 

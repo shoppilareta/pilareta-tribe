@@ -4,6 +4,7 @@ import {
   generateState,
   buildAuthorizationUrl,
 } from '@/lib/shopify-auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tribe.pilareta.com';
 
@@ -21,8 +22,13 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tribe.pilareta.com';
  * 4. After user authenticates, Shopify redirects to the mobile deep link
  * 5. Mobile app sends code + codeVerifier to /api/auth/mobile/callback
  */
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    const limiter = await rateLimit(request, { limit: 10, window: 60 });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const codeVerifier = generateCodeVerifier();
     // Prefix state with "mobile:" so the web callback can detect
     // this is a mobile OAuth flow and redirect to the deep link

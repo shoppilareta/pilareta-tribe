@@ -319,7 +319,7 @@ export function RecentLogs({ refreshKey, onLogWorkout, onRefresh }: RecentLogsPr
             marginTop: '1rem',
             fontSize: '0.875rem'
           }}
-          onClick={() => {/* TODO: View all logs */}}
+          onClick={() => window.location.href = '/track'}
         >
           View All Workouts
         </button>

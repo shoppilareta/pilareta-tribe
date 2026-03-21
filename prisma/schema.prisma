@@ -46,6 +46,10 @@ model Session {
   platform     String   @default("web") // "web" | "ios" | "android"
   expiresAt    DateTime
   createdAt    DateTime @default(now())
+
+  @@index([accessToken])  // Bearer token lookup on every authenticated request
+  @@index([expiresAt])    // Expired session cleanup queries
+  @@index([userId])       // Find sessions by user
 }
 
 // ============================================
@@ -112,6 +116,7 @@ model UgcPost {
   @@index([isFeatured])
   @@index([createdAt])
   @@index([postType])
+  @@index([status, createdAt]) // Feed queries: filter by status + sort by date
 }
 
 model UgcLike {
@@ -203,6 +208,8 @@ model Studio {
   editSuggestions   StudioEditSuggestion[]
   ugcPosts          UgcPost[]
   workoutLogs       WorkoutLog[]
+
+  @@index([city]) // Studio search/filter by city
 }
 
 model StudioClaim {

@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { updateUserStats } from '@/lib/track/streak';
 import { estimateCalories, isValidRpe, isValidDuration, isValidWorkoutType } from '@/lib/track/calories';
 import { saveWorkoutImage } from '@/lib/track/upload';
+import { checkUserStorageLimit } from '@/lib/upload-limits';
 
 // GET /api/track/logs - List user's workout logs
 export async function GET(request: NextRequest) {
@@ -276,6 +277,15 @@ export async function POST(request: NextRequest) {
     // Handle image upload if provided
     let imageUrl: string | null = null;
     if (imageFile && imageFile.size > 0) {
+      // Check per-user storage cap before saving image
+      const storageCheck = await checkUserStorageLimit(session.userId);
+      if (!storageCheck.allowed) {
+        return NextResponse.json(
+          { error: 'Storage limit reached (500MB)' },
+          { status: 413 }
+        );
+      }
+
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       const uploadResult = await saveWorkoutImage(log.id, buffer, imageFile.type);
 

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
@@ -108,9 +108,9 @@ async function downloadAndSaveImage(postId: string, imageUrl: string): Promise<s
 }
 
 // POST /api/ugc/admin/refresh-thumbnails - Re-fetch Instagram thumbnails for all posts
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getSession(request);
     if (!session?.isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }

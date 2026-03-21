@@ -4,7 +4,6 @@ packages:
   - shared
 
 ignoredBuiltDependencies:
-  - puppeteer
   - sharp
   - unrs-resolver
 

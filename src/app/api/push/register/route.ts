@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 // POST /api/push/register — Register or update a push token for the authenticated user
 export async function POST(request: NextRequest) {
   try {
+    const limiter = await rateLimit(request, { limit: 10, window: 60 });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

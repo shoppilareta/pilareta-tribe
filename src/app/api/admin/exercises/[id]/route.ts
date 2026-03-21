@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { isAdmin } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -9,9 +9,9 @@ interface RouteParams {
 // GET /api/admin/exercises/[id]
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const admin = await isAdmin();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    const session = await getSession(request);
+    if (!session?.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     const { id } = await params;
@@ -31,9 +31,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/admin/exercises/[id] - Update exercise (video, image, verification)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const admin = await isAdmin();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    const session = await getSession(request);
+    if (!session?.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     const { id } = await params;
