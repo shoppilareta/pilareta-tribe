@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 
@@ -100,14 +101,28 @@ export async function POST(
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession(request);
+    if (!session?.userId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
 
+    // Admins can see all claims; regular users only see their own
+    const where: Record<string, unknown> = { studioId: id };
+    if (!session.isAdmin) {
+      where.claimantEmail = session.email;
+    }
+
     const claims = await prisma.studioClaim.findMany({
-      where: { studioId: id },
+      where,
       orderBy: { createdAt: 'desc' },
     });
 

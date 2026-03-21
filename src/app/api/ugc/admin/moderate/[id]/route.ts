@@ -54,6 +54,8 @@ export async function POST(
       },
     });
 
+    console.log(`[ADMIN] ${session.userId} ${action}d post ${id}`);
+
     return NextResponse.json({
       success: true,
       post: updatedPost,
@@ -105,6 +107,8 @@ export async function PATCH(
         featuredAt: isFeatured ? new Date() : null,
       },
     });
+
+    console.log(`[ADMIN] ${session.userId} ${isFeatured ? 'featured' : 'unfeatured'} post ${id}`);
 
     return NextResponse.json({
       success: true,

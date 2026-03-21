@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get('city');
     const q = searchParams.get('q'); // General search query
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50', 10), 1), 100);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Build where clause

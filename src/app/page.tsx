@@ -7,7 +7,7 @@ export const revalidate = 300;
 
 export default async function HomePage() {
   // Fetch only public stats (no session/cookies needed — enables ISR caching)
-  const [studioCount, exerciseCount, programCount, postCount, recentPosts] = await Promise.all([
+  const results = await Promise.allSettled([
     prisma.studio.count(),
     prisma.exercise.count(),
     prisma.program.count({ where: { isPublished: true } }),
@@ -37,6 +37,12 @@ export default async function HomePage() {
       },
     }),
   ]);
+
+  const studioCount = results[0].status === 'fulfilled' ? results[0].value : 0;
+  const exerciseCount = results[1].status === 'fulfilled' ? results[1].value : 0;
+  const programCount = results[2].status === 'fulfilled' ? results[2].value : 0;
+  const postCount = results[3].status === 'fulfilled' ? results[3].value : 0;
+  const recentPosts = results[4].status === 'fulfilled' ? results[4].value : [];
 
   // Helper to transform media URLs
   const transformMediaUrl = (url: string | null): string | null => {

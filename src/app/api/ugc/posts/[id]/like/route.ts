@@ -40,7 +40,7 @@ export async function POST(
     });
 
     if (existing) {
-      return NextResponse.json({ error: 'Already liked' }, { status: 400 });
+      return NextResponse.json({ error: 'Already liked' }, { status: 409 });
     }
 
     // Create like and update count

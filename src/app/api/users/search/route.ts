@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q')?.trim();
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100);
+
+    if (query && query.length > 200) {
+      return NextResponse.json({ error: 'Query too long' }, { status: 400 });
+    }
 
     if (!query || query.length < 2) {
       return NextResponse.json({ error: 'Search query must be at least 2 characters' }, { status: 400 });

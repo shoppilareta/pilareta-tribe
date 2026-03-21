@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor');
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100);
     const status = searchParams.get('status'); // 'approved', 'pending', 'rejected', or null for all
     const featured = searchParams.get('featured'); // 'true', 'false', or null for all
 

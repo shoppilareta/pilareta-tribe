@@ -46,7 +46,7 @@ export default function PostDetail() {
   const [likesCount, setLikesCount] = useState(post?.likesCount ?? 0);
 
   // Sync state when post loads
-  if (post && liked !== (post.isLiked ?? false) && likesCount === 0) {
+  if (post && liked !== (post.isLiked ?? false)) {
     setLiked(post.isLiked ?? false);
     setSaved(post.isSaved ?? false);
     setLikesCount(post.likesCount);

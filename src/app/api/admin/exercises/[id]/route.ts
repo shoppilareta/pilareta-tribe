@@ -65,6 +65,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: updateData,
     });
 
+    console.log(`[ADMIN] ${session.userId} updated exercise ${id}`);
+
     return NextResponse.json({ success: true, exercise: updated });
   } catch (error) {
     console.error('Error updating exercise:', error);

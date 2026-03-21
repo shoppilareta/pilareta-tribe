@@ -36,6 +36,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    console.log(`[ADMIN] ${session.userId} updated banner ${id}`);
+
     return NextResponse.json({ banner });
   } catch (error) {
     console.error('Error updating banner:', error);
@@ -57,6 +59,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     await prisma.shopBanner.delete({ where: { id } });
+    console.log(`[ADMIN] ${session.userId} deleted banner ${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting banner:', error);

@@ -7,6 +7,8 @@ import { router } from 'expo-router';
 
 const PUSH_TOKEN_KEY = 'pilareta_push_token';
 const STREAK_REMINDER_KEY = 'pilareta_streak_reminder';
+const DEFAULT_REMINDER_HOUR = 19;
+const DEFAULT_REMINDER_MINUTE = 0;
 
 let notificationHandlerSet = false;
 
@@ -184,8 +186,8 @@ async function scheduleStreakReminder(): Promise<void> {
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 19,
-      minute: 0,
+      hour: DEFAULT_REMINDER_HOUR,
+      minute: DEFAULT_REMINDER_MINUTE,
     },
   });
 }

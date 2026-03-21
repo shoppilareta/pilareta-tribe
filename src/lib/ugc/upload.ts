@@ -166,6 +166,14 @@ export function getImageDimensions(buffer: Buffer): { width: number; height: num
     return { width, height };
   }
 
+  // WebP signature check — dimensions require parsing VP8/VP8L/VP8X chunks;
+  // not implemented, so return null and let the caller handle it.
+  if (buffer.length >= 12 && buffer[0] === 0x52 && buffer[1] === 0x49 &&
+      buffer[2] === 0x46 && buffer[3] === 0x46 &&
+      buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+    return null;
+  }
+
   // JPEG signature check
   if (buffer[0] === 0xff && buffer[1] === 0xd8) {
     // JPEG: need to parse markers to find SOF

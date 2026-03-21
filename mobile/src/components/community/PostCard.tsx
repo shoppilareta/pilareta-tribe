@@ -1,4 +1,4 @@
-import { useState, memo, useCallback } from 'react';
+import { useState, memo, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Dimensions, Linking } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -36,6 +36,47 @@ function resolveMediaUrl(url: string | null): string | null {
   if (!url) return null;
   if (url.startsWith('http')) return url;
   return `${API_BASE}${url}`;
+}
+
+function CaptionText({ caption, displayName, postId }: { caption: string; displayName: string; postId: string }) {
+  const parts = useMemo(() => {
+    const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
+    const result: (string | React.ReactElement)[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = mentionRegex.exec(caption)) !== null) {
+      if (match.index > lastIndex) {
+        result.push(caption.slice(lastIndex, match.index));
+      }
+      const username = match[1];
+      result.push(
+        <Text
+          key={`mention-${match.index}`}
+          style={{ color: '#f59e0b', fontWeight: '600' }}
+          onPress={() => Linking.openURL(`https://instagram.com/${username}`)}
+        >
+          @{username}
+        </Text>
+      );
+      lastIndex = mentionRegex.lastIndex;
+    }
+
+    if (lastIndex < caption.length) {
+      result.push(caption.slice(lastIndex));
+    }
+
+    return result;
+  }, [caption]);
+
+  return (
+    <Pressable onPress={() => router.push(`/(tabs)/community/${postId}`)} style={styles.captionContainer}>
+      <Text style={styles.caption} numberOfLines={3}>
+        <Text style={styles.captionUser}>{displayName} </Text>
+        {parts}
+      </Text>
+    </Pressable>
+  );
 }
 
 export const PostCard = memo(function PostCard({ post, onInteraction }: PostCardProps) {
@@ -177,41 +218,7 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
 
       {/* Caption */}
       {post.caption && (
-        <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)} style={styles.captionContainer}>
-          <Text style={styles.caption} numberOfLines={3}>
-            <Text style={styles.captionUser}>{displayName} </Text>
-            {(() => {
-              const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
-              const parts: (string | React.ReactElement)[] = [];
-              let lastIndex = 0;
-              let match: RegExpExecArray | null;
-              const caption = post.caption!;
-
-              while ((match = mentionRegex.exec(caption)) !== null) {
-                if (match.index > lastIndex) {
-                  parts.push(caption.slice(lastIndex, match.index));
-                }
-                const username = match[1];
-                parts.push(
-                  <Text
-                    key={`mention-${match.index}`}
-                    style={{ color: '#f59e0b', fontWeight: '600' }}
-                    onPress={() => Linking.openURL(`https://instagram.com/${username}`)}
-                  >
-                    @{username}
-                  </Text>
-                );
-                lastIndex = mentionRegex.lastIndex;
-              }
-
-              if (lastIndex < caption.length) {
-                parts.push(caption.slice(lastIndex));
-              }
-
-              return parts;
-            })()}
-          </Text>
-        </Pressable>
+        <CaptionText caption={post.caption} displayName={displayName} postId={post.id} />
       )}
 
       {/* Tags */}

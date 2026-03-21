@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { SHOPIFY_API_VERSION, SHOPIFY_CUSTOMER_API_VERSION } from '@/lib/shopify/client';
 
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || 'pilareta.com';
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID || '';
@@ -166,7 +167,7 @@ export async function classicLogin(email: string, password: string): Promise<{
     }
   `;
 
-  const res = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.json`, {
+  const res = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -218,7 +219,7 @@ export async function getCustomerInfo(accessToken: string): Promise<{
     }
   `;
 
-  const res = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.json`, {
+  const res = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -254,7 +255,7 @@ export async function fetchCustomerFromAccountApi(accessToken: string): Promise<
       }
     `;
 
-    const res = await fetch(`https://shopify.com/${process.env.SHOPIFY_SHOP_ID}/account/customer/api/2024-07/graphql`, {
+    const res = await fetch(`https://shopify.com/${process.env.SHOPIFY_SHOP_ID}/account/customer/api/${SHOPIFY_CUSTOMER_API_VERSION}/graphql`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

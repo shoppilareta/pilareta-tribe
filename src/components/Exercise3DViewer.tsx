@@ -2,13 +2,55 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
-import { Suspense, useState } from 'react';
+import { Suspense, useState, Component, type ReactNode } from 'react';
 import { ReformerModel } from './3d/ReformerModel';
 import { HumanModel } from './3d/HumanModel';
 
 interface Exercise3DViewerProps {
   exerciseSlug: string;
   showReformer?: boolean;
+}
+
+// Error boundary to catch WebGL / 3D rendering crashes
+class Viewer3DErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('3D Viewer error:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            height: '320px',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%)',
+            borderRadius: '0.5rem',
+            color: 'rgba(246, 237, 221, 0.6)',
+            fontSize: '0.875rem',
+          }}
+        >
+          3D preview could not be loaded. Your browser may not support WebGL.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // Loading placeholder while 3D scene loads
@@ -29,6 +71,7 @@ export function Exercise3DViewer({
   const [isPlaying, setIsPlaying] = useState(true);
 
   return (
+    <Viewer3DErrorBoundary>
     <div style={{ position: 'relative' }}>
       <div
         style={{
@@ -190,5 +233,6 @@ export function Exercise3DViewer({
         </span>
       </div>
     </div>
+    </Viewer3DErrorBoundary>
   );
 }

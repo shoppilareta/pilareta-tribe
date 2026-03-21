@@ -15,6 +15,7 @@ export default function TrackLayout() {
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="[id]" />
+      <Stack.Screen name="live" options={{ headerShown: false }} />
       <Stack.Screen
         name="share"
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}

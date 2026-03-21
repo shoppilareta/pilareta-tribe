@@ -38,7 +38,7 @@ function rowToLog(row: Record<string, unknown>): LocalWorkoutLog {
     rpe: row.rpe as number,
     notes: row.notes as string | null,
     calorieEstimate: row.calorie_estimate as number | null,
-    focusAreas: JSON.parse((row.focus_areas as string) || '[]'),
+    focusAreas: (() => { try { return JSON.parse((row.focus_areas as string) || '[]'); } catch { return []; } })(),
     imageUrl: row.image_url as string | null,
     sessionId: row.session_id as string | null,
     studioId: row.studio_id as string | null,

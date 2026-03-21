@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor');
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100);
     const tag = searchParams.get('tag');
     const studioId = searchParams.get('studioId');
     const feed = searchParams.get('feed'); // "following" to filter to followed users
@@ -239,20 +239,45 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&#39;/g, "'");
 }
 
+// Validate that a URL hostname belongs to Instagram/CDN Instagram
+function isAllowedInstagramHost(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    const hostname = parsed.hostname.toLowerCase();
+    return (
+      hostname === 'instagram.com' ||
+      hostname.endsWith('.instagram.com') ||
+      hostname === 'cdninstagram.com' ||
+      hostname.endsWith('.cdninstagram.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Helper to fetch Instagram thumbnail URL via oEmbed API with fallback to og:image
 async function fetchInstagramThumbnailUrl(url: string): Promise<string | null> {
+  // Validate hostname before making any requests (SSRF protection)
+  if (!isAllowedInstagramHost(url)) {
+    return null;
+  }
+
   // Clean the URL - remove tracking parameters
   const cleanUrl = url.split('?')[0];
 
   // Try oEmbed first
   try {
     const oembedUrl = `https://api.instagram.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
+    const oembedController = new AbortController();
+    const oembedTimeout = setTimeout(() => oembedController.abort(), 5000);
     const response = await fetch(oembedUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         'Accept': 'application/json',
       },
+      signal: oembedController.signal,
     });
+    clearTimeout(oembedTimeout);
 
     if (response.ok) {
       const data = await response.json();
@@ -266,12 +291,16 @@ async function fetchInstagramThumbnailUrl(url: string): Promise<string | null> {
 
   // Fallback: fetch page and extract og:image
   try {
+    const fallbackController = new AbortController();
+    const fallbackTimeout = setTimeout(() => fallbackController.abort(), 5000);
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
         'Accept': 'text/html',
       },
+      signal: fallbackController.signal,
     });
+    clearTimeout(fallbackTimeout);
 
     if (response.ok) {
       const html = await response.text();
@@ -302,17 +331,43 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
   if (!thumbnailUrl) return null;
 
   try {
-    // Download the image
+    // Validate thumbnail URL hostname (SSRF protection)
+    if (!isAllowedInstagramHost(thumbnailUrl)) {
+      return null;
+    }
+
+    // Download the image with timeout
+    const downloadController = new AbortController();
+    const downloadTimeout = setTimeout(() => downloadController.abort(), 5000);
     const response = await fetch(thumbnailUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       },
+      signal: downloadController.signal,
     });
+    clearTimeout(downloadTimeout);
 
     if (!response.ok) return thumbnailUrl; // Return CDN URL as fallback
 
+    // Check Content-Length — reject if > 5MB
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 5 * 1024 * 1024) {
+      return null;
+    }
+
+    // Check Content-Type — only allow image/* types
+    const responseContentType = response.headers.get('content-type') || '';
+    if (!responseContentType.startsWith('image/')) {
+      return null;
+    }
+
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.length === 0) return thumbnailUrl;
+
+    // Double-check actual size after download
+    if (buffer.length > 5 * 1024 * 1024) {
+      return null;
+    }
 
     // Determine file extension from content type
     const contentType = response.headers.get('content-type') || 'image/jpeg';
@@ -378,6 +433,10 @@ export async function POST(request: NextRequest) {
     const tagIds = formData.get('tagIds') as string | null;
     const consentGiven = formData.get('consentGiven') === 'true';
 
+    if (caption && caption.length > 2000) {
+      return NextResponse.json({ error: 'Caption too long (max 2000 characters)' }, { status: 400 });
+    }
+
     // Must have either file or Instagram URL
     if (!file && !instagramUrl) {
       return NextResponse.json({ error: 'File or Instagram URL is required' }, { status: 400 });
@@ -432,7 +491,12 @@ export async function POST(request: NextRequest) {
 
       // Add tags if provided
       if (tagIds) {
-        const tagIdArray = JSON.parse(tagIds) as string[];
+        let tagIdArray: string[];
+        try {
+          tagIdArray = JSON.parse(tagIds) as string[];
+        } catch {
+          return NextResponse.json({ error: 'Invalid JSON in tagIds' }, { status: 400 });
+        }
         if (tagIdArray.length > 0) {
           await prisma.ugcPostTag.createMany({
             data: tagIdArray.map((tagId) => ({
@@ -501,7 +565,12 @@ export async function POST(request: NextRequest) {
 
     // Add tags if provided
     if (tagIds) {
-      const tagIdArray = JSON.parse(tagIds) as string[];
+      let tagIdArray: string[];
+      try {
+        tagIdArray = JSON.parse(tagIds) as string[];
+      } catch {
+        return NextResponse.json({ error: 'Invalid JSON in tagIds' }, { status: 400 });
+      }
       if (tagIdArray.length > 0) {
         await prisma.ugcPostTag.createMany({
           data: tagIdArray.map((tagId) => ({

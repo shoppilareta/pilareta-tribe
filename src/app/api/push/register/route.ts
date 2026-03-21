@@ -26,12 +26,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Platform must be "ios" or "android"' }, { status: 400 });
     }
 
-    // Upsert: if this token already exists, update it (reassign to current user/platform)
-    // If the same user already has a token, update it
+    // Delete any existing record with the same token but a different user
+    // to prevent device takeover (new user inheriting old push token)
+    await prisma.pushToken.deleteMany({
+      where: {
+        token,
+        userId: { not: session.userId },
+      },
+    });
+
+    // Upsert: if this user already has this token, update it; otherwise create
     const pushToken = await prisma.pushToken.upsert({
       where: { token },
       update: {
-        userId: session.userId,
         platform,
       },
       create: {

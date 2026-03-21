@@ -18,9 +18,16 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor');
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+
+    if (startDate && isNaN(new Date(startDate).getTime())) {
+      return NextResponse.json({ error: 'Invalid start date' }, { status: 400 });
+    }
+    if (endDate && isNaN(new Date(endDate).getTime())) {
+      return NextResponse.json({ error: 'Invalid end date' }, { status: 400 });
+    }
 
     const where: Record<string, unknown> = {
       userId: session.userId,
@@ -141,7 +148,7 @@ export async function POST(request: NextRequest) {
         try {
           focusAreas = JSON.parse(focusAreasStr);
         } catch {
-          focusAreas = undefined;
+          return NextResponse.json({ error: 'Invalid JSON in focusAreas' }, { status: 400 });
         }
       }
 

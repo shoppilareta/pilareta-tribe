@@ -32,18 +32,26 @@ export async function calculateStreak(userId: string): Promise<StreakResult> {
     };
   }
 
-  // Get unique dates (as ISO date strings for comparison)
+  // Extract date-only strings (YYYY-MM-DD) without UTC conversion to avoid timezone issues.
+  // workoutDate is stored as a date (time set to midnight), so we extract the local date part.
+  const toDateStr = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const uniqueDates = [...new Set(
-    logs.map(l => l.workoutDate.toISOString().split('T')[0])
+    logs.map(l => toDateStr(l.workoutDate))
   )].sort().reverse();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = toDateStr(today);
 
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const yesterdayStr = toDateStr(yesterday);
 
   // Calculate current streak
   let currentStreak = 0;
@@ -59,7 +67,7 @@ export async function calculateStreak(userId: string): Promise<StreakResult> {
 
     for (let i = 1; i < uniqueDates.length; i++) {
       expectedDate.setDate(expectedDate.getDate() - 1);
-      const expectedStr = expectedDate.toISOString().split('T')[0];
+      const expectedStr = toDateStr(expectedDate);
 
       if (uniqueDates[i] === expectedStr) {
         currentStreak++;
@@ -76,10 +84,9 @@ export async function calculateStreak(userId: string): Promise<StreakResult> {
 
   for (let i = 1; i < uniqueDates.length; i++) {
     const prevDate = new Date(uniqueDates[i - 1]);
-    const currDate = new Date(uniqueDates[i]);
 
     prevDate.setDate(prevDate.getDate() - 1);
-    const expectedStr = prevDate.toISOString().split('T')[0];
+    const expectedStr = toDateStr(prevDate);
 
     if (uniqueDates[i] === expectedStr) {
       tempStreak++;
@@ -203,8 +210,15 @@ export async function getWeeklyProgress(userId: string): Promise<boolean[]> {
     select: { workoutDate: true },
   });
 
+  const toDateStr = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const loggedDates = new Set(
-    logs.map(l => l.workoutDate.toISOString().split('T')[0])
+    logs.map(l => toDateStr(l.workoutDate))
   );
 
   // Create array for Mon-Sun (7 days)
@@ -212,7 +226,7 @@ export async function getWeeklyProgress(userId: string): Promise<boolean[]> {
   for (let i = 0; i < 7; i++) {
     const date = new Date(startOfWeek);
     date.setDate(startOfWeek.getDate() + i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toDateStr(date);
     weekProgress.push(loggedDates.has(dateStr));
   }
 

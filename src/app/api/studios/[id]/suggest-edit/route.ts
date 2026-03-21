@@ -41,6 +41,19 @@ export async function POST(
       );
     }
 
+    // Filter to only allowed keys
+    const allowedKeys = ['name', 'address', 'phoneNumber', 'website', 'openingHours', 'amenities', 'description'];
+    const filteredChanges = Object.fromEntries(
+      Object.entries(body.suggestedChanges).filter(([k]) => allowedKeys.includes(k))
+    );
+
+    if (Object.keys(filteredChanges).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid changes provided' },
+        { status: 400 }
+      );
+    }
+
     // Check if studio exists
     const studio = await prisma.studio.findUnique({
       where: { id },
@@ -58,7 +71,7 @@ export async function POST(
       data: {
         studioId: id,
         submitterEmail: body.submitterEmail?.toLowerCase(),
-        suggestedChanges: body.suggestedChanges,
+        suggestedChanges: filteredChanges,
         reason: body.reason,
         status: 'pending',
       },

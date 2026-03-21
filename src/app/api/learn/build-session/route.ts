@@ -156,6 +156,14 @@ export async function POST(request: NextRequest) {
 
     // Calculate totals
     const allSelected = [...warmupExercises, ...activationExercises, ...mainExercises, ...cooldownExercises];
+
+    if (allSelected.length === 0) {
+      return NextResponse.json(
+        { error: 'No exercises match the selected criteria' },
+        { status: 400 }
+      );
+    }
+
     const totalSets = allSelected.reduce((sum, s) => sum + s.sets, 0);
     const totalReps = allSelected.reduce((sum, s) => sum + (s.reps || 0) * s.sets, 0);
     const totalDuration = duration * 60;

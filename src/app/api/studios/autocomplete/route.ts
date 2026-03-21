@@ -6,6 +6,10 @@ const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 export async function GET(request: NextRequest) {
   const input = request.nextUrl.searchParams.get('input');
 
+  if (input && input.length > 200) {
+    return NextResponse.json({ error: 'Query too long' }, { status: 400 });
+  }
+
   if (!input || input.length < 2) {
     return NextResponse.json({ predictions: [] });
   }

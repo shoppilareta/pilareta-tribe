@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       where: {
         refreshToken,
         platform: { not: 'web' },
+        expiresAt: { gt: new Date() },
       },
       include: {
         user: {
@@ -40,6 +41,21 @@ export async function POST(request: NextRequest) {
     });
 
     if (!session) {
+      // Check if a session exists but is expired
+      const expiredSession = await prisma.session.findFirst({
+        where: {
+          refreshToken,
+          platform: { not: 'web' },
+        },
+      });
+
+      if (expiredSession) {
+        return NextResponse.json(
+          { error: 'Session expired' },
+          { status: 401 }
+        );
+      }
+
       return NextResponse.json(
         { error: 'Invalid refresh token' },
         { status: 401 }

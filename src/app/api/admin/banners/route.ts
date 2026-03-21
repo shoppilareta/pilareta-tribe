@@ -54,6 +54,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log(`[ADMIN] ${session.userId} created banner ${banner.id}`);
+
     return NextResponse.json({ banner }, { status: 201 });
   } catch (error) {
     console.error('Error creating banner:', error);

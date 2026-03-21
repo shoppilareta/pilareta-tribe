@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { getSession } from '@/lib/session';
 import { exchangeCodeForTokens, decodeIdToken, fetchCustomerFromAccountApi } from '@/lib/shopify-auth';
 import { prisma } from '@/lib/db';
@@ -48,7 +49,9 @@ export async function GET(request: NextRequest) {
     // Get session and validate state
     const session = await getSession();
 
-    if (session.state !== state) {
+    const stateMatch = session.state && state && session.state.length === state.length &&
+      timingSafeEqual(Buffer.from(session.state), Buffer.from(state));
+    if (!stateMatch) {
       console.error('State mismatch:', { expected: session.state, received: state });
       return NextResponse.redirect(`${appUrl}/?error=Invalid+state`);
     }

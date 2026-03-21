@@ -144,9 +144,9 @@ describe('calculateStreak', () => {
     const result = await calculateStreak('user-last');
 
     expect(result.lastWorkoutDate).not.toBeNull();
-    expect(result.lastWorkoutDate!.toISOString().split('T')[0]).toBe(
-      today.toISOString().split('T')[0]
-    );
+    // Compare using local date parts to avoid UTC offset issues
+    const toLocalStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    expect(toLocalStr(result.lastWorkoutDate!)).toBe(toLocalStr(today));
   });
 
   it('sets streakStartDate to the earliest day in the current streak', async () => {
@@ -156,8 +156,7 @@ describe('calculateStreak', () => {
     const result = await calculateStreak('user-start');
 
     expect(result.streakStartDate).not.toBeNull();
-    expect(result.streakStartDate!.toISOString().split('T')[0]).toBe(
-      daysAgo(2).toISOString().split('T')[0]
-    );
+    const toLocalStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    expect(toLocalStr(result.streakStartDate!)).toBe(toLocalStr(daysAgo(2)));
   });
 });

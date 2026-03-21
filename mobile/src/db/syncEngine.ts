@@ -132,7 +132,18 @@ export async function processSyncQueue(): Promise<{ synced: number; failed: numb
 }
 
 async function processQueueItem(item: SyncQueueItem): Promise<void> {
-  const payload = JSON.parse(item.payload);
+  let payload: unknown;
+  try {
+    payload = JSON.parse(item.payload);
+  } catch {
+    // Mark as failed by exhausting retries so it won't be retried
+    const db = await getDatabase();
+    await db.runAsync(
+      `UPDATE sync_queue SET retry_count = max_retries WHERE id = ?`,
+      item.id,
+    );
+    return;
+  }
 
   if (item.entityType === 'workout_log' && item.operation === 'create') {
     const result = await createLog(payload as CreateWorkoutLogRequest);

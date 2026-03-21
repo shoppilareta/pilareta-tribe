@@ -21,7 +21,20 @@ class AuthError extends Error {
   }
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
 async function refreshTokenIfNeeded(): Promise<string | null> {
+  // Reuse in-flight refresh to avoid concurrent refresh race conditions
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = doRefresh().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
+async function doRefresh(): Promise<string | null> {
   const { refreshToken, setTokens, logout } = useAuthStore.getState();
   if (!refreshToken) return null;
 
@@ -81,11 +94,17 @@ export async function apiFetch<T>(
       const newToken = await refreshTokenIfNeeded();
       if (newToken) {
         headers['Authorization'] = `Bearer ${newToken}`;
-        response = await fetch(`${API_BASE}${path}`, {
-          ...fetchOptions,
-          headers,
-          signal: controller.signal,
-        });
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => retryController.abort(), 30000);
+        try {
+          response = await fetch(`${API_BASE}${path}`, {
+            ...fetchOptions,
+            headers,
+            signal: retryController.signal,
+          });
+        } finally {
+          clearTimeout(retryTimeoutId);
+        }
       }
     }
 

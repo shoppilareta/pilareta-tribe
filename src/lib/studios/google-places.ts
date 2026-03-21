@@ -230,7 +230,12 @@ export async function geocodeLocation(query: string): Promise<GeocodingResult | 
 }
 
 /**
- * Get photo URL from Google Places photo reference
+ * Get photo URL from Google Places photo reference.
+ *
+ * NOTE: The API key is intentionally included in the URL — Google Places Photos API
+ * requires it as a query parameter and does not support server-side-only auth for
+ * this endpoint. The key MUST be restricted by HTTP referrer in the Google Cloud
+ * Console to prevent unauthorized usage.
  */
 export function getPhotoUrl(photoReference: string, maxWidth: number = 400): string {
   return `${PLACES_BASE_URL}/photo?maxwidth=${maxWidth}&photo_reference=${photoReference}&key=${GOOGLE_API_KEY}`;

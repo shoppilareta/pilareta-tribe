@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '6', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '6', 10), 1), 100);
 
     const posts = await prisma.ugcPost.findMany({
       where: {

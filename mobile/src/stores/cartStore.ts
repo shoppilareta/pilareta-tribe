@@ -25,7 +25,7 @@ interface CartState {
   addItem: (merchandiseId: string, quantity?: number) => Promise<void>;
   updateQuantity: (lineId: string, quantity: number) => Promise<void>;
   removeItem: (lineId: string) => Promise<void>;
-  clearCart: () => void;
+  clearCart: () => Promise<void>;
   totalItems: () => number;
 }
 
@@ -123,8 +123,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  clearCart: () => {
-    SecureStore.deleteItemAsync(CART_ID_KEY);
+  clearCart: async () => {
+    await SecureStore.deleteItemAsync(CART_ID_KEY);
     set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null });
   },
 

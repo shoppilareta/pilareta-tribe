@@ -2,9 +2,10 @@
 
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || 'pilaretatribe.myshopify.com';
 const SHOPIFY_STOREFRONT_ACCESS_TOKEN = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || '';
-const API_VERSION = '2024-01';
+export const SHOPIFY_API_VERSION = '2024-01';
+export const SHOPIFY_CUSTOMER_API_VERSION = '2024-10';
 
-const endpoint = `https://${SHOPIFY_STORE_DOMAIN}/api/${API_VERSION}/graphql.json`;
+const endpoint = `https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
 interface GraphQLResponse<T> {
   data?: T;

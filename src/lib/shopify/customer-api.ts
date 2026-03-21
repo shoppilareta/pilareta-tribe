@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { SHOPIFY_CUSTOMER_API_VERSION } from '@/lib/shopify/client';
 
 const SHOP_ID = process.env.SHOPIFY_SHOP_ID || '';
 
@@ -84,7 +85,7 @@ export async function getCustomerOrders(userId: string): Promise<ShopifyOrder[]>
   `;
 
   const response = await fetch(
-    `https://shopify.com/${SHOP_ID}/account/customer/api/2024-10/graphql`,
+    `https://shopify.com/${SHOP_ID}/account/customer/api/${SHOPIFY_CUSTOMER_API_VERSION}/graphql`,
     {
       method: 'POST',
       headers: {

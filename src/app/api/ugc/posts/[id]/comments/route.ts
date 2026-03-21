@@ -13,7 +13,7 @@ export async function GET(
     const { id: postId } = await params;
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor');
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100);
 
     // Check post exists and is approved
     const post = await prisma.ugcPost.findUnique({
