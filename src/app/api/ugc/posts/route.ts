@@ -6,6 +6,7 @@ import { getUgcUploadsPath } from '@/lib/uploads';
 import { rateLimit } from '@/lib/rate-limit';
 import { moderateContent } from '@/lib/moderation';
 import { checkUserStorageLimit } from '@/lib/upload-limits';
+import { validateCsrf } from '@/lib/csrf';
 
 // Helper to get display name from user data
 function getDisplayName(user: { firstName: string | null; lastName: string | null; email: string }): string {
@@ -352,6 +353,10 @@ export async function POST(request: NextRequest) {
     const limiter = await rateLimit(request, { limit: 5, window: 60 });
     if (!limiter.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
+    if (!validateCsrf(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
 
     const session = await getSession(request);

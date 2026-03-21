@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import { updateUserStats } from '@/lib/track/streak';
 import { estimateCalories, isValidRpe, isValidDuration, isValidWorkoutType } from '@/lib/track/calories';
 import { saveWorkoutImage } from '@/lib/track/upload';
 import { checkUserStorageLimit } from '@/lib/upload-limits';
+import { validateCsrf } from '@/lib/csrf';
 
 // GET /api/track/logs - List user's workout logs
 export async function GET(request: NextRequest) {
@@ -84,6 +86,15 @@ export async function GET(request: NextRequest) {
 // POST /api/track/logs - Create workout log
 export async function POST(request: NextRequest) {
   try {
+    const limiter = await rateLimit(request, { limit: 10, window: 60 });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
+    if (!validateCsrf(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

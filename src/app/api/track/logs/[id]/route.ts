@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { updateUserStats } from '@/lib/track/streak';
 import { estimateCalories, isValidRpe, isValidDuration, isValidWorkoutType } from '@/lib/track/calories';
+import { validateCsrf } from '@/lib/csrf';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -63,6 +64,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/track/logs/[id] - Update workout log
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    if (!validateCsrf(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -246,6 +251,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/track/logs/[id] - Delete workout log
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    if (!validateCsrf(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

@@ -26,6 +26,7 @@ export default function CommunityFeed() {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isError,
     refetch,
     isRefetching,
   } = useInfiniteQuery({
@@ -131,6 +132,14 @@ export default function CommunityFeed() {
         <View style={styles.centered}>
           <ActivityIndicator color={colors.fg.primary} />
         </View>
+      ) : isError ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <Text style={styles.emptyText}>We couldn't load the feed. Please try again.</Text>
+          <Pressable onPress={() => refetch()} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </Pressable>
+        </View>
       ) : posts.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>No posts yet</Text>
@@ -184,6 +193,8 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, textAlign: 'center', marginBottom: spacing.lg },
   emptyButton: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.fg.primary },
   emptyButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
+  retryButton: { marginTop: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.fg.primary },
+  retryButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
   feedList: { padding: spacing.md },
   footerLoader: { padding: spacing.lg },
   signInButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.fg.primary },

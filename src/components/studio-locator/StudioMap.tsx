@@ -14,8 +14,7 @@ interface StudioMapProps {
 }
 
 const DEFAULT_CENTER = { lat: 20.5937, lng: 78.9629 }; // India
-// Fallback API key for when env var is not set at build time
-const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM';
+const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 // Inner component that can use the useMap hook
 function MapController({

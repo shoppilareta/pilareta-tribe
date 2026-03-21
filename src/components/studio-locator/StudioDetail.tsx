@@ -11,7 +11,7 @@ interface StudioDetailProps {
 }
 
 function getPhotoUrl(photoReference: string, maxWidth: number = 400): string {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM';
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoReference}&key=${apiKey}`;
 }
 

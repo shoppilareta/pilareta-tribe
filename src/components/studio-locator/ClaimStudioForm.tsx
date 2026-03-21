@@ -28,7 +28,10 @@ export function ClaimStudioForm({ studio, onClose, onSuccess }: ClaimStudioFormP
     try {
       const response = await fetch(`/api/studios/${studio.id}/claim`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
         body: JSON.stringify(formData),
       });
 

@@ -66,33 +66,50 @@ export async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  let response = await fetch(`${API_BASE}${path}`, {
-    ...fetchOptions,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  // If 401, try refreshing the token once
-  if (response.status === 401 && !skipAuth && accessToken) {
-    const newToken = await refreshTokenIfNeeded();
-    if (newToken) {
-      headers['Authorization'] = `Bearer ${newToken}`;
-      response = await fetch(`${API_BASE}${path}`, {
-        ...fetchOptions,
-        headers,
-      });
+  try {
+    let response = await fetch(`${API_BASE}${path}`, {
+      ...fetchOptions,
+      headers,
+      signal: controller.signal,
+    });
+
+    // If 401, try refreshing the token once
+    if (response.status === 401 && !skipAuth && accessToken) {
+      const newToken = await refreshTokenIfNeeded();
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`;
+        response = await fetch(`${API_BASE}${path}`, {
+          ...fetchOptions,
+          headers,
+          signal: controller.signal,
+        });
+      }
     }
-  }
 
-  if (response.status === 401) {
-    throw new AuthError();
-  }
+    if (response.status === 401) {
+      throw new AuthError();
+    }
 
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, data);
-  }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new ApiError(response.status, data);
+    }
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof AuthError) {
+      throw error;
+    }
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Request timed out. Please check your connection and try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export { API_BASE, ApiError, AuthError };

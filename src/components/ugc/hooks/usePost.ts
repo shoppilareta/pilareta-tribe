@@ -47,6 +47,9 @@ export function usePost() {
     try {
       const response = await fetch(`/api/ugc/posts/${postId}/like`, {
         method: 'POST',
+        headers: {
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
       });
       const data = await response.json();
 
@@ -74,6 +77,9 @@ export function usePost() {
     try {
       const response = await fetch(`/api/ugc/posts/${postId}/like`, {
         method: 'DELETE',
+        headers: {
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
       });
       const data = await response.json();
 
@@ -101,6 +107,9 @@ export function usePost() {
     try {
       const response = await fetch(`/api/ugc/posts/${postId}/save`, {
         method: 'POST',
+        headers: {
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
       });
       const data = await response.json();
 
@@ -128,6 +137,9 @@ export function usePost() {
     try {
       const response = await fetch(`/api/ugc/posts/${postId}/save`, {
         method: 'DELETE',
+        headers: {
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
       });
       const data = await response.json();
 
@@ -155,7 +167,10 @@ export function usePost() {
     try {
       const response = await fetch(`/api/ugc/posts/${postId}/comments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
         body: JSON.stringify({ content }),
       });
       const data = await response.json();
@@ -184,6 +199,9 @@ export function usePost() {
     try {
       const response = await fetch(`/api/ugc/posts/${postId}`, {
         method: 'DELETE',
+        headers: {
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
       });
       const data = await response.json();
 
@@ -202,7 +220,10 @@ export function usePost() {
     try {
       const response = await fetch(`/api/ugc/posts/${postId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
         body: JSON.stringify({ caption }),
       });
       const data = await response.json();

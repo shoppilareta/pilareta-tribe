@@ -2,11 +2,14 @@ import { memo } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
+import Constants from 'expo-constants';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import type { Studio } from '@shared/types';
 
-const GOOGLE_MAPS_KEY = 'AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM';
+const GOOGLE_MAPS_KEY = Constants.expoConfig?.ios?.config?.googleMapsApiKey
+  ?? (Constants.expoConfig?.android?.config?.googleMaps as { apiKey?: string })?.apiKey
+  ?? '';
 
 function getStudioPhotoUrl(studio: Studio): string | null {
   if (!studio.photos || !Array.isArray(studio.photos) || studio.photos.length === 0) return null;

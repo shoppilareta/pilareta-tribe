@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { validateCsrf } from '@/lib/csrf';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -9,6 +10,10 @@ interface RouteParams {
 // POST /api/track/logs/[id]/share - Share workout to Community
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    if (!validateCsrf(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -116,6 +121,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/track/logs/[id]/share - Unshare workout from Community
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    if (!validateCsrf(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

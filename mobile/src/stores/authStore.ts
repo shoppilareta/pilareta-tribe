@@ -19,7 +19,7 @@ interface AuthState {
 
   // Actions
   setTokens: (accessToken: string, refreshToken: string, expiresAt: string) => Promise<void>;
-  setUser: (user: User) => void;
+  setUser: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
 }
@@ -46,8 +46,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ accessToken, refreshToken, expiresAt, isAuthenticated: true });
   },
 
-  setUser: (user) => {
-    SecureStore.setItemAsync(TOKEN_KEYS.user, JSON.stringify(user));
+  setUser: async (user) => {
+    await SecureStore.setItemAsync(TOKEN_KEYS.user, JSON.stringify(user));
     set({ user });
   },
 

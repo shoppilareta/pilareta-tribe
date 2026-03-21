@@ -109,6 +109,9 @@ export function RecentLogs({ refreshKey, onLogWorkout, onRefresh }: RecentLogsPr
     try {
       const response = await fetch(`/api/track/logs/${deleteLog.id}`, {
         method: 'DELETE',
+        headers: {
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
       });
 
       if (response.ok) {

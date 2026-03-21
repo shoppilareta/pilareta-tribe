@@ -48,7 +48,7 @@ export function useAuth() {
 
       // 6. Store tokens and user data
       await setTokens(response.accessToken, response.refreshToken, response.expiresAt);
-      setUser(response.user);
+      await setUser(response.user);
 
       // 7. Navigate to Track dashboard
       router.replace('/(tabs)/track');

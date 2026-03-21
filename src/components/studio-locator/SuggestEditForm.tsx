@@ -48,7 +48,10 @@ export function SuggestEditForm({ studio, onClose, onSuccess }: SuggestEditFormP
     try {
       const response = await fetch(`/api/studios/${studio.id}/suggest-edit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
         body: JSON.stringify({
           submitterEmail: formData.submitterEmail || undefined,
           suggestedChanges,

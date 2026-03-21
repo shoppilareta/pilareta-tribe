@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { rateLimit } from '@/lib/rate-limit';
+import { validateCsrf } from '@/lib/csrf';
 
 interface EditSuggestionBody {
   submitterEmail?: string;
@@ -15,10 +17,19 @@ interface EditSuggestionBody {
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const limiter = await rateLimit(request, { limit: 5, window: 60 });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
+    if (!validateCsrf(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
     const { id } = await params;
     const body: EditSuggestionBody = await request.json();
 

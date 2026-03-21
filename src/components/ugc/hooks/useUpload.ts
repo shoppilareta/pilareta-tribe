@@ -84,6 +84,9 @@ export function useUpload() {
       // Upload
       const response = await fetch('/api/ugc/posts', {
         method: 'POST',
+        headers: {
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
         body: formData,
       });
 

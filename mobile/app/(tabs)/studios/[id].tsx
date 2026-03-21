@@ -5,10 +5,15 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
+import Constants from 'expo-constants';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Button } from '@/components/ui';
 import { getStudio } from '@/api/studios';
 import { apiFetch } from '@/api/client';
+
+const GOOGLE_MAPS_KEY = Constants.expoConfig?.ios?.config?.googleMapsApiKey
+  ?? (Constants.expoConfig?.android?.config?.googleMaps as { apiKey?: string })?.apiKey
+  ?? '';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PHOTO_HEIGHT = 200;
@@ -78,7 +83,7 @@ function getPhotoUrl(photos: unknown): string | null {
     const p = first as Record<string, unknown>;
     if (typeof p.url === 'string') return p.url;
     if (typeof p.photo_reference === 'string') {
-      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${p.photo_reference}&key=AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM`;
+      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${p.photo_reference}&key=${GOOGLE_MAPS_KEY}`;
     }
   }
   return null;

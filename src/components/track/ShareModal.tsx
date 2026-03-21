@@ -63,7 +63,10 @@ export function ShareModal({ log, currentStreak, onClose, onShared }: ShareModal
     try {
       const response = await fetch(`/api/track/logs/${log.id}/share`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+        },
         body: JSON.stringify({
           caption: caption || getDefaultCaption()
         })

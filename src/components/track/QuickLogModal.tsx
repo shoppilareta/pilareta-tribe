@@ -258,7 +258,10 @@ export function QuickLogModal({ onClose, onComplete, prefill, editLog }: QuickLo
         // Edit mode - use PATCH
         response = await fetch(`/api/track/logs/${editLog.id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+          },
           body: JSON.stringify({
             workoutDate,
             durationMinutes,
@@ -288,13 +291,19 @@ export function QuickLogModal({ onClose, onComplete, prefill, editLog }: QuickLo
 
         response = await fetch('/api/track/logs', {
           method: 'POST',
+          headers: {
+            'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+          },
           body: formData,
         });
       } else {
         // Create mode without image - Use JSON
         response = await fetch('/api/track/logs', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': typeof window !== 'undefined' ? window.__csrfToken || '' : '',
+          },
           body: JSON.stringify({
             workoutDate,
             durationMinutes,
