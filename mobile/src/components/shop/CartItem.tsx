@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, Alert } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 
@@ -45,8 +45,9 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
 
         <View style={styles.quantityRow}>
           <Pressable
-            onPress={() => onUpdateQuantity(item.id, Math.max(0, item.quantity - 1))}
-            style={styles.qtyButton}
+            onPress={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+            style={[styles.qtyButton, item.quantity <= 1 && { opacity: 0.3 }]}
+            disabled={item.quantity <= 1}
           >
             <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
               <Path d="M5 12h14" strokeLinecap="round" />
@@ -64,7 +65,10 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
         </View>
       </View>
 
-      <Pressable onPress={() => onRemove(item.id)} style={styles.removeButton} hitSlop={8}>
+      <Pressable onPress={() => Alert.alert('Remove Item', `Remove ${item.merchandise.product.title}?`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => onRemove(item.id) },
+        ])} style={styles.removeButton} hitSlop={8}>
         <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={1.5}>
           <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>

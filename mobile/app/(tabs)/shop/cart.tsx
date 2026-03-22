@@ -21,18 +21,29 @@ export default function CartScreen() {
     lines,
     checkoutUrl,
     totalAmount,
+    subtotalAmount,
+    taxAmount,
     currencyCode,
     loading,
     loadCart,
     updateQuantity,
     removeItem,
     clearCart,
+    cartExpired,
+    clearExpired,
   } = useCartStore();
   const { showToast } = useToast();
 
   useEffect(() => {
     loadCart();
   }, [loadCart]);
+
+  useEffect(() => {
+    if (cartExpired) {
+      showToast('Your cart has expired. Please add items again.', 'info');
+      clearExpired();
+    }
+  }, [cartExpired, clearExpired, showToast]);
 
   const handleUpdateQuantity = async (lineId: string, quantity: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -104,6 +115,21 @@ export default function CartScreen() {
             {loading && (
               <ActivityIndicator color={colors.fg.primary} style={styles.footerLoader} />
             )}
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Subtotal</Text>
+              <Text style={styles.costValue}>
+                {subtotalAmount ? formatPrice(subtotalAmount, currencyCode) : '--'}
+              </Text>
+            </View>
+            {taxAmount && parseFloat(taxAmount) > 0 && (
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Tax</Text>
+                <Text style={styles.costValue}>
+                  {formatPrice(taxAmount, currencyCode)}
+                </Text>
+              </View>
+            )}
+            <View style={styles.divider} />
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalAmount}>
@@ -138,8 +164,12 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: spacing.md },
   footer: { padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default },
   footerLoader: { marginBottom: spacing.sm },
+  costRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  costLabel: { fontSize: typography.sizes.sm, color: colors.fg.tertiary },
+  costValue: { fontSize: typography.sizes.sm, color: colors.fg.secondary },
+  divider: { height: 1, backgroundColor: colors.border.default, marginVertical: spacing.sm },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  totalLabel: { fontSize: typography.sizes.base, color: colors.fg.secondary },
+  totalLabel: { fontSize: typography.sizes.base, fontWeight: typography.weights.bold, color: colors.fg.primary },
   totalAmount: { fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.fg.primary },
   checkoutHint: { fontSize: 11, color: colors.fg.muted, textAlign: 'center', marginTop: spacing.sm },
 });

@@ -15,12 +15,20 @@ export default function ShopLayout() {
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
+        name="wishlist"
+        options={{ headerShown: false, animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
         name="cart"
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
         name="checkout"
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="order-confirmation"
+        options={{ headerShown: false, animation: 'fade', gestureEnabled: false }}
       />
     </Stack>
   );

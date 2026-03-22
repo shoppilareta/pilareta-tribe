@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, SectionList, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { ProductGridSkeleton } from '@/components/ui';
-import { ProductCard, BannerCarousel } from '@/components/shop';
-import { getProducts } from '@/api/shop';
+import { ProductCard, BannerCarousel, RecentlyViewedCarousel } from '@/components/shop';
+import { getProducts, getWishlist, addToWishlist, removeFromWishlist } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import type { ShopifyProduct } from '@shared/types';
 
 // Preferred display order for collection-based categories
@@ -76,8 +78,14 @@ function getCategoryOrder(label: string): number {
 export default function ShopScreen() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortOption, setSortOption] = useState<'default' | 'price-asc' | 'price-desc'>('default');
   const [showSortMenu, setShowSortMenu] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['shop-products'],
@@ -87,15 +95,71 @@ export default function ShopScreen() {
   const { totalItems, loading: cartLoading } = useCartStore();
   const cartCount = totalItems();
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
+  const recentlyViewed = useRecentlyViewedStore();
+  const queryClient = useQueryClient();
+
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: getWishlist,
+    enabled: isAuthenticated,
+  });
+
+  const wishlistHandles = wishlistData?.handles ?? [];
+
+  const toggleWishlistMutation = useMutation({
+    mutationFn: async (handle: string) => {
+      const isCurrentlyWishlisted = wishlistHandles.includes(handle);
+      if (isCurrentlyWishlisted) {
+        return removeFromWishlist(handle);
+      } else {
+        return addToWishlist(handle);
+      }
+    },
+    onMutate: async (handle: string) => {
+      await queryClient.cancelQueries({ queryKey: ['wishlist'] });
+      const previous = queryClient.getQueryData<{ handles: string[] }>(['wishlist']);
+      queryClient.setQueryData<{ handles: string[] }>(['wishlist'], (old) => {
+        if (!old) return { handles: [handle] };
+        const exists = old.handles.includes(handle);
+        return {
+          handles: exists
+            ? old.handles.filter((h) => h !== handle)
+            : [handle, ...old.handles],
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _handle, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['wishlist'], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+    },
+  });
+
+  const handleToggleWishlist = useCallback((handle: string) => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    toggleWishlistMutation.mutate(handle);
+  }, [isAuthenticated, toggleWishlistMutation]);
+
+  useEffect(() => {
+    recentlyViewed.loadFromStorage();
+  }, []);
 
   const products = data?.products ?? [];
 
   // Build sections grouped by category
   const { sections, categoryNames } = useMemo(() => {
-    // Filter by search query
+    // Filter by search query (debounced)
     let filtered = products;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedQuery.trim()) {
+      const q = debouncedQuery.toLowerCase().trim();
       filtered = products.filter(p =>
         p.title.toLowerCase().includes(q) ||
         (p.tags && p.tags.some((t: string) => t.toLowerCase().includes(q)))
@@ -129,7 +193,7 @@ export default function ShopScreen() {
     }));
 
     return { sections: sectionList, categoryNames: sortedCategories };
-  }, [products, searchQuery, sortOption]);
+  }, [products, debouncedQuery, sortOption]);
 
   // Filter sections if a category is active
   const filteredSections = activeCategory
@@ -155,6 +219,11 @@ export default function ShopScreen() {
           >
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
               <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </Pressable>
+          <Pressable onPress={() => router.push('/(tabs)/shop/wishlist')} style={styles.cartButton} hitSlop={8}>
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
+              <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
           </Pressable>
           <Pressable onPress={() => router.push('/(tabs)/shop/cart')} style={styles.cartButton} hitSlop={8}>
@@ -269,7 +338,7 @@ export default function ShopScreen() {
           <Text style={styles.emptyTitle}>No products available</Text>
           <Text style={styles.emptyText}>Check back soon for new items.</Text>
         </View>
-      ) : searchQuery && filteredSections.length === 0 ? (
+      ) : debouncedQuery && filteredSections.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptySearchTitle}>No products found</Text>
           <Text style={styles.emptySearchSubtitle}>Try a different search term</Text>
@@ -279,7 +348,14 @@ export default function ShopScreen() {
         </View>
       ) : (
         <SectionList
-          ListHeaderComponent={<BannerCarousel />}
+          ListHeaderComponent={
+            <>
+              <BannerCarousel />
+              {recentlyViewed.handles.length > 0 && products.length > 0 && (
+                <RecentlyViewedCarousel products={products} handles={recentlyViewed.handles} />
+              )}
+            </>
+          }
           sections={filteredSections}
           keyExtractor={(item) => item.map((p) => p.id).join('-')}
           renderSectionHeader={({ section }) => (
@@ -289,7 +365,11 @@ export default function ShopScreen() {
             <View style={styles.row}>
               {pair.map((product) => (
                 <View key={product.id} style={styles.productWrapper}>
-                  <ProductCard product={product} />
+                  <ProductCard
+                    product={product}
+                    isWishlisted={wishlistHandles.includes(product.handle)}
+                    onToggleWishlist={handleToggleWishlist}
+                  />
                 </View>
               ))}
               {pair.length === 1 && <View style={styles.productWrapper} />}

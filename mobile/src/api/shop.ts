@@ -41,3 +41,18 @@ export async function removeFromCart(
     skipAuth: true,
   });
 }
+
+export async function getWishlist(): Promise<{ handles: string[] }> {
+  return apiFetch('/api/wishlist');
+}
+
+export async function addToWishlist(handle: string): Promise<{ wishlisted: boolean }> {
+  return apiFetch('/api/wishlist', {
+    method: 'POST',
+    body: JSON.stringify({ handle }),
+  });
+}
+
+export async function removeFromWishlist(handle: string): Promise<{ wishlisted: boolean }> {
+  return apiFetch(`/api/wishlist/${handle}`, { method: 'DELETE' });
+}

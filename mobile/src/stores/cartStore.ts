@@ -19,14 +19,18 @@ interface CartState {
   lines: CartLine[];
   checkoutUrl: string | null;
   totalAmount: string | null;
+  subtotalAmount: string | null;
+  taxAmount: string | null;
   currencyCode: string;
   loading: boolean;
+  cartExpired: boolean;
 
   loadCart: () => Promise<void>;
   addItem: (merchandiseId: string, quantity?: number) => Promise<void>;
   updateQuantity: (lineId: string, quantity: number) => Promise<void>;
   removeItem: (lineId: string) => Promise<void>;
   clearCart: () => Promise<void>;
+  clearExpired: () => void;
   totalItems: () => number;
 }
 
@@ -37,8 +41,11 @@ export const useCartStore = create<CartState>((set, get) => ({
   lines: [],
   checkoutUrl: null,
   totalAmount: null,
+  subtotalAmount: null,
+  taxAmount: null,
   currencyCode: 'INR',
   loading: false,
+  cartExpired: false,
 
   loadCart: async () => {
     const storedCartId = await SecureStore.getItemAsync(CART_ID_KEY);
@@ -52,13 +59,15 @@ export const useCartStore = create<CartState>((set, get) => ({
         lines: cart.lines,
         checkoutUrl: cart.checkoutUrl,
         totalAmount: cart.cost.totalAmount.amount,
+        subtotalAmount: cart.cost.subtotalAmount.amount,
+        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
         loading: false,
       });
     } catch {
       // Cart may have expired
       await SecureStore.deleteItemAsync(CART_ID_KEY);
-      set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null, loading: false });
+      set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null, subtotalAmount: null, taxAmount: null, loading: false, cartExpired: true });
     }
   },
 
@@ -73,6 +82,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         lines: cart.lines,
         checkoutUrl: cart.checkoutUrl,
         totalAmount: cart.cost.totalAmount.amount,
+        subtotalAmount: cart.cost.subtotalAmount.amount,
+        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
         loading: false,
       });
@@ -97,6 +108,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         lines: cart.lines,
         checkoutUrl: cart.checkoutUrl,
         totalAmount: cart.cost.totalAmount.amount,
+        subtotalAmount: cart.cost.subtotalAmount.amount,
+        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
         loading: false,
       });
@@ -116,6 +129,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         lines: cart.lines,
         checkoutUrl: cart.checkoutUrl,
         totalAmount: cart.cost.totalAmount.amount,
+        subtotalAmount: cart.cost.subtotalAmount.amount,
+        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
         loading: false,
       });
@@ -126,7 +141,11 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   clearCart: async () => {
     await SecureStore.deleteItemAsync(CART_ID_KEY);
-    set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null });
+    set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null, subtotalAmount: null, taxAmount: null });
+  },
+
+  clearExpired: () => {
+    set({ cartExpired: false });
   },
 
   totalItems: () => {

@@ -232,6 +232,7 @@ export interface ShopifyProduct {
     id: string;
     title: string;
     price: { amount: string; currencyCode: string };
+    compareAtPrice?: { amount: string; currencyCode: string } | null;
     availableForSale: boolean;
     image?: { url: string; altText: string | null };
     selectedOptions?: { name: string; value: string }[];

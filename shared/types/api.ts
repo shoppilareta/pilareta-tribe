@@ -196,6 +196,7 @@ export interface ShopCartResponse {
     cost: {
       totalAmount: { amount: string; currencyCode: string };
       subtotalAmount: { amount: string; currencyCode: string };
+      totalTaxAmount?: { amount: string; currencyCode: string };
     };
   };
 }

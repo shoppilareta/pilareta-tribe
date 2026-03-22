@@ -35,6 +35,7 @@ model User {
   followers             UserFollow[]             @relation("following")
   following             UserFollow[]             @relation("follower")
   pushTokens            PushToken[]
+  wishlistItems         ProductWishlist[]
 }
 
 model Session {
@@ -686,6 +687,21 @@ model ShopBanner {
   updatedAt DateTime  @updatedAt
 
   @@index([isActive])
+}
+
+// ============================================
+// PRODUCT WISHLIST
+// ============================================
+
+model ProductWishlist {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productHandle String
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, productHandle])
+  @@index([userId])
 }
 
 // ============================================

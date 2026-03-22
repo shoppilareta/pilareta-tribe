@@ -10,13 +10,18 @@ import { useCartStore } from '@/stores/cartStore';
 export default function CheckoutScreen() {
   const { url } = useLocalSearchParams<{ url: string }>();
   const webViewRef = useRef<WebView>(null);
+  const hasCompleted = useRef(false);
   const [loading, setLoading] = useState(true);
   const clearCart = useCartStore((s) => s.clearCart);
 
   const handleNavigationChange = (navState: { url: string }) => {
     // Shopify redirects to a /thank_you or /thank-you page after successful checkout
-    if (navState.url.includes('thank_you') || navState.url.includes('thank-you')) {
+    if (!hasCompleted.current && (navState.url.includes('thank_you') || navState.url.includes('thank-you'))) {
+      hasCompleted.current = true;
       clearCart();
+      setTimeout(() => {
+        router.replace('/(tabs)/shop/order-confirmation');
+      }, 1500);
     }
   };
 

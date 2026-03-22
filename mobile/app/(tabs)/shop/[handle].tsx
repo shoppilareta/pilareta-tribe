@@ -1,15 +1,18 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Pressable, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Pressable, Dimensions, Alert, ActivityIndicator, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { getColorCode } from '@/utils/colorCode';
-import { getProducts } from '@/api/shop';
+import { getProducts, getWishlist, addToWishlist, removeFromWishlist } from '@/api/shop';
+import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
+import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
 import { ImageZoomModal } from '@/components/ui/ImageZoomModal';
+import { SizeGuideModal } from '@/components/shop/SizeGuideModal';
 import { useToast } from '@/components/ui/Toast';
 import type { ShopifyProduct } from '@shared/types';
 
@@ -47,14 +50,77 @@ function BackArrow() {
   );
 }
 
+function ShareIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
+      <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export default function ProductDetailScreen() {
   const { handle } = useLocalSearchParams<{ handle: string }>();
   const { addItem, loading: cartLoading } = useCartStore();
+  const { addHandle: addRecentlyViewed } = useRecentlyViewedStore();
+  const isAuthenticated = !!useAuthStore((s) => s.accessToken);
+  const queryClient = useQueryClient();
+
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: getWishlist,
+    enabled: isAuthenticated,
+  });
+
+  const wishlistHandles = wishlistData?.handles ?? [];
+  const isWishlisted = handle ? wishlistHandles.includes(handle) : false;
+
+  const toggleWishlistMutation = useMutation({
+    mutationFn: async (h: string) => {
+      if (wishlistHandles.includes(h)) {
+        return removeFromWishlist(h);
+      } else {
+        return addToWishlist(h);
+      }
+    },
+    onMutate: async (h: string) => {
+      await queryClient.cancelQueries({ queryKey: ['wishlist'] });
+      const previous = queryClient.getQueryData<{ handles: string[] }>(['wishlist']);
+      queryClient.setQueryData<{ handles: string[] }>(['wishlist'], (old) => {
+        if (!old) return { handles: [h] };
+        const exists = old.handles.includes(h);
+        return {
+          handles: exists
+            ? old.handles.filter((x) => x !== h)
+            : [h, ...old.handles],
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _h, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['wishlist'], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+    },
+  });
+
+  const handleToggleWishlist = () => {
+    if (!handle) return;
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    toggleWishlistMutation.mutate(handle);
+  };
   const { showToast } = useToast();
   const [selectedImage, setSelectedImage] = useState(0);
   const [zoomVisible, setZoomVisible] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isAdding, setIsAdding] = useState(false);
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
   const imageScrollRef = useRef<ScrollView>(null);
 
   const { data, isLoading, isError } = useQuery({
@@ -115,6 +181,22 @@ export default function ProductDetailScreen() {
       setSelectedOptions(defaults);
     }
   }, [options]);
+
+  // Track recently viewed product
+  useEffect(() => {
+    if (handle) {
+      addRecentlyViewed(handle);
+    }
+  }, [handle]);
+
+  const handleShare = async () => {
+    if (!product) return;
+    try {
+      await Share.share({
+        message: `Check out ${product.title} on Pilareta!\nhttps://tribe.pilareta.com/shop/${product.handle}`,
+      });
+    } catch {}
+  };
 
   // Find matching variant based on selected options
   const selectedVariant = useMemo(() => {
@@ -229,7 +311,16 @@ export default function ProductDetailScreen() {
           <BackArrow />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{product.title}</Text>
-        <View style={{ width: 36 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+          <Pressable onPress={handleToggleWishlist} style={styles.backButton} hitSlop={8}>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill={isWishlisted ? colors.error : 'none'} stroke={isWishlisted ? colors.error : colors.fg.primary} strokeWidth={2}>
+              <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+            </Svg>
+          </Pressable>
+          <Pressable onPress={handleShare} style={styles.backButton} hitSlop={8}>
+            <ShareIcon />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -265,11 +356,34 @@ export default function ProductDetailScreen() {
         {/* Product info */}
         <View style={styles.detailSection}>
           <Text style={styles.productTitle}>{product.title}</Text>
-          <Text style={styles.productPrice}>
-            {selectedVariant
-              ? formatPrice(selectedVariant.price.amount, selectedVariant.price.currencyCode)
-              : formatPrice(product.priceRange.minVariantPrice.amount, product.priceRange.minVariantPrice.currencyCode)}
-          </Text>
+          {(() => {
+            const variantPrice = selectedVariant
+              ? selectedVariant.price
+              : product.priceRange.minVariantPrice;
+            const cap = selectedVariant?.compareAtPrice;
+            const isOnSale = cap && parseFloat(cap.amount) > parseFloat(variantPrice.amount);
+            if (isOnSale) {
+              const pct = Math.round((1 - parseFloat(variantPrice.amount) / parseFloat(cap.amount)) * 100);
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={styles.productComparePrice}>
+                    {formatPrice(cap.amount, cap.currencyCode)}
+                  </Text>
+                  <Text style={styles.productSalePrice}>
+                    {formatPrice(variantPrice.amount, variantPrice.currencyCode)}
+                  </Text>
+                  <View style={styles.saveBadge}>
+                    <Text style={styles.saveBadgeText}>Save {pct}%</Text>
+                  </View>
+                </View>
+              );
+            }
+            return (
+              <Text style={styles.productPrice}>
+                {formatPrice(variantPrice.amount, variantPrice.currencyCode)}
+              </Text>
+            );
+          })()}
         </View>
 
         {/* Options */}
@@ -343,6 +457,11 @@ export default function ProductDetailScreen() {
                   );
                 })}
               </View>
+              {!isColor && (
+                <Pressable onPress={() => setShowSizeGuide(true)} style={{ marginTop: spacing.xs }}>
+                  <Text style={styles.sizeGuideLink}>Size Guide</Text>
+                </Pressable>
+              )}
             </View>
           );
         })}
@@ -381,6 +500,9 @@ export default function ProductDetailScreen() {
         initialIndex={selectedImage}
         onClose={() => setZoomVisible(false)}
       />
+
+      {/* Size guide modal */}
+      <SizeGuideModal visible={showSizeGuide} onClose={() => setShowSizeGuide(false)} />
 
       {/* Sticky add to cart footer */}
       <View style={styles.footer}>
@@ -427,6 +549,10 @@ const styles = StyleSheet.create({
   detailSection: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
   productTitle: { fontSize: typography.sizes.xl, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.xs, lineHeight: 28 },
   productPrice: { fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.fg.primary },
+  productComparePrice: { fontSize: typography.sizes.lg, color: colors.fg.muted, textDecorationLine: 'line-through' },
+  productSalePrice: { fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.error },
+  saveBadge: { backgroundColor: colors.error, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  saveBadgeText: { fontSize: 11, fontWeight: typography.weights.bold, color: '#fff' },
   optionSection: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   optionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   optionLabel: { fontSize: typography.sizes.xs, color: colors.fg.muted, textTransform: 'uppercase', letterSpacing: 1, fontWeight: typography.weights.medium },
@@ -474,4 +600,5 @@ const styles = StyleSheet.create({
   addToCartDisabled: { opacity: 0.5 },
   addToCartText: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.bg.primary },
   shippingHint: { fontSize: 11, color: colors.fg.muted, textAlign: 'center', marginTop: spacing.xs },
+  sizeGuideLink: { fontSize: typography.sizes.xs, color: colors.fg.secondary, textDecorationLine: 'underline' },
 });
