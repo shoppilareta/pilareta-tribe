@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createCart, addToCart, updateCartLines, removeFromCart, getCart } from '@/lib/shopify/mutations';
+import { createCart, addToCart, updateCartLines, removeFromCart, getCart, applyDiscountCode } from '@/lib/shopify/mutations';
 import { isShopifyConfigured } from '@/lib/shopify/client';
 
 // GET - Fetch existing cart
@@ -127,6 +127,21 @@ export async function PUT(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Failed to update cart' },
       { status: 500 }
     );
+  }
+}
+
+// PATCH - Apply discount code
+export async function PATCH(request: NextRequest) {
+  try {
+    const { cartId, discountCodes } = await request.json();
+    if (!cartId || !discountCodes) {
+      return NextResponse.json({ error: 'cartId and discountCodes required' }, { status: 400 });
+    }
+    const cart = await applyDiscountCode(cartId, discountCodes);
+    return NextResponse.json({ cart });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to apply discount';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
 

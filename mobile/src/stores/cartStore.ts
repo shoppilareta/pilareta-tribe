@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { getCart, addToCart, updateCart, removeFromCart } from '@/api/shop';
+import { getCart, addToCart, updateCart, removeFromCart, applyDiscountApi } from '@/api/shop';
 
 interface CartLine {
   id: string;
@@ -24,6 +24,8 @@ interface CartState {
   currencyCode: string;
   loading: boolean;
   cartExpired: boolean;
+  discountCode: string | null;
+  discountAmount: string | null;
 
   loadCart: () => Promise<void>;
   addItem: (merchandiseId: string, quantity?: number) => Promise<void>;
@@ -32,6 +34,8 @@ interface CartState {
   clearCart: () => Promise<void>;
   clearExpired: () => void;
   totalItems: () => number;
+  applyDiscount: (code: string) => Promise<void>;
+  removeDiscount: () => Promise<void>;
 }
 
 const CART_ID_KEY = 'pilareta_cart_id';
@@ -46,6 +50,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   currencyCode: 'INR',
   loading: false,
   cartExpired: false,
+  discountCode: null,
+  discountAmount: null,
 
   loadCart: async () => {
     const storedCartId = await SecureStore.getItemAsync(CART_ID_KEY);
@@ -62,12 +68,14 @@ export const useCartStore = create<CartState>((set, get) => ({
         subtotalAmount: cart.cost.subtotalAmount.amount,
         taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
+        discountCode: cart.discountCodes?.[0]?.code || null,
+        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
         loading: false,
       });
     } catch {
       // Cart may have expired
       await SecureStore.deleteItemAsync(CART_ID_KEY);
-      set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null, subtotalAmount: null, taxAmount: null, loading: false, cartExpired: true });
+      set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null, subtotalAmount: null, taxAmount: null, discountCode: null, discountAmount: null, loading: false, cartExpired: true });
     }
   },
 
@@ -85,6 +93,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         subtotalAmount: cart.cost.subtotalAmount.amount,
         taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
+        discountCode: cart.discountCodes?.[0]?.code || null,
+        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
         loading: false,
       });
     } catch {
@@ -111,6 +121,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         subtotalAmount: cart.cost.subtotalAmount.amount,
         taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
+        discountCode: cart.discountCodes?.[0]?.code || null,
+        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
         loading: false,
       });
     } catch {
@@ -132,6 +144,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         subtotalAmount: cart.cost.subtotalAmount.amount,
         taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
         currencyCode: cart.cost.totalAmount.currencyCode,
+        discountCode: cart.discountCodes?.[0]?.code || null,
+        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
         loading: false,
       });
     } catch {
@@ -141,7 +155,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   clearCart: async () => {
     await SecureStore.deleteItemAsync(CART_ID_KEY);
-    set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null, subtotalAmount: null, taxAmount: null });
+    set({ cartId: null, lines: [], checkoutUrl: null, totalAmount: null, subtotalAmount: null, taxAmount: null, discountCode: null, discountAmount: null });
   },
 
   clearExpired: () => {
@@ -150,5 +164,46 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   totalItems: () => {
     return get().lines.reduce((sum, line) => sum + line.quantity, 0);
+  },
+
+  applyDiscount: async (code: string) => {
+    const { cartId } = get();
+    if (!cartId) return;
+    set({ loading: true });
+    try {
+      const { cart } = await applyDiscountApi(cartId, code);
+      set({
+        lines: cart.lines,
+        totalAmount: cart.cost.totalAmount.amount,
+        subtotalAmount: cart.cost.subtotalAmount.amount,
+        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
+        discountCode: cart.discountCodes?.[0]?.code || null,
+        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
+        loading: false,
+      });
+    } catch (error) {
+      set({ loading: false });
+      throw error;
+    }
+  },
+
+  removeDiscount: async () => {
+    const { cartId } = get();
+    if (!cartId) return;
+    set({ loading: true });
+    try {
+      const { cart } = await applyDiscountApi(cartId, '');
+      set({
+        lines: cart.lines,
+        totalAmount: cart.cost.totalAmount.amount,
+        subtotalAmount: cart.cost.subtotalAmount.amount,
+        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
+        discountCode: null,
+        discountAmount: null,
+        loading: false,
+      });
+    } catch {
+      set({ loading: false });
+    }
   },
 }));

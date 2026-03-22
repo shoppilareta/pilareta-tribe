@@ -7,12 +7,9 @@ import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { getOrders, type ShopifyOrder } from '@/api/orders';
 import { useAuthStore } from '@/stores/authStore';
-
-function formatPrice(amount: string, currency: string) {
-  const num = parseFloat(amount);
-  if (currency === 'INR') return `\u20B9${num.toFixed(0)}`;
-  return `${currency} ${num.toFixed(2)}`;
-}
+import { useCartStore } from '@/stores/cartStore';
+import { useToast } from '@/components/ui/Toast';
+import { formatPrice } from '@/utils/formatPrice';
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -27,7 +24,7 @@ function getStatusColor(status: string) {
   }
 }
 
-function OrderCard({ order }: { order: ShopifyOrder }) {
+function OrderCard({ order, onReorder }: { order: ShopifyOrder; onReorder: (order: ShopifyOrder) => void }) {
   const displayStatus = order.cancelledAt ? 'Cancelled' : (order.fulfillmentStatus || order.financialStatus || '').replace(/_/g, ' ');
   const trackingInfo = order.fulfillments.flatMap(f => f.trackingInfo);
 
@@ -65,12 +62,18 @@ function OrderCard({ order }: { order: ShopifyOrder }) {
           </Svg>
         </Pressable>
       )}
+
+      <Pressable style={styles.reorderButton} onPress={() => onReorder(order)}>
+        <Text style={styles.reorderText}>Buy Again</Text>
+      </Pressable>
     </View>
   );
 }
 
 export default function OrdersScreen() {
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
+  const { addItem } = useCartStore();
+  const { showToast } = useToast();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
     queryFn: getOrders,
@@ -78,6 +81,25 @@ export default function OrdersScreen() {
   });
 
   const orders = data?.orders ?? [];
+
+  const handleReorder = async (order: ShopifyOrder) => {
+    let added = 0;
+    for (const item of order.lineItems.nodes) {
+      if (item.variant?.id) {
+        try {
+          await addItem(item.variant.id, item.quantity);
+          added++;
+        } catch {
+          // Variant may be sold out, skip
+        }
+      }
+    }
+    if (added > 0) {
+      showToast(`${added} item${added > 1 ? 's' : ''} added to cart`);
+    } else {
+      showToast('Items are no longer available', 'error');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -120,7 +142,7 @@ export default function OrdersScreen() {
         <FlatList
           data={orders}
           keyExtractor={(o) => o.id}
-          renderItem={({ item }) => <OrderCard order={item} />}
+          renderItem={({ item }) => <OrderCard order={item} onReorder={handleReorder} />}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         />
@@ -151,4 +173,6 @@ const styles = StyleSheet.create({
   lineItemQty: { fontSize: typography.sizes.sm, color: colors.fg.secondary },
   trackButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border.default },
   trackButtonText: { fontSize: typography.sizes.sm, color: '#f59e0b' },
+  reorderButton: { marginTop: spacing.sm, paddingTop: spacing.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.md, alignItems: 'center' },
+  reorderText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.medium, color: colors.fg.primary },
 });

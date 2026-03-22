@@ -8,18 +8,13 @@ import { useToast } from '@/components/ui/Toast';
 import { useCartStore } from '@/stores/cartStore';
 import { colors, typography, spacing, radius } from '@/theme';
 import { getColorCode } from '@/utils/colorCode';
+import { formatPrice } from '@/utils/formatPrice';
 import type { ShopifyProduct } from '@shared/types';
 
 interface ProductCardProps {
   product: ShopifyProduct;
   isWishlisted?: boolean;
   onToggleWishlist?: (handle: string) => void;
-}
-
-function formatPrice(amount: string, currencyCode: string): string {
-  const num = parseFloat(amount);
-  if (currencyCode === 'INR') return `\u20B9${num.toFixed(0)}`;
-  return `${currencyCode} ${num.toFixed(2)}`;
 }
 
 export const ProductCard = memo(function ProductCard({ product, isWishlisted, onToggleWishlist }: ProductCardProps) {
@@ -56,6 +51,14 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
       }
     }
     return Array.from(seen.entries()).map(([name, imageUrl]) => ({ name, imageUrl }));
+  }, [product.variants]);
+
+  const lowStockCount = useMemo(() => {
+    const firstAvailable = product.variants.find((v) => v.availableForSale);
+    if (firstAvailable?.quantityAvailable != null && firstAvailable.quantityAvailable > 0 && firstAvailable.quantityAvailable < 5) {
+      return firstAvailable.quantityAvailable;
+    }
+    return null;
   }, [product.variants]);
 
   const { addItem } = useCartStore();
@@ -146,8 +149,13 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
             </View>
           ) : (
             <Text style={styles.price}>
-              {hasMultiplePrices ? 'From ' : ''}{formatPrice(price.amount, price.currencyCode)}
+              {hasMultiplePrices
+                ? `${formatPrice(price.amount, price.currencyCode)} - ${formatPrice(product.priceRange.maxVariantPrice.amount, product.priceRange.maxVariantPrice.currencyCode)}`
+                : formatPrice(price.amount, price.currencyCode)}
             </Text>
+          )}
+          {lowStockCount !== null && (
+            <Text style={styles.lowStock}>{lowStockCount} left</Text>
           )}
           {colorSwatches.length > 0 && (
             <View style={styles.swatchRow}>
@@ -182,6 +190,7 @@ const styles = StyleSheet.create({
   price: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: 6 },
   comparePrice: { fontSize: typography.sizes.sm, color: colors.fg.muted, textDecorationLine: 'line-through' },
   salePrice: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.error, marginBottom: 6 },
+  lowStock: { fontSize: typography.sizes.xs, fontWeight: typography.weights.bold, color: colors.warning, marginBottom: 4 },
   swatchRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(246,237,221,0.2)' },
   swatchImage: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(246,237,221,0.2)', overflow: 'hidden' },

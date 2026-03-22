@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -9,12 +9,7 @@ import { Button, CartSkeleton } from '@/components/ui';
 import { CartItem } from '@/components/shop';
 import { useCartStore } from '@/stores/cartStore';
 import { useToast } from '@/components/ui/Toast';
-
-function formatPrice(amount: string, currencyCode: string): string {
-  const num = parseFloat(amount);
-  if (currencyCode === 'INR') return `₹${num.toFixed(0)}`;
-  return `${currencyCode} ${num.toFixed(2)}`;
-}
+import { formatPrice } from '@/utils/formatPrice';
 
 export default function CartScreen() {
   const {
@@ -31,8 +26,14 @@ export default function CartScreen() {
     clearCart,
     cartExpired,
     clearExpired,
+    discountCode,
+    discountAmount,
+    applyDiscount: applyDiscountAction,
+    removeDiscount,
   } = useCartStore();
   const { showToast } = useToast();
+  const [promoCode, setPromoCode] = useState('');
+  const [promoError, setPromoError] = useState('');
 
   useEffect(() => {
     loadCart();
@@ -55,6 +56,22 @@ export default function CartScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await removeItem(lineId);
     showToast('Removed from cart');
+  };
+
+  const handleApplyDiscount = async () => {
+    setPromoError('');
+    try {
+      await applyDiscountAction(promoCode.trim());
+      setPromoCode('');
+      showToast('Discount applied!');
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : 'Invalid promo code');
+    }
+  };
+
+  const handleRemoveDiscount = async () => {
+    await removeDiscount();
+    showToast('Discount removed');
   };
 
   const handleCheckout = () => {
@@ -115,12 +132,52 @@ export default function CartScreen() {
             {loading && (
               <ActivityIndicator color={colors.fg.primary} style={styles.footerLoader} />
             )}
+
+            {/* Promo Code */}
+            <View style={styles.promoSection}>
+              {discountCode ? (
+                <View style={styles.promoApplied}>
+                  <Text style={styles.promoAppliedText}>
+                    Code "{discountCode}" applied
+                  </Text>
+                  <Pressable onPress={handleRemoveDiscount}>
+                    <Text style={styles.promoRemove}>Remove</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.promoInput}>
+                  <TextInput
+                    style={styles.promoTextInput}
+                    placeholder="Promo code"
+                    placeholderTextColor={colors.fg.muted}
+                    value={promoCode}
+                    onChangeText={setPromoCode}
+                    autoCapitalize="characters"
+                  />
+                  <Pressable
+                    style={[styles.promoButton, !promoCode.trim() && { opacity: 0.5 }]}
+                    onPress={handleApplyDiscount}
+                    disabled={!promoCode.trim() || loading}
+                  >
+                    <Text style={styles.promoButtonText}>Apply</Text>
+                  </Pressable>
+                </View>
+              )}
+              {promoError ? <Text style={styles.promoError}>{promoError}</Text> : null}
+            </View>
+
             <View style={styles.costRow}>
               <Text style={styles.costLabel}>Subtotal</Text>
               <Text style={styles.costValue}>
                 {subtotalAmount ? formatPrice(subtotalAmount, currencyCode) : '--'}
               </Text>
             </View>
+            {discountAmount && parseFloat(discountAmount) > 0 && (
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Discount</Text>
+                <Text style={[styles.costValue, { color: colors.success }]}>-{formatPrice(discountAmount, currencyCode)}</Text>
+              </View>
+            )}
             {taxAmount && parseFloat(taxAmount) > 0 && (
               <View style={styles.costRow}>
                 <Text style={styles.costLabel}>Tax</Text>
@@ -135,6 +192,12 @@ export default function CartScreen() {
               <Text style={styles.totalAmount}>
                 {totalAmount ? formatPrice(totalAmount, currencyCode) : '--'}
               </Text>
+            </View>
+            <View style={styles.shippingBanner}>
+              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.success} strokeWidth={2}>
+                <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={styles.shippingBannerText}>Free shipping on all orders!</Text>
             </View>
             <Button
               title="Checkout"
@@ -172,4 +235,15 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: typography.sizes.base, fontWeight: typography.weights.bold, color: colors.fg.primary },
   totalAmount: { fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, color: colors.fg.primary },
   checkoutHint: { fontSize: 11, color: colors.fg.muted, textAlign: 'center', marginTop: spacing.sm },
+  shippingBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: radius.sm, paddingVertical: spacing.sm, marginBottom: spacing.sm },
+  shippingBannerText: { fontSize: typography.sizes.xs, fontWeight: typography.weights.medium, color: colors.success },
+  promoSection: { marginBottom: spacing.sm },
+  promoApplied: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
+  promoAppliedText: { fontSize: typography.sizes.sm, color: colors.success, fontWeight: typography.weights.medium },
+  promoRemove: { fontSize: typography.sizes.sm, color: colors.error, fontWeight: typography.weights.medium },
+  promoInput: { flexDirection: 'row', gap: spacing.sm },
+  promoTextInput: { flex: 1, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, fontSize: typography.sizes.sm, color: colors.fg.primary },
+  promoButton: { backgroundColor: colors.fg.primary, borderRadius: radius.sm, paddingHorizontal: spacing.md, justifyContent: 'center', alignItems: 'center' },
+  promoButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
+  promoError: { fontSize: typography.sizes.xs, color: colors.error, marginTop: spacing.xs },
 });

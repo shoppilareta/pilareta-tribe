@@ -3,15 +3,16 @@ import { View, Text, TextInput, StyleSheet, SectionList, Pressable, ActivityIndi
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { ProductGridSkeleton } from '@/components/ui';
 import { ProductCard, BannerCarousel, RecentlyViewedCarousel } from '@/components/shop';
-import { getProducts, getWishlist, addToWishlist, removeFromWishlist } from '@/api/shop';
+import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
+import { useWishlist } from '@/hooks/useWishlist';
 import type { ShopifyProduct } from '@shared/types';
 
 // Preferred display order for collection-based categories
@@ -92,52 +93,11 @@ export default function ShopScreen() {
     queryFn: getProducts,
   });
 
-  const { totalItems, loading: cartLoading } = useCartStore();
+  const { totalItems, loading: cartLoading, loadCart } = useCartStore();
   const cartCount = totalItems();
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
   const recentlyViewed = useRecentlyViewedStore();
-  const queryClient = useQueryClient();
-
-  const { data: wishlistData } = useQuery({
-    queryKey: ['wishlist'],
-    queryFn: getWishlist,
-    enabled: isAuthenticated,
-  });
-
-  const wishlistHandles = wishlistData?.handles ?? [];
-
-  const toggleWishlistMutation = useMutation({
-    mutationFn: async (handle: string) => {
-      const isCurrentlyWishlisted = wishlistHandles.includes(handle);
-      if (isCurrentlyWishlisted) {
-        return removeFromWishlist(handle);
-      } else {
-        return addToWishlist(handle);
-      }
-    },
-    onMutate: async (handle: string) => {
-      await queryClient.cancelQueries({ queryKey: ['wishlist'] });
-      const previous = queryClient.getQueryData<{ handles: string[] }>(['wishlist']);
-      queryClient.setQueryData<{ handles: string[] }>(['wishlist'], (old) => {
-        if (!old) return { handles: [handle] };
-        const exists = old.handles.includes(handle);
-        return {
-          handles: exists
-            ? old.handles.filter((h) => h !== handle)
-            : [handle, ...old.handles],
-        };
-      });
-      return { previous };
-    },
-    onError: (_err, _handle, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['wishlist'], context.previous);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-    },
-  });
+  const { isWishlisted, toggleWishlist, wishlistHandles } = useWishlist();
 
   const handleToggleWishlist = useCallback((handle: string) => {
     if (!isAuthenticated) {
@@ -145,11 +105,16 @@ export default function ShopScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    toggleWishlistMutation.mutate(handle);
-  }, [isAuthenticated, toggleWishlistMutation]);
+    toggleWishlist(handle);
+  }, [isAuthenticated, toggleWishlist]);
 
   useEffect(() => {
     recentlyViewed.loadFromStorage();
+  }, []);
+
+  // I7: Cart expiry check on shop load
+  useEffect(() => {
+    loadCart();
   }, []);
 
   const products = data?.products ?? [];
@@ -367,7 +332,7 @@ export default function ShopScreen() {
                 <View key={product.id} style={styles.productWrapper}>
                   <ProductCard
                     product={product}
-                    isWishlisted={wishlistHandles.includes(product.handle)}
+                    isWishlisted={isWishlisted(product.handle)}
                     onToggleWishlist={handleToggleWishlist}
                   />
                 </View>

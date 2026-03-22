@@ -34,6 +34,9 @@ async function getBanners(): Promise<Banner[]> {
 export function BannerCarousel() {
   const flatListRef = useRef<FlatList<Banner>>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const userScrolling = useRef(false);
+  const autoScrollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resumeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: banners = [] } = useQuery({
     queryKey: ['shop-banners'],
@@ -41,17 +44,26 @@ export function BannerCarousel() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Auto-scroll every 5 seconds
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const timer = setInterval(() => {
+  const startAutoScroll = () => {
+    if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+    autoScrollTimer.current = setInterval(() => {
+      if (userScrolling.current) return;
       setCurrentIndex((prev) => {
         const next = (prev + 1) % banners.length;
         flatListRef.current?.scrollToIndex({ index: next, animated: true });
         return next;
       });
     }, 5000);
-    return () => clearInterval(timer);
+  };
+
+  // Auto-scroll every 5 seconds
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    startAutoScroll();
+    return () => {
+      if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+      if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
+    };
   }, [banners.length]);
 
   if (banners.length === 0) return null;
@@ -74,9 +86,19 @@ export function BannerCarousel() {
         snapToInterval={BANNER_WIDTH + spacing.sm}
         decelerationRate="fast"
         contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.md }}
+        onScrollBeginDrag={() => {
+          userScrolling.current = true;
+          if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+          if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
+        }}
         onMomentumScrollEnd={(e) => {
           const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + spacing.sm));
           setCurrentIndex(idx);
+          userScrolling.current = false;
+          if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
+          resumeTimeout.current = setTimeout(() => {
+            startAutoScroll();
+          }, 8000);
         }}
         getItemLayout={(_, index) => ({
           length: BANNER_WIDTH + spacing.sm,

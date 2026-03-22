@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Image, Pressable, Alert } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
+import { formatPrice } from '@/utils/formatPrice';
 
 interface CartLineItem {
   id: string;
@@ -18,12 +19,6 @@ interface CartItemProps {
   item: CartLineItem;
   onUpdateQuantity: (lineId: string, quantity: number) => void;
   onRemove: (lineId: string) => void;
-}
-
-function formatPrice(amount: string, currencyCode: string): string {
-  const num = parseFloat(amount);
-  if (currencyCode === 'INR') return `₹${num.toFixed(0)}`;
-  return `${currencyCode} ${num.toFixed(2)}`;
 }
 
 export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {

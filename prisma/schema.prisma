@@ -36,6 +36,7 @@ model User {
   following             UserFollow[]             @relation("follower")
   pushTokens            PushToken[]
   wishlistItems         ProductWishlist[]
+  restockAlerts         RestockAlert[]
 }
 
 model Session {
@@ -701,6 +702,26 @@ model ProductWishlist {
   createdAt     DateTime @default(now())
 
   @@unique([userId, productHandle])
+  @@index([userId])
+}
+
+// ============================================
+// RESTOCK ALERTS (Notify Me)
+// ============================================
+
+model RestockAlert {
+  id            String   @id @default(cuid())
+  userId        String?
+  email         String
+  productHandle String
+  variantTitle  String?
+  notified      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([email, productHandle])
+  @@index([productHandle])
   @@index([userId])
 }
 

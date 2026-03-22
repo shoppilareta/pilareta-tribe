@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function OrderConfirmationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { items } = useLocalSearchParams<{ items?: string }>();
+  const itemCount = items ? parseInt(items, 10) : 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 40 }]}>
@@ -18,6 +20,11 @@ export default function OrderConfirmationScreen() {
       </View>
 
       <Text style={styles.heading}>Order Placed!</Text>
+      {itemCount > 0 && (
+        <Text style={styles.itemCount}>
+          {itemCount} {itemCount === 1 ? 'item' : 'items'} ordered
+        </Text>
+      )}
       <Text style={styles.subtext}>
         Your order is being processed. You'll receive a confirmation email shortly.
       </Text>
@@ -57,8 +64,15 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.fg.primary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
+  },
+  itemCount: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.fg.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   subtext: {
     fontSize: typography.sizes.base,

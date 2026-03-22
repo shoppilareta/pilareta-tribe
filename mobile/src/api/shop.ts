@@ -56,3 +56,25 @@ export async function addToWishlist(handle: string): Promise<{ wishlisted: boole
 export async function removeFromWishlist(handle: string): Promise<{ wishlisted: boolean }> {
   return apiFetch(`/api/wishlist/${handle}`, { method: 'DELETE' });
 }
+
+export async function createRestockAlert(
+  email: string,
+  productHandle: string,
+  variantTitle?: string
+): Promise<{ subscribed: boolean }> {
+  return apiFetch('/api/restock-alerts', {
+    method: 'POST',
+    body: JSON.stringify({ email, productHandle, variantTitle }),
+    skipAuth: false,
+  });
+}
+
+export async function applyDiscountApi(
+  cartId: string,
+  code: string
+): Promise<ShopCartResponse> {
+  return apiFetch('/api/shopify/cart', {
+    method: 'PATCH',
+    body: JSON.stringify({ cartId, discountCodes: [code] }),
+  });
+}

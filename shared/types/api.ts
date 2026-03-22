@@ -198,6 +198,8 @@ export interface ShopCartResponse {
       subtotalAmount: { amount: string; currencyCode: string };
       totalTaxAmount?: { amount: string; currencyCode: string };
     };
+    discountCodes?: { code: string; applicable: boolean }[];
+    discountAllocations?: { discountedAmount: { amount: string; currencyCode: string } }[];
   };
 }
 

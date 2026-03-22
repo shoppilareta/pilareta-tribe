@@ -1,16 +1,18 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Pressable, Dimensions, Alert, ActivityIndicator, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Pressable, Dimensions, Alert, ActivityIndicator, Share, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { getColorCode } from '@/utils/colorCode';
-import { getProducts, getWishlist, addToWishlist, removeFromWishlist } from '@/api/shop';
+import { formatPrice } from '@/utils/formatPrice';
+import { getProducts, createRestockAlert } from '@/api/shop';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore';
+import { useWishlist } from '@/hooks/useWishlist';
 import { ImageZoomModal } from '@/components/ui/ImageZoomModal';
 import { SizeGuideModal } from '@/components/shop/SizeGuideModal';
 import { useToast } from '@/components/ui/Toast';
@@ -32,12 +34,6 @@ function parseDescriptionHtml(html: string): { bullets: string[]; plainText: str
   const withoutLists = html.replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '').replace(/<ol[^>]*>[\s\S]*?<\/ol>/gi, '');
   const plainText = withoutLists.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   return { bullets, plainText };
-}
-
-function formatPrice(amount: string, currencyCode: string): string {
-  const num = parseFloat(amount);
-  if (currencyCode === 'INR') return `\u20B9${num.toFixed(0)}`;
-  return `${currencyCode} ${num.toFixed(2)}`;
 }
 
 const normalizeUrl = (url: string) => url.split('?')[0];
@@ -63,48 +59,9 @@ export default function ProductDetailScreen() {
   const { addItem, loading: cartLoading } = useCartStore();
   const { addHandle: addRecentlyViewed } = useRecentlyViewedStore();
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
-  const queryClient = useQueryClient();
-
-  const { data: wishlistData } = useQuery({
-    queryKey: ['wishlist'],
-    queryFn: getWishlist,
-    enabled: isAuthenticated,
-  });
-
-  const wishlistHandles = wishlistData?.handles ?? [];
-  const isWishlisted = handle ? wishlistHandles.includes(handle) : false;
-
-  const toggleWishlistMutation = useMutation({
-    mutationFn: async (h: string) => {
-      if (wishlistHandles.includes(h)) {
-        return removeFromWishlist(h);
-      } else {
-        return addToWishlist(h);
-      }
-    },
-    onMutate: async (h: string) => {
-      await queryClient.cancelQueries({ queryKey: ['wishlist'] });
-      const previous = queryClient.getQueryData<{ handles: string[] }>(['wishlist']);
-      queryClient.setQueryData<{ handles: string[] }>(['wishlist'], (old) => {
-        if (!old) return { handles: [h] };
-        const exists = old.handles.includes(h);
-        return {
-          handles: exists
-            ? old.handles.filter((x) => x !== h)
-            : [h, ...old.handles],
-        };
-      });
-      return { previous };
-    },
-    onError: (_err, _h, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['wishlist'], context.previous);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-    },
-  });
+  const userEmail = useAuthStore((s) => s.user?.email);
+  const { isWishlisted: checkWishlisted, toggleWishlist } = useWishlist();
+  const isWishlisted = handle ? checkWishlisted(handle) : false;
 
   const handleToggleWishlist = () => {
     if (!handle) return;
@@ -113,7 +70,7 @@ export default function ProductDetailScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    toggleWishlistMutation.mutate(handle);
+    toggleWishlist(handle);
   };
   const { showToast } = useToast();
   const [selectedImage, setSelectedImage] = useState(0);
@@ -170,6 +127,22 @@ export default function ProductDetailScreen() {
     }
     return map;
   }, [product]);
+
+  // All products for recommendations
+  const allProducts = data?.products;
+
+  const recommendations = useMemo(() => {
+    if (!product || !allProducts) return [];
+    const currentCollections = product.collections?.map(c => c.title) || [];
+    const currentType = product.productType;
+    return allProducts
+      .filter(p => p.handle !== product.handle)
+      .filter(p => {
+        const pCollections = p.collections?.map(c => c.title) || [];
+        return pCollections.some(c => currentCollections.includes(c)) || p.productType === currentType;
+      })
+      .slice(0, 8);
+  }, [product, allProducts]);
 
   // Set default options on mount
   useEffect(() => {
@@ -259,6 +232,32 @@ export default function ProductDetailScreen() {
     }
   };
 
+  const handleNotifyMe = () => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+    const email = userEmail || '';
+    Alert.alert(
+      'Notify Me When Available',
+      `We'll send a notification to ${email} when this item is back in stock.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Notify Me',
+          onPress: async () => {
+            try {
+              await createRestockAlert(email, handle!, selectedVariant?.title);
+              showToast("We'll notify you when this is back!");
+            } catch {
+              showToast('Failed to subscribe. Try again.', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -343,6 +342,17 @@ export default function ProductDetailScreen() {
                 </Pressable>
               ))}
             </ScrollView>
+            {/* Sale badge */}
+            {(() => {
+              const cap = selectedVariant?.compareAtPrice;
+              const varPrice = selectedVariant?.price ?? product.priceRange.minVariantPrice;
+              const heroIsOnSale = cap && parseFloat(cap.amount) > parseFloat(varPrice.amount);
+              return heroIsOnSale ? (
+                <View style={styles.heroSaleBadge}>
+                  <Text style={styles.heroSaleBadgeText}>SALE</Text>
+                </View>
+              ) : null;
+            })()}
             {images.length > 1 && (
               <View style={styles.dots}>
                 {images.map((_, idx) => (
@@ -384,6 +394,9 @@ export default function ProductDetailScreen() {
               </Text>
             );
           })()}
+          {selectedVariant?.quantityAvailable != null && selectedVariant.quantityAvailable > 0 && selectedVariant.quantityAvailable < 5 && (
+            <Text style={styles.stockUrgency}>Only {selectedVariant.quantityAvailable} left in stock!</Text>
+          )}
         </View>
 
         {/* Options */}
@@ -490,6 +503,50 @@ export default function ProductDetailScreen() {
           </View>
         ) : null}
 
+        {/* Trust & Policy */}
+        <View style={styles.trustSection}>
+          {[
+            { icon: 'M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l4-2 4 2 4-2 4 2V6a1 1 0 00-1-1h-2', title: 'Free Shipping', subtitle: 'Free delivery across India' },
+            { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', title: 'Easy Returns', subtitle: '30-day hassle-free returns' },
+            { icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', title: '100% Authentic', subtitle: 'Genuine Pilareta products' },
+            { icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', title: 'Secure Payments', subtitle: 'Cards, UPI & wallets accepted' },
+          ].map((item) => (
+            <View key={item.title} style={styles.trustRow}>
+              <View style={styles.trustIcon}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                  <Path d={item.icon} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </View>
+              <View>
+                <Text style={styles.trustTitle}>{item.title}</Text>
+                <Text style={styles.trustSubtitle}>{item.subtitle}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* You May Also Like */}
+        {recommendations.length > 0 && (
+          <View style={styles.recsSection}>
+            <Text style={styles.recsTitle}>You May Also Like</Text>
+            <FlatList
+              data={recommendations}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={item => item.handle}
+              contentContainerStyle={{ paddingHorizontal: spacing.md }}
+              renderItem={({ item }) => (
+                <Pressable style={styles.recCard} onPress={() => router.push({ pathname: '/(tabs)/shop/[handle]', params: { handle: item.handle } })}>
+                  {item.images[0] && <Image source={{ uri: item.images[0].url }} style={styles.recImage} resizeMode="cover" />}
+                  <Text style={styles.recName} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.recPrice}>{'\u20B9'}{parseFloat(item.priceRange.minVariantPrice.amount).toFixed(0)}</Text>
+                </Pressable>
+              )}
+              ItemSeparatorComponent={() => <View style={{ width: spacing.sm }} />}
+            />
+          </View>
+        )}
+
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -506,22 +563,26 @@ export default function ProductDetailScreen() {
 
       {/* Sticky add to cart footer */}
       <View style={styles.footer}>
-        <Pressable
-          style={[
-            styles.addToCartButton,
-            (!selectedVariant?.availableForSale || isAdding || cartLoading) && styles.addToCartDisabled,
-          ]}
-          onPress={handleAddToCart}
-          disabled={!selectedVariant?.availableForSale || isAdding || cartLoading}
-        >
-          {isAdding ? (
-            <ActivityIndicator color={colors.bg.primary} size="small" />
-          ) : (
-            <Text style={styles.addToCartText}>
-              {!selectedVariant?.availableForSale ? 'Sold Out' : 'Add to Cart'}
-            </Text>
-          )}
-        </Pressable>
+        {selectedVariant && !selectedVariant.availableForSale ? (
+          <Pressable style={styles.notifyMeButton} onPress={handleNotifyMe}>
+            <Text style={styles.notifyMeText}>Notify Me When Available</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[
+              styles.addToCartButton,
+              (isAdding || cartLoading) && styles.addToCartDisabled,
+            ]}
+            onPress={handleAddToCart}
+            disabled={!selectedVariant?.availableForSale || isAdding || cartLoading}
+          >
+            {isAdding ? (
+              <ActivityIndicator color={colors.bg.primary} size="small" />
+            ) : (
+              <Text style={styles.addToCartText}>Add to Cart</Text>
+            )}
+          </Pressable>
+        )}
         <Text style={styles.shippingHint}>Free shipping across India</Text>
       </View>
     </SafeAreaView>
@@ -543,6 +604,8 @@ const styles = StyleSheet.create({
   errorButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
   scrollContent: { paddingBottom: 20 },
   heroImage: { width: SCREEN_WIDTH, height: SCREEN_WIDTH, backgroundColor: 'rgba(246,237,221,0.05)' },
+  heroSaleBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(239, 68, 68, 0.9)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, zIndex: 1 },
+  heroSaleBadgeText: { fontSize: 10, fontWeight: typography.weights.bold, color: '#fff', letterSpacing: 0.5 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(246,237,221,0.2)' },
   dotActive: { backgroundColor: colors.fg.primary, width: 18 },
@@ -599,6 +662,23 @@ const styles = StyleSheet.create({
   },
   addToCartDisabled: { opacity: 0.5 },
   addToCartText: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.bg.primary },
+  notifyMeButton: {
+    borderRadius: 24, paddingVertical: 14, alignItems: 'center',
+    borderWidth: 2, borderColor: colors.fg.primary,
+  },
+  notifyMeText: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary },
+  stockUrgency: { fontSize: typography.sizes.sm, fontWeight: typography.weights.bold, color: colors.warning, marginTop: spacing.xs },
   shippingHint: { fontSize: 11, color: colors.fg.muted, textAlign: 'center', marginTop: spacing.xs },
   sizeGuideLink: { fontSize: typography.sizes.xs, color: colors.fg.secondary, textDecorationLine: 'underline' },
+  trustSection: { marginTop: spacing.md, paddingTop: spacing.md, paddingHorizontal: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default },
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  trustIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg.card, alignItems: 'center', justifyContent: 'center' },
+  trustTitle: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.fg.primary },
+  trustSubtitle: { fontSize: typography.sizes.xs, color: colors.fg.tertiary },
+  recsSection: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default },
+  recsTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.bold, color: colors.fg.primary, marginBottom: spacing.sm, paddingHorizontal: spacing.md },
+  recCard: { width: 130 },
+  recImage: { width: 130, aspectRatio: 1, borderRadius: radius.sm, backgroundColor: 'rgba(246,237,221,0.05)' },
+  recName: { fontSize: typography.sizes.xs, color: colors.fg.primary, marginTop: spacing.xs },
+  recPrice: { fontSize: typography.sizes.xs, color: colors.fg.secondary },
 });

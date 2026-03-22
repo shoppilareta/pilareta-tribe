@@ -6,6 +6,7 @@ interface OrderLineItem {
   originalTotalPrice: { amount: string; currencyCode: string };
   image?: { url: string; altText: string | null };
   variantTitle?: string;
+  variant?: { id: string } | null;
 }
 
 export interface ShopifyOrder {

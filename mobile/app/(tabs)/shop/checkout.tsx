@@ -13,14 +13,16 @@ export default function CheckoutScreen() {
   const hasCompleted = useRef(false);
   const [loading, setLoading] = useState(true);
   const clearCart = useCartStore((s) => s.clearCart);
+  const totalItems = useCartStore((s) => s.totalItems);
 
   const handleNavigationChange = (navState: { url: string }) => {
     // Shopify redirects to a /thank_you or /thank-you page after successful checkout
     if (!hasCompleted.current && (navState.url.includes('thank_you') || navState.url.includes('thank-you'))) {
       hasCompleted.current = true;
+      const itemCount = totalItems();
       clearCart();
       setTimeout(() => {
-        router.replace('/(tabs)/shop/order-confirmation');
+        router.replace({ pathname: '/(tabs)/shop/order-confirmation', params: { items: String(itemCount) } });
       }, 1500);
     }
   };

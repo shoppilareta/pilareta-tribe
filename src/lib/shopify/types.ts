@@ -18,6 +18,7 @@ export interface ShopifyProductVariant {
   price: ShopifyMoney;
   compareAtPrice: ShopifyMoney | null;
   availableForSale: boolean;
+  quantityAvailable?: number;
   image?: ShopifyImage;
   selectedOptions: {
     name: string;
@@ -78,6 +79,13 @@ export interface ShopifyCart {
     totalTaxAmount?: ShopifyMoney;
   };
   totalQuantity: number;
+  discountCodes?: {
+    code: string;
+    applicable: boolean;
+  }[];
+  discountAllocations?: {
+    discountedAmount: ShopifyMoney;
+  }[];
 }
 
 // Local cart item (before syncing with Shopify)
@@ -133,6 +141,7 @@ export interface RawShopifyProduct {
         priceV2: ShopifyMoney;
         compareAtPriceV2: ShopifyMoney | null;
         availableForSale: boolean;
+        quantityAvailable?: number;
         image?: ShopifyImage;
         selectedOptions: {
           name: string;

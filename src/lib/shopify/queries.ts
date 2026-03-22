@@ -46,6 +46,7 @@ const PRODUCT_FRAGMENT = `
           id
           title
           availableForSale
+          quantityAvailable
           priceV2 {
             amount
             currencyCode
@@ -124,6 +125,7 @@ function transformProduct(raw: RawShopifyProduct): ShopifyProduct {
       id: edge.node.id,
       title: edge.node.title,
       availableForSale: edge.node.availableForSale,
+      quantityAvailable: edge.node.quantityAvailable,
       price: edge.node.priceV2,
       compareAtPrice: edge.node.compareAtPriceV2,
       image: edge.node.image,

@@ -9,6 +9,8 @@ interface OrderLineItem {
   originalTotalPrice: { amount: string; currencyCode: string };
   image?: { url: string; altText: string | null };
   variantTitle?: string;
+  currentQuantity?: number;
+  variant?: { id: string } | null;
 }
 
 interface FulfillmentInfo {
@@ -70,6 +72,10 @@ export async function getCustomerOrders(userId: string): Promise<ShopifyOrder[]>
                 originalTotalPrice { amount currencyCode }
                 image { url altText }
                 variantTitle
+                currentQuantity
+                variant {
+                  id
+                }
               }
             }
             fulfillments {

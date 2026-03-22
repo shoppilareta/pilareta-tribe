@@ -49,6 +49,16 @@ const CART_FRAGMENT = `
         }
       }
     }
+    discountCodes {
+      code
+      applicable
+    }
+    discountAllocations {
+      discountedAmount {
+        amount
+        currencyCode
+      }
+    }
   }
 `;
 
@@ -116,6 +126,17 @@ const REMOVE_FROM_CART_MUTATION = `
   }
 `;
 
+// Apply discount codes mutation
+const APPLY_DISCOUNT_MUTATION = `
+  ${CART_FRAGMENT}
+  mutation CartDiscountCodesUpdate($cartId: ID!, $discountCodes: [String!]!) {
+    cartDiscountCodesUpdate(cartId: $cartId, discountCodes: $discountCodes) {
+      cart { ...CartFields }
+      userErrors { field message }
+    }
+  }
+`;
+
 // Get cart query
 const GET_CART_QUERY = `
   ${CART_FRAGMENT}
@@ -156,6 +177,13 @@ interface RawCart {
       node: RawCartLine;
     }[];
   };
+  discountCodes?: {
+    code: string;
+    applicable: boolean;
+  }[];
+  discountAllocations?: {
+    discountedAmount: ShopifyMoney;
+  }[];
 }
 
 interface CartMutationResponse {
@@ -184,6 +212,8 @@ function transformCart(raw: RawCart): ShopifyCart {
         product: edge.node.merchandise.product,
       },
     })),
+    discountCodes: raw.discountCodes,
+    discountAllocations: raw.discountAllocations,
   };
 }
 
@@ -268,6 +298,24 @@ export async function removeFromCart(
   }
 
   return transformCart(data.cartLinesRemove.cart);
+}
+
+// Apply discount codes to cart
+export async function applyDiscountCode(cartId: string, discountCodes: string[]): Promise<ShopifyCart> {
+  const data = await shopifyFetch<{ cartDiscountCodesUpdate: CartMutationResponse }>(
+    APPLY_DISCOUNT_MUTATION,
+    { cartId, discountCodes }
+  );
+
+  if (data.cartDiscountCodesUpdate.userErrors.length > 0) {
+    throw new Error(data.cartDiscountCodesUpdate.userErrors[0].message);
+  }
+
+  if (!data.cartDiscountCodesUpdate.cart) {
+    throw new Error('Failed to apply discount code');
+  }
+
+  return transformCart(data.cartDiscountCodesUpdate.cart);
 }
 
 // Get existing cart
