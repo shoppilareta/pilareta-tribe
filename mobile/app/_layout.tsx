@@ -29,8 +29,9 @@ const AuthStoreMod = tryLoad('@/stores/authStore', () => require('@/stores/authS
 // Instead, inline the check
 const SecureStoreMod = tryLoad('expo-secure-store', () => require('expo-secure-store'));
 const ToastMod = tryLoad('@/components/ui/Toast', () => require('@/components/ui/Toast'));
+const StorageKeysMod = tryLoad('@/constants/storage-keys', () => require('@/constants/storage-keys'));
 
-const ONBOARDING_KEY = 'pilareta_onboarding_complete';
+const ONBOARDING_KEY = StorageKeysMod?.STORAGE_KEYS?.ONBOARDING_COMPLETE ?? 'pilareta_onboarding_complete';
 async function hasCompletedOnboarding(): Promise<boolean> {
   try {
     if (!SecureStoreMod) return true;
@@ -177,7 +178,7 @@ export default function RootLayout() {
       <Stack.Screen name="auth/login" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="auth/callback" options={{ presentation: 'transparentModal' }} />
       <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="community-profile/[userId]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="community-profile/[userId]" options={{ presentation: 'modal', animation: 'slide_from_right' }} />
     </Stack>
   ) : (
     <View style={styles.loading}>

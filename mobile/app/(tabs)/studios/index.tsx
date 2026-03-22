@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, Pressable, Alert, Dimensions, Linking, Modal, Switch, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, Pressable, Alert, Dimensions, Linking, Modal, Switch, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import Svg, { Path } from 'react-native-svg';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { colors, typography, spacing, radius } from '@/theme';
 import { StudioCard, isStudioOpenNow } from '@/components/studios';
 import { StudioListSkeleton } from '@/components/ui/Skeleton';
@@ -53,6 +53,14 @@ export default function StudiosScreen() {
 
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
   const { isFavorited, toggleFavorite } = useStudioFavorites();
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSearchQuery('');
+      };
+    }, [])
+  );
 
   const handleToggleFavorite = useCallback((studioId: string) => {
     if (!isAuthenticated) {
@@ -116,13 +124,13 @@ export default function StudiosScreen() {
 
   const activeLocation = searchLocation || userLocation;
 
-  const { data: nearbyData, isLoading: nearbyLoading, isError: nearbyError, refetch: refetchNearby } = useQuery({
+  const { data: nearbyData, isLoading: nearbyLoading, isError: nearbyError, refetch: refetchNearby, isRefetching: refetchingNearby } = useQuery({
     queryKey: ['studios-nearby', activeLocation?.lat, activeLocation?.lng],
     queryFn: () => getNearbyStudios(activeLocation!.lat, activeLocation!.lng, 15000),
     enabled: !!activeLocation,
   });
 
-  const { data: searchData, isLoading: searchLoading, isError: searchError, refetch: refetchSearch } = useQuery({
+  const { data: searchData, isLoading: searchLoading, isError: searchError, refetch: refetchSearch, isRefetching: refetchingSearch } = useQuery({
     queryKey: ['studios-search', searchQuery],
     queryFn: () => searchStudios({ q: searchQuery, limit: 30 }),
     enabled: searchQuery.length >= 2,
@@ -442,6 +450,14 @@ export default function StudiosScreen() {
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refetchingNearby || refetchingSearch}
+              onRefresh={handleRetry}
+              tintColor={colors.fg.primary}
+              colors={[colors.fg.primary]}
+            />
+          }
         />
       )}
       {/* Filter Sheet */}

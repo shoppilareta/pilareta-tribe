@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { colors, typography, spacing, radius } from '@/theme';
@@ -26,6 +26,7 @@ export default function TrackDashboard() {
   const { isAuthenticated, user } = useAuthStore();
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
+  const insets = useSafeAreaInsets();
 
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['track-stats', refreshKey],
@@ -246,12 +247,12 @@ export default function TrackDashboard() {
       </ScrollView>
 
       {/* FABs */}
-      <Pressable style={styles.fabSecondary} onPress={() => router.push('/(tabs)/track/live')} accessibilityRole="button" accessibilityLabel="Start live workout">
+      <Pressable style={[styles.fabSecondary, { bottom: insets.bottom + 80 + 60 }]} onPress={() => router.push('/(tabs)/track/live')} accessibilityRole="button" accessibilityLabel="Start live workout">
         <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
           <Path d="M5 3l14 9-14 9V3z" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       </Pressable>
-      <Pressable style={styles.fab} onPress={() => router.push('/(tabs)/track/log')} accessibilityRole="button" accessibilityLabel="Log a new workout">
+      <Pressable style={[styles.fab, { bottom: insets.bottom + 80 }]} onPress={() => router.push('/(tabs)/track/log')} accessibilityRole="button" accessibilityLabel="Log a new workout">
         <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.bg.primary} strokeWidth={2.5}>
           <Path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
@@ -291,6 +292,6 @@ const styles = StyleSheet.create({
   viewToggleTextActive: { color: colors.fg.primary },
   section: { marginBottom: spacing.md },
   sectionTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.sm },
-  fabSecondary: { position: 'absolute', right: spacing.md, bottom: spacing.md + 64, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border.default, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 3 },
-  fab: { position: 'absolute', right: spacing.md, bottom: spacing.md, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.button.primaryBg, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
+  fabSecondary: { position: 'absolute', right: spacing.md, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border.default, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 3 },
+  fab: { position: 'absolute', right: spacing.md, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.button.primaryBg, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
 });

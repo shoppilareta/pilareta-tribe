@@ -5,6 +5,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
+import { Video, ResizeMode } from 'expo-av';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Button } from '@/components/ui';
 import { getSession } from '@/api/learn';
@@ -40,6 +41,7 @@ export default function SessionPlayer() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const videoRef = useRef<Video>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['learn-session', id],
@@ -84,6 +86,16 @@ export default function SessionPlayer() {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isResting, restTime]);
+
+  // Auto-play/pause video with rest state and exercise changes
+  useEffect(() => {
+    if (!currentItem?.exercise?.videoUrl) return;
+    if (isResting) {
+      videoRef.current?.pauseAsync();
+    } else {
+      videoRef.current?.playAsync();
+    }
+  }, [isResting, currentIndex, currentItem?.exercise?.videoUrl]);
 
   const handleNext = useCallback(() => {
     if (!currentItem) return;
@@ -193,6 +205,21 @@ export default function SessionPlayer() {
       {/* Main content */}
       {!isResting && (
         <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainContent} showsVerticalScrollIndicator={false}>
+          {currentItem.exercise.videoUrl && (
+            <View style={styles.sessionVideoContainer}>
+              <Video
+                ref={videoRef}
+                source={{ uri: currentItem.exercise.videoUrl }}
+                posterSource={currentItem.exercise.imageUrl ? { uri: currentItem.exercise.imageUrl } : undefined}
+                usePoster={!!currentItem.exercise.imageUrl}
+                style={styles.sessionVideo}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                isLooping
+                shouldPlay={!isResting}
+              />
+            </View>
+          )}
           <Text style={styles.exerciseName}>{currentItem.exercise.name}</Text>
 
           <View style={styles.setInfo}>
@@ -283,7 +310,9 @@ const styles = StyleSheet.create({
   restNext: { fontSize: typography.sizes.base, color: colors.fg.secondary, marginBottom: spacing.xl },
   skipButton: { minWidth: 160 },
   mainScroll: { flex: 1 },
-  mainContent: { padding: spacing.md, paddingTop: spacing.xl, paddingBottom: spacing.xl },
+  mainContent: { padding: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xl },
+  sessionVideoContainer: { width: '100%', height: 200, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.cream10, marginBottom: spacing.md },
+  sessionVideo: { width: '100%', height: '100%' },
   exerciseName: { fontSize: typography.sizes['2xl'], fontWeight: typography.weights.bold, color: colors.fg.primary, textAlign: 'center', marginBottom: spacing.lg },
   setInfo: { alignItems: 'center', marginBottom: spacing.lg },
   setLabel: { fontSize: typography.sizes.base, color: colors.fg.secondary, marginBottom: 4 },

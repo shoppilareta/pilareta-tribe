@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { router } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
 import { Card, Badge } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import type { Exercise } from '@shared/types';
@@ -24,6 +25,21 @@ export function ExerciseCard({ exercise }: ExerciseCardProps) {
           </View>
           <Text style={styles.rpe}>RPE {exercise.rpeTarget}</Text>
         </View>
+
+        {exercise.imageUrl && (
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: exercise.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+            {exercise.videoUrl && (
+              <View style={styles.playOverlay}>
+                <View style={styles.playCircle}>
+                  <Svg width={24} height={24} viewBox="0 0 24 24" fill="white">
+                    <Path d="M8 5v14l11-7z" />
+                  </Svg>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
         <Text style={styles.description} numberOfLines={2}>{exercise.description}</Text>
@@ -82,6 +98,35 @@ const styles = StyleSheet.create({
   rpe: {
     fontSize: typography.sizes.xs,
     color: colors.fg.tertiary,
+  },
+  imageContainer: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+    backgroundColor: colors.cream10,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  playOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   name: {
     fontSize: typography.sizes.base,

@@ -1,13 +1,16 @@
 import { useState, useEffect, Component, type ReactNode } from 'react';
-import { View, Text, StyleSheet, Pressable, Switch, Alert, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Switch, Alert, ScrollView, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
+import Constants from 'expo-constants';
 import { colors, typography, spacing, radius } from '@/theme';
 import { useAuthStore } from '@/stores/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { getStats } from '@/api/track';
 import { getFollowers, getFollowing } from '@/api/social';
+
+const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
 // Error boundary to prevent settings crash if a hook/module fails
 class SettingsErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -59,6 +62,8 @@ function SettingsContent() {
   const { logout } = useAuth();
   const health = useSafeHealth();
   const notifications = useSafeNotifications();
+
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   // Fetch stats and social counts
   const [stats, setStats] = useState<{ currentStreak: number; totalWorkouts: number; totalMinutes: number } | null>(null);
@@ -115,9 +120,9 @@ function SettingsContent() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {/* Account */}
-        {isAuthenticated && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          {isAuthenticated ? (
             <View style={styles.card}>
               <View style={styles.profileRow}>
                 <View style={styles.avatar}>
@@ -148,13 +153,25 @@ function SettingsContent() {
                 </Svg>
               </Pressable>
             </View>
-          </View>
-        )}
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.guestMessage}>
+                Sign in to access your stats, goals, and preferences
+              </Text>
+              <Pressable
+                style={styles.signInButton}
+                onPress={() => router.push('/auth/login')}
+              >
+                <Text style={styles.signInButtonText}>Sign In</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
 
         {/* Your Stats */}
-        {isAuthenticated && stats && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Stats</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your Stats</Text>
+          {isAuthenticated && stats ? (
             <View style={styles.card}>
               <View style={styles.statsGrid}>
                 <View style={styles.statItem}>
@@ -171,13 +188,31 @@ function SettingsContent() {
                 </View>
               </View>
             </View>
-          </View>
-        )}
+          ) : !isAuthenticated ? (
+            <Pressable style={[styles.card, styles.disabledCard]} onPress={() => router.push('/auth/login')}>
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, styles.disabledText]}>--</Text>
+                  <Text style={[styles.statLabel, styles.disabledText]}>Day Streak</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, styles.disabledText]}>--</Text>
+                  <Text style={[styles.statLabel, styles.disabledText]}>Workouts</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, styles.disabledText]}>--</Text>
+                  <Text style={[styles.statLabel, styles.disabledText]}>Total Time</Text>
+                </View>
+              </View>
+              <Text style={styles.disabledHint}>Sign in to see your stats</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         {/* Friends */}
-        {isAuthenticated && socialCounts && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Friends</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Friends</Text>
+          {isAuthenticated && socialCounts ? (
             <View style={styles.card}>
               <View style={styles.statsGrid}>
                 <View style={styles.statItem}>
@@ -190,8 +225,22 @@ function SettingsContent() {
                 </View>
               </View>
             </View>
-          </View>
-        )}
+          ) : !isAuthenticated ? (
+            <Pressable style={[styles.card, styles.disabledCard]} onPress={() => router.push('/auth/login')}>
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, styles.disabledText]}>--</Text>
+                  <Text style={[styles.statLabel, styles.disabledText]}>Followers</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, styles.disabledText]}>--</Text>
+                  <Text style={[styles.statLabel, styles.disabledText]}>Following</Text>
+                </View>
+              </View>
+              <Text style={styles.disabledHint}>Sign in to connect</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         {/* Orders — always visible */}
         <View style={styles.section}>
@@ -322,8 +371,47 @@ function SettingsContent() {
           <View style={styles.card}>
             <View style={styles.aboutRow}>
               <Text style={styles.aboutLabel}>Version</Text>
-              <Text style={styles.aboutValue}>1.0.0</Text>
+              <Text style={styles.aboutValue}>{appVersion}</Text>
             </View>
+            <View style={styles.divider} />
+            <Pressable
+              style={styles.contactRow}
+              onPress={() => setShowWhatsNew(!showWhatsNew)}
+            >
+              <Text style={styles.aboutLabel}>What's New</Text>
+              <Text style={styles.aboutValue}>v{appVersion}</Text>
+            </Pressable>
+            {showWhatsNew && (
+              <View style={styles.whatsNewContent}>
+                <Text style={styles.whatsNewItem}>{'\u2022'} Workout tracking with streaks & goals</Text>
+                <Text style={styles.whatsNewItem}>{'\u2022'} Pilates exercise library with video</Text>
+                <Text style={styles.whatsNewItem}>{'\u2022'} Studio finder with directions & favorites</Text>
+                <Text style={styles.whatsNewItem}>{'\u2022'} Community feed with sharing & profiles</Text>
+                <Text style={styles.whatsNewItem}>{'\u2022'} Shop with wishlist, coupons & sale alerts</Text>
+                <Text style={styles.whatsNewItem}>{'\u2022'} Apple Watch workout timer</Text>
+              </View>
+            )}
+            <View style={styles.divider} />
+            <Pressable
+              style={styles.contactRow}
+              onPress={() => {
+                const url = Platform.select({
+                  ios: 'https://apps.apple.com/app/pilareta-tribe/id000000000',
+                  android: 'https://play.google.com/store/apps/details?id=com.pilareta.tribe',
+                });
+                if (url) Linking.openURL(url);
+              }}
+            >
+              <View style={styles.settingIconRow}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                  <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.settingLabel}>Rate on App Store</Text>
+              </View>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+                <Path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
             <View style={styles.divider} />
             <View style={styles.aboutRow}>
               <Text style={styles.aboutLabel}>Platform</Text>
@@ -519,5 +607,46 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.semibold,
     color: '#ef4444',
+  },
+  guestMessage: {
+    fontSize: typography.sizes.base,
+    color: colors.fg.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+    lineHeight: 22,
+  },
+  signInButton: {
+    backgroundColor: colors.button.primaryBg,
+    borderRadius: radius.sm,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  signInButtonText: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.button.primaryText,
+  },
+  disabledCard: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    color: colors.fg.disabled,
+  },
+  disabledHint: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    fontStyle: 'italic',
+  },
+  whatsNewContent: {
+    paddingTop: spacing.sm,
+    paddingLeft: spacing.xs,
+    gap: 6,
+  },
+  whatsNewItem: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.secondary,
+    lineHeight: 20,
   },
 });

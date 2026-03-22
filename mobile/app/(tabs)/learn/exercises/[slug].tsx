@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
+import { Video, ResizeMode } from 'expo-av';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Badge } from '@/components/ui';
 import { getExercise } from '@/api/learn';
@@ -93,6 +94,8 @@ export default function ExerciseDetail() {
     );
   }
 
+  const videoRef = useRef<Video>(null);
+
   const ex = data?.exercise;
   if (!ex) {
     return (
@@ -122,6 +125,25 @@ export default function ExerciseDetail() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Video / Hero image */}
+        {ex.videoUrl ? (
+          <View style={styles.videoContainer}>
+            <Video
+              ref={videoRef}
+              source={{ uri: ex.videoUrl }}
+              posterSource={ex.imageUrl ? { uri: ex.imageUrl } : undefined}
+              usePoster={!!ex.imageUrl}
+              style={styles.video}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping
+              shouldPlay={false}
+            />
+          </View>
+        ) : ex.imageUrl ? (
+          <Image source={{ uri: ex.imageUrl }} style={styles.heroImage} resizeMode="cover" />
+        ) : null}
+
         {/* Badges */}
         <View style={styles.badgeRow}>
           <View style={[styles.diffBadge, { backgroundColor: SECTION_COLORS[ex.difficulty] || colors.cream10 }]}>
@@ -283,6 +305,9 @@ const styles = StyleSheet.create({
   favoriteButton: { padding: spacing.xs },
   scroll: { flex: 1 },
   content: { padding: spacing.md, paddingBottom: 100 },
+  videoContainer: { width: '100%', aspectRatio: 16 / 9, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.cream10, marginBottom: spacing.md },
+  video: { width: '100%', height: '100%' },
+  heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: radius.md, marginBottom: spacing.md },
   badgeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   diffBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.xs },
   diffBadgeText: { fontSize: typography.sizes.sm, color: colors.fg.primary, textTransform: 'capitalize', fontWeight: typography.weights.medium },

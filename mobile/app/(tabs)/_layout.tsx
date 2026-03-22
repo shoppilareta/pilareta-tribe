@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { colors, typography } from '@/theme';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 
@@ -60,6 +61,15 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.tabBar.inactive,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
+        tabBarButton: (props) => (
+          <Pressable
+            {...props}
+            onPress={(e) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              props.onPress?.(e);
+            }}
+          />
+        ),
       }}
     >
       <Tabs.Screen

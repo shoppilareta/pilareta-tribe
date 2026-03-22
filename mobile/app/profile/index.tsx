@@ -10,11 +10,15 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
-import { profileApi } from '@/api';
+import { profileApi, apiFetch } from '@/api';
+import { useAuthStore } from '@/stores/authStore';
 import type { UserProfile } from '@shared/types';
 
 const FITNESS_GOALS = [
@@ -26,12 +30,15 @@ const FITNESS_GOALS = [
 ] as const;
 
 export default function ProfileScreen() {
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Form state
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [age, setAge] = useState('');
@@ -42,6 +49,7 @@ export default function ProfileScreen() {
   const populateForm = useCallback((profile: UserProfile) => {
     setDisplayName(profile.displayName || '');
     setBio(profile.bio || '');
+    setAvatarUrl(profile.avatarUrl || null);
     setWeight(profile.weight != null ? String(profile.weight) : '');
     setHeight(profile.height != null ? String(profile.height) : '');
     setAge(profile.age != null ? String(profile.age) : '');
@@ -54,18 +62,52 @@ export default function ProfileScreen() {
     setFitnessGoal(profile.fitnessGoal || null);
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { profile } = await profileApi.getProfile();
-        populateForm(profile);
-      } catch (error) {
-        Alert.alert('Error', 'Failed to load profile. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const fetchProfile = useCallback(async () => {
+    try {
+      const { profile } = await profileApi.getProfile();
+      populateForm(profile);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [populateForm]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const handleAvatarPress = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setUploadingAvatar(true);
+        const formData = new FormData();
+        formData.append('avatar', {
+          uri: result.assets[0].uri,
+          name: 'avatar.jpg',
+          type: 'image/jpeg',
+        } as any);
+        await apiFetch('/api/user/profile/avatar', { method: 'POST', body: formData });
+        await fetchProfile();
+        setUploadingAvatar(false);
+      }
+    } catch {
+      setUploadingAvatar(false);
+      Alert.alert('Error', 'Failed to upload avatar. Please try again.');
+    }
+  };
+
+  const getInitials = () => {
+    const first = user?.firstName?.[0] || displayName?.[0] || user?.email?.[0] || '?';
+    const last = user?.lastName?.[0] || '';
+    return (first + last).toUpperCase();
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -155,6 +197,30 @@ export default function ProfileScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Avatar */}
+          <View style={styles.avatarSection}>
+            <Pressable onPress={handleAvatarPress} disabled={uploadingAvatar} style={styles.avatarContainer}>
+              {uploadingAvatar ? (
+                <View style={styles.avatarCircle}>
+                  <ActivityIndicator color={colors.fg.primary} />
+                </View>
+              ) : avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarCircle} />
+              ) : (
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarInitials}>{getInitials()}</Text>
+                </View>
+              )}
+              <View style={styles.avatarEditBadge}>
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.button.primaryText} strokeWidth={2}>
+                  <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M12 17a4 4 0 100-8 4 4 0 000 8z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </View>
+            </Pressable>
+            <Text style={styles.avatarHint}>Tap to change photo</Text>
+          </View>
+
           {/* Personal Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Personal Information</Text>
@@ -463,5 +529,45 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.base,
     fontWeight: typography.weights.semibold,
     color: colors.button.primaryText,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    paddingTop: spacing.md,
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatarCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.cream10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarInitials: {
+    fontSize: 28,
+    fontWeight: typography.weights.bold,
+    color: colors.fg.primary,
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.button.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.bg.primary,
+  },
+  avatarHint: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    marginTop: spacing.xs,
   },
 });

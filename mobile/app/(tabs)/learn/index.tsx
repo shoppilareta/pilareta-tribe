@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
-import { Card } from '@/components/ui';
+import { Card, LearnSkeleton } from '@/components/ui';
 import { getExercises, getPrograms } from '@/api/learn';
 import { ExerciseCard } from '@/components/learn/ExerciseCard';
 import { ProgramCard } from '@/components/learn/ProgramCard';
@@ -23,22 +23,25 @@ export default function LearnScreen() {
   const [search, setSearch] = useState('');
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
 
-  const { data: exerciseData, isLoading: loadingExercises } = useQuery({
+  const { data: exerciseData, isLoading: loadingExercises, isRefetching: refetchingExercises, refetch: refetchExercises } = useQuery({
     queryKey: ['learn-exercises'],
     queryFn: getExercises,
     staleTime: 1000 * 60 * 10,
   });
 
-  const { data: programData, isLoading: loadingPrograms } = useQuery({
+  const { data: programData, isLoading: loadingPrograms, isRefetching: refetchingPrograms, refetch: refetchPrograms } = useQuery({
     queryKey: ['learn-programs'],
     queryFn: getPrograms,
     staleTime: 1000 * 60 * 10,
   });
 
-  // Reload saved sessions when screen focuses
+  // Reload saved sessions when screen focuses; clear search on blur
   useFocusEffect(
     useCallback(() => {
       getSavedSessions().then(setSavedSessions);
+      return () => {
+        setSearch('');
+      };
     }, [])
   );
 
@@ -72,7 +75,19 @@ export default function LearnScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refetchingExercises || refetchingPrograms}
+            onRefresh={() => { refetchExercises(); refetchPrograms(); }}
+            tintColor={colors.fg.primary}
+            colors={[colors.fg.primary]}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Learn</Text>
@@ -228,7 +243,7 @@ export default function LearnScreen() {
                 </ScrollView>
 
                 {loadingExercises ? (
-                  <View style={styles.loading}><ActivityIndicator color={colors.fg.primary} /></View>
+                  <LearnSkeleton />
                 ) : filteredExercises.length === 0 ? (
                   <View style={styles.empty}>
                     <Text style={styles.emptyText}>No exercises match your filters</Text>
@@ -247,7 +262,7 @@ export default function LearnScreen() {
             {tab === 'programs' && (
               <>
                 {loadingPrograms ? (
-                  <View style={styles.loading}><ActivityIndicator color={colors.fg.primary} /></View>
+                  <LearnSkeleton />
                 ) : programs.length === 0 ? (
                   <View style={styles.empty}>
                     <Text style={styles.emptyText}>No programs available yet</Text>

@@ -273,6 +273,52 @@ const cartSkeletonStyles = StyleSheet.create({
   },
 });
 
+/** ─── Community skeleton loader ─── */
+
+export function CommunityFeedSkeleton() {
+  return (
+    <View style={{ padding: spacing.md }}>
+      {[1, 2, 3].map(i => (
+        <View key={i} style={{ marginBottom: spacing.md }}>
+          {/* Author row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+            <Skeleton style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <View style={{ marginLeft: spacing.sm }}>
+              <Skeleton style={{ width: 100, height: 12, borderRadius: 4 }} />
+              <Skeleton style={{ width: 60, height: 10, borderRadius: 4, marginTop: 4 }} />
+            </View>
+          </View>
+          {/* Image */}
+          <Skeleton style={{ width: '100%', aspectRatio: 1, borderRadius: radius.md }} />
+          {/* Caption */}
+          <Skeleton style={{ width: '80%', height: 12, borderRadius: 4, marginTop: spacing.sm }} />
+          <Skeleton style={{ width: '50%', height: 12, borderRadius: 4, marginTop: 4 }} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** ─── Learn skeleton loader ─── */
+
+export function LearnSkeleton() {
+  return (
+    <View style={{ padding: spacing.md }}>
+      {/* Search bar placeholder */}
+      <Skeleton style={{ height: 40, borderRadius: radius.md, marginBottom: spacing.md }} />
+      {/* Tab bar placeholder */}
+      <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+        <Skeleton style={{ width: 80, height: 32, borderRadius: radius.full }} />
+        <Skeleton style={{ width: 80, height: 32, borderRadius: radius.full }} />
+      </View>
+      {/* Cards */}
+      {[1, 2, 3, 4].map(i => (
+        <Skeleton key={i} style={{ height: 80, borderRadius: radius.md, marginBottom: spacing.sm }} />
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   base: {
     backgroundColor: colors.cream10,

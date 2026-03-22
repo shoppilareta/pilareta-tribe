@@ -1,11 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl, TextInput, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { PostCard } from '@/components/community';
+import { CommunityFeedSkeleton } from '@/components/ui';
 import { getFeed, getTags, getMyPosts, getFeatured } from '@/api/community';
 import { API_BASE } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -27,6 +28,14 @@ export default function CommunityFeed() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSearchQuery('');
+      };
+    }, [])
+  );
 
   const { data: tagsData } = useQuery({
     queryKey: ['community-tags'],
@@ -276,9 +285,7 @@ export default function CommunityFeed() {
 
       {/* Feed */}
       {feedQuery.isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.fg.primary} />
-        </View>
+        <CommunityFeedSkeleton />
       ) : feedQuery.isError ? (
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>Something went wrong</Text>

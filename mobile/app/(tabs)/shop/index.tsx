@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, SectionList, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, SectionList, Pressable, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
@@ -83,12 +83,20 @@ export default function ShopScreen() {
   const [sortOption, setSortOption] = useState<'default' | 'price-asc' | 'price-desc'>('default');
   const [showSortMenu, setShowSortMenu] = useState(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSearchQuery('');
+      };
+    }, [])
+  );
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['shop-products'],
     queryFn: getProducts,
   });
@@ -313,6 +321,14 @@ export default function ShopScreen() {
         </View>
       ) : (
         <SectionList
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.fg.primary}
+              colors={[colors.fg.primary]}
+            />
+          }
           ListHeaderComponent={
             <>
               <BannerCarousel />

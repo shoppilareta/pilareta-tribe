@@ -14,9 +14,10 @@ import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
+import { STORAGE_KEYS } from '@/constants/storage-keys';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ONBOARDING_KEY = 'pilareta_onboarding_complete';
+const ONBOARDING_KEY = STORAGE_KEYS.ONBOARDING_COMPLETE;
 
 interface OnboardingPage {
   id: string;
@@ -67,6 +68,36 @@ const PAGES: OnboardingPage[] = [
     subtitle: 'Grow with the community',
     description:
       'Explore exercises and programs, share your journey with the community, and discover studios nearby.',
+  },
+  {
+    id: 'studios',
+    icon: (
+      <View style={[pageStyles.iconCircle, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
+        <Svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth={2}>
+          <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx={12} cy={10} r={3} />
+        </Svg>
+      </View>
+    ),
+    title: 'Discover\nStudios',
+    subtitle: 'Find Pilates near you',
+    description:
+      'Find Pilates studios near you with maps, directions, reviews, and amenity filters.',
+  },
+  {
+    id: 'shop',
+    icon: (
+      <View style={[pageStyles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+        <Svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth={2}>
+          <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18" strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      </View>
+    ),
+    title: 'Shop\nPilareta',
+    subtitle: 'Curated activewear & gear',
+    description:
+      'Browse our curated collection of activewear and accessories. Sale alerts, wishlists, and easy checkout.',
   },
   {
     id: 'start',
