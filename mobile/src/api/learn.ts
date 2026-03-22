@@ -33,3 +33,17 @@ export async function buildSession(params: BuildSessionRequest): Promise<BuildSe
 export async function getSession(id: string): Promise<{ session: PilatesSession }> {
   return apiFetch(`/api/learn/session/${id}`, { skipAuth: true });
 }
+
+export async function getExerciseCompletionStats(slug: string): Promise<{ completionCount: number; lastCompletedAt: string | null }> {
+  return apiFetch(`/api/learn/exercises/${slug}/stats`);
+}
+
+export async function getProgramProgress(slug: string): Promise<{
+  progress: {
+    currentWeek: number;
+    completedSessionIds: string[];
+    status: string;
+  } | null;
+}> {
+  return apiFetch(`/api/learn/programs/${slug}/progress`);
+}

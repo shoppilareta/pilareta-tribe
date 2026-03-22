@@ -25,7 +25,7 @@ export function ExerciseCard({ exercise }: ExerciseCardProps) {
           <Text style={styles.rpe}>RPE {exercise.rpeTarget}</Text>
         </View>
 
-        <Text style={styles.name} numberOfLines={1}>{exercise.name}</Text>
+        <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
         <Text style={styles.description} numberOfLines={2}>{exercise.description}</Text>
 
         {exercise.focusAreas.length > 0 && (
@@ -66,15 +66,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   difficultyBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: radius.xs,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   difficultyText: {
-    fontSize: 11,
+    fontSize: typography.sizes.xs,
     color: colors.fg.primary,
-    textTransform: 'capitalize',
-    fontWeight: typography.weights.medium,
+    textTransform: 'uppercase',
+    fontWeight: typography.weights.semibold,
+    letterSpacing: 0.5,
   },
   rpe: {
     fontSize: typography.sizes.xs,
@@ -85,6 +88,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     color: colors.fg.primary,
     marginBottom: 4,
+    lineHeight: 22,
   },
   description: {
     fontSize: typography.sizes.sm,

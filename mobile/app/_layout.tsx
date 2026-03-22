@@ -177,6 +177,7 @@ export default function RootLayout() {
       <Stack.Screen name="auth/login" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="auth/callback" options={{ presentation: 'transparentModal' }} />
       <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="community-profile/[userId]" options={{ animation: 'slide_from_right' }} />
     </Stack>
   ) : (
     <View style={styles.loading}>

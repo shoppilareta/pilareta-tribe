@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Badge } from '@/components/ui';
-import { getProgram } from '@/api/learn';
+import { getProgram, getProgramProgress } from '@/api/learn';
 
 interface ProgramWeek {
   weekNumber: number;
@@ -15,6 +15,7 @@ interface ProgramWeek {
   sessions: {
     dayNumber: number;
     title: string;
+    sessionId?: string | null;
     template?: {
       name: string;
       durationMinutes: number;
@@ -60,6 +61,15 @@ export default function ProgramDetail() {
     queryFn: () => getProgram(slug!),
     enabled: !!slug,
   });
+
+  // 3B: Program progress
+  const { data: progressData } = useQuery({
+    queryKey: ['program-progress', slug],
+    queryFn: () => getProgramProgress(slug!),
+    enabled: !!slug,
+  });
+
+  const progress = progressData?.progress ?? null;
 
   if (isLoading) {
     return (
@@ -119,6 +129,44 @@ export default function ProgramDetail() {
           </Card>
         </View>
 
+        {/* 3B: Program progress */}
+        {progress && progress.status !== 'completed' && (
+          <View style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>Your Progress</Text>
+              <Badge text={progress.status === 'in_progress' ? 'In Progress' : 'Paused'} variant={progress.status === 'in_progress' ? 'success' : 'warning'} />
+            </View>
+            <Text style={styles.progressInfo}>
+              Week {progress.currentWeek} of {program.durationWeeks}  {'\u00B7'}  {progress.completedSessionIds.length} / {totalSessions} sessions
+            </Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${Math.round((progress.completedSessionIds.length / totalSessions) * 100)}%` }]} />
+            </View>
+            {/* Find next uncompleted session and add Resume button */}
+            {(() => {
+              // Find the first session with a sessionId that is not in completedSessionIds
+              for (const week of program.weeks ?? []) {
+                for (const session of week.sessions ?? []) {
+                  if (session.sessionId && !progress.completedSessionIds.includes(session.sessionId)) {
+                    return (
+                      <Pressable
+                        onPress={() => router.push(`/(tabs)/learn/session/${session.sessionId}`)}
+                        style={styles.resumeButton}
+                      >
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.bg.primary} strokeWidth={2}>
+                          <Path d="M5 3l14 9-14 9V3z" strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                        <Text style={styles.resumeButtonText}>Resume - Week {week.weekNumber}, Day {session.dayNumber}</Text>
+                      </Pressable>
+                    );
+                  }
+                }
+              }
+              return null;
+            })()}
+          </View>
+        )}
+
         {/* Benefits */}
         {program.benefits.length > 0 && (
           <View style={styles.section}>
@@ -145,8 +193,20 @@ export default function ProgramDetail() {
               onPress={() => setExpandedWeek(expandedWeek === week.weekNumber ? null : week.weekNumber)}
               style={styles.weekHeader}
             >
-              <View>
-                <Text style={styles.weekTitle}>{week.title || `Week ${week.weekNumber}`}</Text>
+              <View style={{ flex: 1 }}>
+                <View style={styles.weekTitleRow}>
+                  <Text style={styles.weekTitle}>{week.title || `Week ${week.weekNumber}`}</Text>
+                  {progress && (() => {
+                    const weekSessionIds = (week.sessions ?? []).map((s) => s.sessionId).filter(Boolean) as string[];
+                    const completedCount = weekSessionIds.filter((sid) => progress.completedSessionIds.includes(sid)).length;
+                    if (weekSessionIds.length === 0) return null;
+                    return (
+                      <Text style={styles.weekProgress}>
+                        {completedCount}/{weekSessionIds.length}
+                      </Text>
+                    );
+                  })()}
+                </View>
                 {week.focus && <Text style={styles.weekFocus}>{week.focus}</Text>}
               </View>
               <Text style={styles.chevron}>{expandedWeek === week.weekNumber ? '\u25B2' : '\u25BC'}</Text>
@@ -168,6 +228,17 @@ export default function ProgramDetail() {
                     </View>
                   </View>
                 ))}
+                {session.sessionId && (
+                  <Pressable
+                    onPress={() => router.push(`/(tabs)/learn/session/${session.sessionId}`)}
+                    style={styles.startWorkoutButton}
+                  >
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.bg.primary} strokeWidth={2}>
+                      <Path d="M5 3l14 9-14 9V3z" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                    <Text style={styles.startWorkoutText}>Start Workout</Text>
+                  </Pressable>
+                )}
               </View>
             ))}
           </View>
@@ -199,9 +270,19 @@ const styles = StyleSheet.create({
   prereqCard: { marginBottom: spacing.lg, backgroundColor: colors.cream10 },
   prereqLabel: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: 4 },
   prereqText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 18 },
+  progressCard: { backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, padding: spacing.md, marginBottom: spacing.lg },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  progressTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary },
+  progressInfo: { fontSize: typography.sizes.sm, color: colors.fg.secondary, marginBottom: spacing.sm },
+  progressBarContainer: { height: 6, backgroundColor: colors.cream10, borderRadius: 3, marginBottom: spacing.sm, overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: 'rgba(34, 197, 94, 0.8)', borderRadius: 3 },
+  resumeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.button.primaryBg, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.sm },
+  resumeButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.button.primaryText },
   weekContainer: { backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, marginBottom: spacing.sm, overflow: 'hidden' },
   weekHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md },
+  weekTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   weekTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary },
+  weekProgress: { fontSize: typography.sizes.xs, color: 'rgba(34, 197, 94, 0.8)', fontWeight: typography.weights.medium },
   weekFocus: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, marginTop: 2 },
   chevron: { fontSize: 12, color: colors.fg.tertiary },
   sessionContainer: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default },
@@ -211,4 +292,6 @@ const styles = StyleSheet.create({
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: typography.sizes.sm, color: colors.fg.primary },
   exerciseDetails: { fontSize: 11, color: colors.fg.tertiary },
+  startWorkoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.button.primaryBg, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.sm, marginTop: spacing.sm },
+  startWorkoutText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.button.primaryText },
 });

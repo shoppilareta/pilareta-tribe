@@ -1,5 +1,5 @@
-import { useState, memo, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Image, Dimensions, Linking } from 'react-native';
+import { useState, useRef, memo, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, Dimensions, Linking, Share, Animated } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
@@ -84,6 +84,10 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
   const [saved, setSaved] = useState(post.isSaved ?? false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [imageFailed, setImageFailed] = useState(false);
+  const [showHeartOverlay, setShowHeartOverlay] = useState(false);
+  const heartScale = useRef(new Animated.Value(0)).current;
+  const heartOpacity = useRef(new Animated.Value(0)).current;
+  const lastTapRef = useRef(0);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
 
   const displayName = post.user?.displayName || post.user?.firstName || 'Anonymous';
@@ -93,6 +97,55 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
   const handleImageError = useCallback(() => {
     setImageFailed(true);
   }, []);
+
+  const handleShare = useCallback(async () => {
+    try {
+      await Share.share({
+        message: `Check out this post on Pilareta Tribe! https://tribe.pilareta.com/community/post/${post.id}`,
+      });
+    } catch {
+      // user cancelled
+    }
+  }, [post.id]);
+
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDoubleTap = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double tap detected - cancel the pending single tap navigation
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      if (!isLoggedIn) return;
+      if (!liked) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setLiked(true);
+        setLikesCount((c) => c + 1);
+        likePost(post.id).catch(() => {
+          setLiked(false);
+          setLikesCount((c) => c - 1);
+        });
+        onInteraction?.();
+      }
+      // Show heart animation
+      setShowHeartOverlay(true);
+      heartScale.setValue(0);
+      heartOpacity.setValue(1);
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, friction: 3 }),
+        Animated.timing(heartOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start(() => setShowHeartOverlay(false));
+    } else {
+      // First tap - schedule navigation after delay
+      singleTapTimerRef.current = setTimeout(() => {
+        router.push(`/(tabs)/community/${post.id}`);
+        singleTapTimerRef.current = null;
+      }, 300);
+    }
+    lastTapRef.current = now;
+  }, [liked, isLoggedIn, post.id, heartScale, heartOpacity, onInteraction]);
 
   const handleLike = async () => {
     if (!isLoggedIn) return;
@@ -134,13 +187,15 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
     <Card style={styles.card}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{displayName[0]?.toUpperCase()}</Text>
-        </View>
-        <View style={styles.headerInfo}>
-          <Text style={styles.userName}>{displayName}</Text>
-          <Text style={styles.timeAgo}>{timeAgo(post.createdAt)}</Text>
-        </View>
+        <Pressable style={styles.authorTap} onPress={() => router.push(`/community-profile/${post.userId}`)}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{displayName[0]?.toUpperCase()}</Text>
+          </View>
+          <View style={styles.headerInfo}>
+            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={styles.timeAgo}>{timeAgo(post.createdAt)}</Text>
+          </View>
+        </Pressable>
         {post.studio && (
           <View style={styles.studioBadge}>
             <Text style={styles.studioText} numberOfLines={1}>{post.studio.name}</Text>
@@ -149,38 +204,51 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
       </View>
 
       {/* Media */}
-      {post.mediaType === 'instagram' && post.instagramUrl ? (
-        <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
-          {imageUrl && !imageFailed ? (
+      <View>
+        {post.mediaType === 'instagram' && post.instagramUrl ? (
+          <Pressable onPress={handleDoubleTap}>
+            {imageUrl && !imageFailed ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={[styles.image, { width: IMAGE_WIDTH, height: IMAGE_WIDTH / aspectRatio }]}
+                resizeMode="cover"
+                onError={handleImageError}
+              />
+            ) : (
+              <View style={[styles.instagramPlaceholder, { width: IMAGE_WIDTH }]}>
+                <Text style={styles.instagramLabel}>Instagram Post</Text>
+                <Text style={styles.instagramHint}>Tap to view</Text>
+              </View>
+            )}
+          </Pressable>
+        ) : imageUrl && !imageFailed ? (
+          <Pressable onPress={handleDoubleTap}>
             <Image
               source={{ uri: imageUrl }}
               style={[styles.image, { width: IMAGE_WIDTH, height: IMAGE_WIDTH / aspectRatio }]}
               resizeMode="cover"
               onError={handleImageError}
             />
-          ) : (
-            <View style={[styles.instagramPlaceholder, { width: IMAGE_WIDTH }]}>
-              <Text style={styles.instagramLabel}>Instagram Post</Text>
-              <Text style={styles.instagramHint}>Tap to view</Text>
+          </Pressable>
+        ) : !imageUrl ? null : (
+          <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
+            <View style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: IMAGE_WIDTH }]}>
+              <Text style={styles.instagramLabel}>Image unavailable</Text>
             </View>
-          )}
-        </Pressable>
-      ) : imageUrl && !imageFailed ? (
-        <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
-          <Image
-            source={{ uri: imageUrl }}
-            style={[styles.image, { width: IMAGE_WIDTH, height: IMAGE_WIDTH / aspectRatio }]}
-            resizeMode="cover"
-            onError={handleImageError}
-          />
-        </Pressable>
-      ) : !imageUrl ? null : (
-        <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
-          <View style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: IMAGE_WIDTH }]}>
-            <Text style={styles.instagramLabel}>Image unavailable</Text>
-          </View>
-        </Pressable>
-      )}
+          </Pressable>
+        )}
+        {/* Heart overlay for double-tap */}
+        {showHeartOverlay && (
+          <Animated.View
+            style={[styles.heartOverlay, { opacity: heartOpacity, transform: [{ scale: heartScale }] }]}
+            pointerEvents="none"
+          >
+            <Svg width={80} height={80} viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth={1}>
+              <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+            </Svg>
+          </Animated.View>
+        )}
+      </View>
 
       {/* Workout recap badge */}
       {post.workoutRecap && (
@@ -206,6 +274,12 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
               <Path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
             {post.commentsCount > 0 && <Text style={styles.actionCount}>{post.commentsCount}</Text>}
+          </Pressable>
+
+          <Pressable onPress={handleShare} style={styles.actionButton} hitSlop={8}>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+              <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           </Pressable>
         </View>
 
@@ -263,4 +337,6 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.xs, backgroundColor: colors.cream05 },
   tagText: { fontSize: 11, color: colors.fg.tertiary },
+  authorTap: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  heartOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
 });

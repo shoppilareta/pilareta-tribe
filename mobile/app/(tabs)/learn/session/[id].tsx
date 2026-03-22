@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -17,6 +17,19 @@ const SECTION_COLORS: Record<string, string> = {
   cooldown: 'rgba(150, 255, 150, 0.3)',
 };
 
+const SECTION_LABELS: Record<string, string> = {
+  warmup: 'Warm Up',
+  activation: 'Activation',
+  main: 'Main Set',
+  cooldown: 'Cool Down',
+};
+
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 export default function SessionPlayer() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -24,7 +37,9 @@ export default function SessionPlayer() {
   const [isResting, setIsResting] = useState(false);
   const [restTime, setRestTime] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['learn-session', id],
@@ -38,14 +53,30 @@ export default function SessionPlayer() {
   const totalItems = items.length;
   const progress = totalItems > 0 ? ((currentIndex + 1) / totalItems) * 100 : 0;
 
-  // Rest timer
+  // Elapsed time counter
+  useEffect(() => {
+    if (totalItems > 0) {
+      elapsedRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
+  }, [totalItems]);
+
+  // Rest timer with haptic/vibration cue when it ends
   useEffect(() => {
     if (isResting && restTime > 0) {
       timerRef.current = setInterval(() => {
         setRestTime((prev) => {
           if (prev <= 1) {
             setIsResting(false);
+            // Strong haptic feedback when rest ends
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             return 0;
+          }
+          // Gentle tick at 3, 2, 1 seconds
+          if (prev <= 4) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }
           return prev - 1;
         });
@@ -74,10 +105,14 @@ export default function SessionPlayer() {
       setCurrentSet(1);
     } else {
       // Session complete
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace(`/(tabs)/learn/session/${id}/complete`);
+      router.replace({
+        pathname: '/(tabs)/learn/session/[id]/complete',
+        params: { id: id!, elapsed: String(elapsedSeconds) },
+      });
     }
-  }, [currentItem, currentSet, currentIndex, totalItems, id]);
+  }, [currentItem, currentSet, currentIndex, totalItems, id, elapsedSeconds]);
 
   const handlePrevious = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -85,14 +120,15 @@ export default function SessionPlayer() {
       setCurrentSet((s) => s - 1);
     } else if (currentIndex > 0) {
       setCurrentIndex((i) => i - 1);
-      setCurrentSet(items[currentIndex - 1]?.sets ?? 1);
+      setCurrentSet(1);
     }
-  }, [currentSet, currentIndex, items]);
+  }, [currentSet, currentIndex]);
 
   const skipRest = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setIsResting(false);
     setRestTime(0);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   if (isLoading) {
@@ -130,15 +166,18 @@ export default function SessionPlayer() {
         </Pressable>
         <View style={styles.headerCenter}>
           <View style={[styles.sectionBadge, { backgroundColor: SECTION_COLORS[currentItem.section] || colors.cream10 }]}>
-            <Text style={styles.sectionText}>{currentItem.section}</Text>
+            <Text style={styles.sectionText}>{SECTION_LABELS[currentItem.section] || currentItem.section}</Text>
           </View>
           <Text style={styles.counter}>{currentIndex + 1} / {totalItems}</Text>
         </View>
-        <Pressable onPress={() => setShowDetails(!showDetails)} style={styles.infoButton}>
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
-            <Path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Text style={styles.elapsedTime}>{formatElapsed(elapsedSeconds)}</Text>
+          <Pressable onPress={() => setShowDetails(!showDetails)} style={styles.infoButton}>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+              <Path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </Pressable>
+        </View>
       </View>
 
       {/* Rest overlay */}
@@ -153,7 +192,7 @@ export default function SessionPlayer() {
 
       {/* Main content */}
       {!isResting && (
-        <View style={styles.mainContent}>
+        <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.exerciseName}>{currentItem.exercise.name}</Text>
 
           <View style={styles.setInfo}>
@@ -198,7 +237,7 @@ export default function SessionPlayer() {
               )}
             </View>
           )}
-        </View>
+        </ScrollView>
       )}
 
       {/* Footer buttons */}
@@ -232,16 +271,19 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   closeButton: { padding: spacing.xs },
   headerCenter: { alignItems: 'center' },
-  sectionBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.xs, marginBottom: 2 },
-  sectionText: { fontSize: 11, color: colors.fg.primary, textTransform: 'uppercase', fontWeight: typography.weights.medium, letterSpacing: 0.5 },
+  sectionBadge: { paddingHorizontal: 16, paddingVertical: 5, borderRadius: radius.sm, marginBottom: 2 },
+  sectionText: { fontSize: typography.sizes.xs, color: colors.fg.primary, textTransform: 'uppercase', fontWeight: typography.weights.bold, letterSpacing: 1 },
   counter: { fontSize: typography.sizes.xs, color: colors.fg.tertiary },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  elapsedTime: { fontSize: typography.sizes.xs, color: colors.fg.tertiary, fontVariant: ['tabular-nums'] },
   infoButton: { padding: spacing.xs },
   restOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   restLabel: { fontSize: typography.sizes.lg, color: colors.fg.tertiary, marginBottom: spacing.sm },
   restTimer: { fontSize: 80, fontWeight: typography.weights.bold, color: colors.fg.primary, marginBottom: spacing.md },
   restNext: { fontSize: typography.sizes.base, color: colors.fg.secondary, marginBottom: spacing.xl },
   skipButton: { minWidth: 160 },
-  mainContent: { flex: 1, padding: spacing.md, paddingTop: spacing.xl },
+  mainScroll: { flex: 1 },
+  mainContent: { padding: spacing.md, paddingTop: spacing.xl, paddingBottom: spacing.xl },
   exerciseName: { fontSize: typography.sizes['2xl'], fontWeight: typography.weights.bold, color: colors.fg.primary, textAlign: 'center', marginBottom: spacing.lg },
   setInfo: { alignItems: 'center', marginBottom: spacing.lg },
   setLabel: { fontSize: typography.sizes.base, color: colors.fg.secondary, marginBottom: 4 },

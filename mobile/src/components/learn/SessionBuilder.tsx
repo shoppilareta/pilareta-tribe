@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Button } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import { buildSession } from '@/api/learn';
+import { ApiError } from '@/api/client';
 
 const GOALS = [
   { value: 'core_stability', label: 'Core Stability', emoji: '\u{1F3AF}' },
@@ -53,9 +54,13 @@ export function SessionBuilder() {
       const result = await buildSession({ goal, duration, level, constraints });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(`/(tabs)/learn/session/${result.sessionId}`);
-    } catch {
+    } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'Failed to build session. Please try again.');
+      if (err instanceof ApiError && err.status === 400) {
+        Alert.alert('No Matches', 'No exercises match your criteria. Try different settings.');
+      } else {
+        Alert.alert('Error', 'Failed to build session. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

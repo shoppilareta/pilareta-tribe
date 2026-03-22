@@ -1,16 +1,53 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Button } from '@/components/ui';
 import { createPost, getTags } from '@/api/community';
 
 type PostMode = 'photo' | 'instagram';
+
+const DRAFT_KEY = 'pilareta_post_draft';
+
+interface Draft {
+  mode: PostMode;
+  caption: string;
+  instagramUrl: string;
+  selectedTags: string[];
+  imageUri?: string;
+}
+
+async function loadDraft(): Promise<Draft | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function saveDraft(draft: Draft): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // ignore
+  }
+}
+
+async function clearDraft(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 export default function CreatePost() {
   const [mode, setMode] = useState<PostMode>('photo');
@@ -19,7 +56,10 @@ export default function CreatePost() {
   const [caption, setCaption] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
   const queryClient = useQueryClient();
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: tagsData } = useQuery({
     queryKey: ['community-tags'],
@@ -27,6 +67,50 @@ export default function CreatePost() {
   });
 
   const tags = tagsData?.tags ?? [];
+
+  // Load draft on mount (3A)
+  useEffect(() => {
+    (async () => {
+      const draft = await loadDraft();
+      if (draft) {
+        setHasDraft(true);
+        setMode(draft.mode);
+        setCaption(draft.caption);
+        setInstagramUrl(draft.instagramUrl);
+        setSelectedTags(draft.selectedTags);
+        if (draft.imageUri) {
+          const ext = draft.imageUri.split('.').pop() || 'jpg';
+          setImage({
+            uri: draft.imageUri,
+            type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+            name: `photo.${ext}`,
+          });
+        }
+      }
+      setDraftLoaded(true);
+    })();
+  }, []);
+
+  // Auto-save draft on changes (3A) - debounced
+  useEffect(() => {
+    if (!draftLoaded) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      const hasContent = caption.trim() || instagramUrl.trim() || image || selectedTags.length > 0;
+      if (hasContent) {
+        saveDraft({
+          mode,
+          caption,
+          instagramUrl,
+          selectedTags,
+          imageUri: image?.uri,
+        });
+      }
+    }, 1000);
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [mode, caption, instagramUrl, selectedTags, image, draftLoaded]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -81,6 +165,25 @@ export default function CreatePost() {
     );
   };
 
+  const handleDiscardDraft = () => {
+    Alert.alert('Discard Draft?', 'Your draft will be permanently deleted.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: () => {
+          setCaption('');
+          setInstagramUrl('');
+          setImage(null);
+          setSelectedTags([]);
+          setMode('photo');
+          setHasDraft(false);
+          clearDraft();
+        },
+      },
+    ]);
+  };
+
   const canSubmit =
     !submitting &&
     ((mode === 'photo' && image) || (mode === 'instagram' && instagramUrl.trim()));
@@ -96,6 +199,9 @@ export default function CreatePost() {
         caption: caption.trim() || undefined,
         tagIds: selectedTags.length > 0 ? selectedTags : undefined,
       });
+
+      // Clear draft on successful submission
+      await clearDraft();
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['community-feed'] });
@@ -122,8 +228,21 @@ export default function CreatePost() {
           </Svg>
         </Pressable>
         <Text style={styles.headerTitle}>New Post</Text>
-        <View style={{ width: 36 }} />
+        {hasDraft ? (
+          <Pressable onPress={handleDiscardDraft} style={styles.discardButton}>
+            <Text style={styles.discardText}>Discard</Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
+
+      {/* Draft restored banner */}
+      {hasDraft && draftLoaded && (
+        <View style={styles.draftBanner}>
+          <Text style={styles.draftBannerText}>Draft restored</Text>
+        </View>
+      )}
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Mode tabs */}
@@ -256,6 +375,10 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   closeButton: { padding: spacing.xs },
   headerTitle: { flex: 1, fontSize: typography.sizes.lg, fontWeight: typography.weights.semibold, color: colors.fg.primary, textAlign: 'center' },
+  discardButton: { padding: spacing.xs },
+  discardText: { fontSize: typography.sizes.sm, color: 'rgba(239, 68, 68, 0.8)' },
+  draftBanner: { backgroundColor: colors.cream05, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, alignItems: 'center' },
+  draftBannerText: { fontSize: typography.sizes.sm, color: colors.fg.tertiary },
   scroll: { flex: 1 },
   content: { padding: spacing.md, paddingBottom: spacing.xl },
   modeRow: { flexDirection: 'row', backgroundColor: colors.bg.card, borderRadius: radius.md, padding: 3, marginBottom: spacing.lg },

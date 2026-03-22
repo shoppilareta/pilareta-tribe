@@ -1,18 +1,31 @@
-import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl, TextInput, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { PostCard } from '@/components/community';
-import { getFeed, getTags } from '@/api/community';
+import { getFeed, getTags, getMyPosts, getFeatured } from '@/api/community';
+import { API_BASE } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
 import type { UgcPost } from '@shared/types';
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+function resolveMediaUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
+}
+
+type FeedType = 'discover' | 'following' | 'mine';
+
 export default function CommunityFeed() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [activeFeed, setActiveFeed] = useState<'discover' | 'following'>('discover');
+  const [activeFeed, setActiveFeed] = useState<FeedType>('discover');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
 
   const { data: tagsData } = useQuery({
@@ -20,37 +33,142 @@ export default function CommunityFeed() {
     queryFn: getTags,
   });
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isError,
-    refetch,
-    isRefetching,
-  } = useInfiniteQuery({
+  // Main feed query (discover / following)
+  const feedQuery = useInfiniteQuery({
     queryKey: ['community-feed', selectedTag, activeFeed],
-    queryFn: ({ pageParam }) => getFeed({
-      cursor: pageParam,
-      limit: 15,
-      tag: selectedTag || undefined,
-      feed: activeFeed === 'following' ? 'following' : undefined,
-    }),
+    queryFn: ({ pageParam }) => {
+      if (activeFeed === 'mine') {
+        return getMyPosts({ cursor: pageParam, limit: 15 });
+      }
+      return getFeed({
+        cursor: pageParam,
+        limit: 15,
+        tag: selectedTag || undefined,
+        feed: activeFeed === 'following' ? 'following' : undefined,
+      });
+    },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const posts = data?.pages.flatMap((p) => p.posts) ?? [];
+  // Trending posts (2B)
+  const { data: trendingData } = useQuery({
+    queryKey: ['community-trending'],
+    queryFn: () => getFeatured(6),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const trendingPosts = trendingData?.posts ?? [];
+
+  const posts = feedQuery.data?.pages.flatMap((p) => p.posts) ?? [];
   const tags = tagsData?.tags ?? [];
 
+  // Client-side search filtering (2A)
+  const filteredPosts = useMemo(() => {
+    if (!searchQuery.trim()) return posts;
+    const q = searchQuery.toLowerCase();
+    return posts.filter(
+      (p) =>
+        p.caption?.toLowerCase().includes(q) ||
+        p.user?.displayName?.toLowerCase().includes(q) ||
+        p.user?.firstName?.toLowerCase().includes(q)
+    );
+  }, [posts, searchQuery]);
+
+  // Optimistic update helper for like/save instead of refetching (1D)
+  const handlePostInteraction = useCallback(() => {
+    // No-op: PostCard handles optimistic state internally.
+    // We no longer refetch the entire feed on each interaction.
+  }, []);
+
   const renderPost = useCallback(({ item }: { item: UgcPost }) => (
-    <PostCard post={item} onInteraction={() => refetch()} />
-  ), [refetch]);
+    <PostCard post={item} onInteraction={handlePostInteraction} />
+  ), [handlePostInteraction]);
 
   const handleEndReached = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+    if (feedQuery.hasNextPage && !feedQuery.isFetchingNextPage) feedQuery.fetchNextPage();
+  }, [feedQuery.hasNextPage, feedQuery.isFetchingNextPage, feedQuery.fetchNextPage]);
+
+  // Empty state content based on active feed (1F)
+  const renderEmptyState = () => {
+    if (activeFeed === 'following') {
+      return (
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>No posts here yet</Text>
+          <Text style={styles.emptyText}>Follow some creators to see their posts</Text>
+        </View>
+      );
+    }
+    if (activeFeed === 'mine') {
+      return (
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>You haven't posted yet</Text>
+          <Text style={styles.emptyText}>Share your Pilates journey with the community!</Text>
+          <Pressable onPress={() => router.push('/(tabs)/community/create')} style={styles.emptyButton}>
+            <Text style={styles.emptyButtonText}>Create a Post</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    // Discover
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyTitle}>Be the first to post!</Text>
+        <Text style={styles.emptyText}>Share your Pilates journey with the community</Text>
+        {isLoggedIn && (
+          <Pressable onPress={() => router.push('/(tabs)/community/create')} style={styles.emptyButton}>
+            <Text style={styles.emptyButtonText}>Create a Post</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  };
+
+  // Trending carousel (2B)
+  const renderTrendingItem = useCallback(({ item }: { item: UgcPost }) => {
+    const imageUrl = resolveMediaUrl(item.mediaUrl) || resolveMediaUrl(item.thumbnailUrl);
+    const displayName = item.user?.displayName || item.user?.firstName || 'Anonymous';
+    return (
+      <Pressable
+        onPress={() => router.push(`/(tabs)/community/${item.id}`)}
+        style={styles.trendingCard}
+      >
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.trendingImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.trendingImage, styles.trendingPlaceholder]}>
+            <Text style={styles.trendingPlaceholderText}>{displayName[0]?.toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={styles.trendingOverlay}>
+          <Text style={styles.trendingName} numberOfLines={1}>{displayName}</Text>
+          <View style={styles.trendingLikes}>
+            <Svg width={12} height={12} viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth={1}>
+              <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+            </Svg>
+            <Text style={styles.trendingLikesText}>{item.likesCount}</Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }, []);
+
+  const ListHeader = useMemo(() => {
+    if (activeFeed !== 'discover' || trendingPosts.length === 0) return null;
+    return (
+      <View style={styles.trendingSection}>
+        <Text style={styles.trendingSectionTitle}>Trending</Text>
+        <FlatList
+          data={trendingPosts}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(p) => `trending-${p.id}`}
+          contentContainerStyle={styles.trendingList}
+          renderItem={renderTrendingItem}
+        />
+      </View>
+    );
+  }, [activeFeed, trendingPosts, renderTrendingItem]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -60,6 +178,11 @@ export default function CommunityFeed() {
         <View style={styles.headerActions}>
           {isLoggedIn ? (
             <>
+              <Pressable onPress={() => setShowSearch((s) => !s)} style={styles.headerButton} hitSlop={8}>
+                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={showSearch ? colors.fg.primary : colors.fg.secondary} strokeWidth={1.5}>
+                  <Path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </Pressable>
               <Pressable onPress={() => router.push('/(tabs)/community/saved')} style={styles.headerButton} hitSlop={8}>
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
                   <Path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round" />
@@ -72,37 +195,61 @@ export default function CommunityFeed() {
               </Pressable>
             </>
           ) : (
-            <Pressable onPress={() => router.push('/auth/login')} style={styles.signInButton}>
-              <Text style={styles.signInButtonText}>Sign In</Text>
-            </Pressable>
+            <>
+              <Pressable onPress={() => setShowSearch((s) => !s)} style={styles.headerButton} hitSlop={8}>
+                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+                  <Path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </Pressable>
+              <Pressable onPress={() => router.push('/auth/login')} style={styles.signInButton}>
+                <Text style={styles.signInButtonText}>Sign In</Text>
+              </Pressable>
+            </>
           )}
         </View>
       </View>
 
-      {/* Feed Tabs */}
+      {/* Search bar (2A) */}
+      {showSearch && (
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search posts..."
+            placeholderTextColor={colors.fg.muted}
+            autoFocus
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} style={styles.searchClear}>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+                <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {/* Feed Tabs (1E: added Mine tab) */}
       {isLoggedIn && (
         <View style={styles.feedTabs}>
-          <Pressable
-            onPress={() => setActiveFeed('discover')}
-            style={[styles.feedTab, activeFeed === 'discover' && styles.feedTabActive]}
-          >
-            <Text style={[styles.feedTabText, activeFeed === 'discover' && styles.feedTabTextActive]}>
-              Discover
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveFeed('following')}
-            style={[styles.feedTab, activeFeed === 'following' && styles.feedTabActive]}
-          >
-            <Text style={[styles.feedTabText, activeFeed === 'following' && styles.feedTabTextActive]}>
-              Following
-            </Text>
-          </Pressable>
+          {(['discover', 'following', 'mine'] as FeedType[]).map((tab) => (
+            <Pressable
+              key={tab}
+              onPress={() => setActiveFeed(tab)}
+              style={[styles.feedTab, activeFeed === tab && styles.feedTabActive]}
+            >
+              <Text style={[styles.feedTabText, activeFeed === tab && styles.feedTabTextActive]}>
+                {tab === 'discover' ? 'Discover' : tab === 'following' ? 'Following' : 'Mine'}
+              </Text>
+            </Pressable>
+          ))}
         </View>
       )}
 
       {/* Tag filters */}
-      {tags.length > 0 && (
+      {tags.length > 0 && activeFeed !== 'mine' && (
         <View style={styles.tagsContainer}>
           <FlatList
             data={[{ id: 'all', name: 'All', slug: '' }, ...tags]}
@@ -128,31 +275,30 @@ export default function CommunityFeed() {
       )}
 
       {/* Feed */}
-      {isLoading ? (
+      {feedQuery.isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.fg.primary} />
         </View>
-      ) : isError ? (
+      ) : feedQuery.isError ? (
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>Something went wrong</Text>
           <Text style={styles.emptyText}>We couldn't load the feed. Please try again.</Text>
-          <Pressable onPress={() => refetch()} style={styles.retryButton}>
+          <Pressable onPress={() => feedQuery.refetch()} style={styles.retryButton}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </Pressable>
         </View>
-      ) : posts.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>No posts yet</Text>
-          <Text style={styles.emptyText}>Be the first to share something with the community!</Text>
-          {isLoggedIn && (
-            <Pressable onPress={() => router.push('/(tabs)/community/create')} style={styles.emptyButton}>
-              <Text style={styles.emptyButtonText}>Create a Post</Text>
-            </Pressable>
-          )}
-        </View>
+      ) : filteredPosts.length === 0 ? (
+        searchQuery.trim() ? (
+          <View style={styles.centered}>
+            <Text style={styles.emptyTitle}>No results</Text>
+            <Text style={styles.emptyText}>No posts matching "{searchQuery}"</Text>
+          </View>
+        ) : (
+          renderEmptyState()
+        )
       ) : (
         <FlatList
-          data={posts}
+          data={filteredPosts}
           keyExtractor={(p) => p.id}
           renderItem={renderPost}
           contentContainerStyle={styles.feedList}
@@ -160,10 +306,11 @@ export default function CommunityFeed() {
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.fg.primary} />
+            <RefreshControl refreshing={feedQuery.isRefetching} onRefresh={feedQuery.refetch} tintColor={colors.fg.primary} />
           }
+          ListHeaderComponent={ListHeader}
           ListFooterComponent={
-            isFetchingNextPage ? <ActivityIndicator color={colors.fg.primary} style={styles.footerLoader} /> : null
+            feedQuery.isFetchingNextPage ? <ActivityIndicator color={colors.fg.primary} style={styles.footerLoader} /> : null
           }
         />
       )}
@@ -175,7 +322,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   title: { fontSize: typography.sizes['2xl'], fontWeight: typography.weights.bold, color: colors.fg.primary },
-  headerActions: { flexDirection: 'row', gap: spacing.md },
+  headerActions: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   headerButton: { padding: spacing.xs },
   feedTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border.default },
   feedTab: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 2, borderBottomColor: 'transparent' },
@@ -199,4 +346,20 @@ const styles = StyleSheet.create({
   footerLoader: { padding: spacing.lg },
   signInButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.fg.primary },
   signInButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
+  // Search (2A)
+  searchContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  searchInput: { flex: 1, backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: typography.sizes.sm, color: colors.fg.primary },
+  searchClear: { padding: spacing.sm, marginLeft: spacing.xs },
+  // Trending (2B)
+  trendingSection: { marginBottom: spacing.md },
+  trendingSectionTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.sm },
+  trendingList: { gap: spacing.sm },
+  trendingCard: { width: 140, height: 180, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.cream05 },
+  trendingImage: { width: '100%', height: '100%' },
+  trendingPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream10 },
+  trendingPlaceholderText: { fontSize: typography.sizes['2xl'], fontWeight: typography.weights.bold, color: colors.fg.tertiary },
+  trendingOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.sm, backgroundColor: 'rgba(0,0,0,0.4)' },
+  trendingName: { fontSize: 11, color: 'white', fontWeight: typography.weights.semibold },
+  trendingLikes: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  trendingLikesText: { fontSize: 10, color: 'white' },
 });

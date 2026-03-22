@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
@@ -24,6 +24,39 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(days / 7)}w`;
 }
 
+function MentionText({ content }: { content: string }) {
+  const parts = useMemo(() => {
+    const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
+    const result: (string | React.ReactElement)[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = mentionRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        result.push(content.slice(lastIndex, match.index));
+      }
+      const username = match[1];
+      result.push(
+        <Text
+          key={`mention-${match.index}`}
+          style={{ color: '#f59e0b', fontWeight: '600' }}
+        >
+          @{username}
+        </Text>
+      );
+      lastIndex = mentionRegex.lastIndex;
+    }
+
+    if (lastIndex < content.length) {
+      result.push(content.slice(lastIndex));
+    }
+
+    return result;
+  }, [content]);
+
+  return <Text style={styles.commentText}>{parts}</Text>;
+}
+
 function CommentItem({ comment }: { comment: UgcComment }) {
   const name = comment.user?.firstName
     ? `${comment.user.firstName}${comment.user.lastName ? ` ${comment.user.lastName[0]}.` : ''}`
@@ -39,7 +72,7 @@ function CommentItem({ comment }: { comment: UgcComment }) {
           <Text style={styles.commentUser}>{name}</Text>
           <Text style={styles.commentTime}>{timeAgo(comment.createdAt)}</Text>
         </View>
-        <Text style={styles.commentText}>{comment.content}</Text>
+        <MentionText content={comment.content} />
       </View>
     </View>
   );
@@ -66,8 +99,10 @@ export function CommentSection({ postId }: CommentSectionProps) {
       queryClient.invalidateQueries({ queryKey: ['community-post', postId] });
       queryClient.invalidateQueries({ queryKey: ['community-feed'] });
     },
-    onError: () => {
+    onError: (error: unknown) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const message = error instanceof Error ? error.message : 'Failed to post comment. Please try again.';
+      Alert.alert('Comment Error', message);
     },
   });
 
@@ -93,7 +128,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
       {isLoading ? (
         <ActivityIndicator color={colors.fg.primary} style={styles.loader} />
       ) : comments.length === 0 ? (
-        <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
+        <Text style={styles.emptyText}>Be the first to comment</Text>
       ) : (
         <FlatList
           data={comments}
@@ -109,29 +144,36 @@ export function CommentSection({ postId }: CommentSectionProps) {
 
       {/* Comment input */}
       {isLoggedIn && (
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="Add a comment..."
-            placeholderTextColor={colors.fg.muted}
-            multiline
-            maxLength={500}
-          />
-          <Pressable
-            onPress={handleSubmit}
-            disabled={!text.trim() || mutation.isPending}
-            style={[styles.sendButton, (!text.trim() || mutation.isPending) && styles.sendButtonDisabled]}
-          >
-            {mutation.isPending ? (
-              <ActivityIndicator size="small" color={colors.fg.primary} />
-            ) : (
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
-                <Path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round" />
-              </Svg>
-            )}
-          </Pressable>
+        <View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              value={text}
+              onChangeText={setText}
+              placeholder="Add a comment..."
+              placeholderTextColor={colors.fg.muted}
+              multiline
+              maxLength={500}
+            />
+            <Pressable
+              onPress={handleSubmit}
+              disabled={!text.trim() || mutation.isPending}
+              style={[styles.sendButton, (!text.trim() || mutation.isPending) && styles.sendButtonDisabled]}
+            >
+              {mutation.isPending ? (
+                <ActivityIndicator size="small" color={colors.fg.primary} />
+              ) : (
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
+                  <Path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              )}
+            </Pressable>
+          </View>
+          {text.length > 0 && (
+            <Text style={[styles.charCounter, text.length >= 450 && styles.charCounterWarning, text.length >= 490 && styles.charCounterDanger]}>
+              {text.length}/500
+            </Text>
+          )}
         </View>
       )}
     </KeyboardAvoidingView>
@@ -157,4 +199,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, fontSize: typography.sizes.sm, color: colors.fg.primary, maxHeight: 100 },
   sendButton: { padding: spacing.sm },
   sendButtonDisabled: { opacity: 0.3 },
+  charCounter: { fontSize: 11, color: colors.fg.muted, textAlign: 'right', marginTop: 4 },
+  charCounterWarning: { color: '#f59e0b' },
+  charCounterDanger: { color: 'rgba(239, 68, 68, 0.9)' },
 });

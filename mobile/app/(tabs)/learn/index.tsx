@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card } from '@/components/ui';
 import { getExercises, getPrograms } from '@/api/learn';
 import { ExerciseCard } from '@/components/learn/ExerciseCard';
 import { ProgramCard } from '@/components/learn/ProgramCard';
+import { getSavedSessions, removeSavedSession, type SavedSession } from '@/utils/savedSessions';
 
 type Tab = 'exercises' | 'programs';
 
@@ -20,6 +21,7 @@ export default function LearnScreen() {
   const [difficultyFilter, setDifficultyFilter] = useState<string | null>(null);
   const [focusFilter, setFocusFilter] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
 
   const { data: exerciseData, isLoading: loadingExercises } = useQuery({
     queryKey: ['learn-exercises'],
@@ -33,18 +35,40 @@ export default function LearnScreen() {
     staleTime: 1000 * 60 * 10,
   });
 
+  // Reload saved sessions when screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      getSavedSessions().then(setSavedSessions);
+    }, [])
+  );
+
   const exercises = exerciseData?.exercises ?? [];
   const programs = programData?.programs ?? [];
+
+  const searchLower = search.toLowerCase();
 
   const filteredExercises = exercises.filter((ex) => {
     if (difficultyFilter && ex.difficulty !== difficultyFilter) return false;
     if (focusFilter && !ex.focusAreas.includes(focusFilter)) return false;
     if (search) {
-      const q = search.toLowerCase();
-      return ex.name.toLowerCase().includes(q) || ex.description.toLowerCase().includes(q);
+      return ex.name.toLowerCase().includes(searchLower) || ex.description.toLowerCase().includes(searchLower);
     }
     return true;
   });
+
+  // 2C: Search also filters programs
+  const filteredPrograms = search
+    ? programs.filter((p) =>
+        p.name.toLowerCase().includes(searchLower) ||
+        p.description.toLowerCase().includes(searchLower) ||
+        p.focusAreas.some((a) => a.toLowerCase().includes(searchLower))
+      )
+    : programs;
+
+  const handleRemoveSaved = async (sessionId: string) => {
+    const updated = await removeSavedSession(sessionId);
+    setSavedSessions(updated);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -60,97 +84,180 @@ export default function LearnScreen() {
           </Pressable>
         </View>
 
-        {/* Tab switcher */}
-        <View style={styles.tabRow}>
-          <Pressable
-            onPress={() => setTab('exercises')}
-            style={[styles.tab, tab === 'exercises' && styles.tabActive]}
-          >
-            <Text style={[styles.tabText, tab === 'exercises' && styles.tabTextActive]}>
-              Exercises ({exercises.length})
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setTab('programs')}
-            style={[styles.tab, tab === 'programs' && styles.tabActive]}
-          >
-            <Text style={[styles.tabText, tab === 'programs' && styles.tabTextActive]}>
-              Programs ({programs.length})
-            </Text>
-          </Pressable>
+        {/* Search bar */}
+        <View style={styles.searchContainer}>
+          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2} style={styles.searchIcon}>
+            <Path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search exercises & programs..."
+            placeholderTextColor={colors.fg.tertiary}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch('')} style={styles.searchClear}>
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+                <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
+          )}
         </View>
 
-        {tab === 'exercises' && (
-          <>
-            {/* Difficulty filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              <View style={styles.filterRow}>
-                <Pressable
-                  onPress={() => setDifficultyFilter(null)}
-                  style={[styles.filterChip, !difficultyFilter && styles.filterChipActive]}
-                >
-                  <Text style={[styles.filterChipText, !difficultyFilter && styles.filterChipTextActive]}>All</Text>
-                </Pressable>
-                {DIFFICULTY_ORDER.map((d) => (
+        {/* Saved Sessions carousel */}
+        {savedSessions.length > 0 && !search && (
+          <View style={styles.savedSection}>
+            <Text style={styles.savedTitle}>Saved Sessions</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.savedScroll}>
+              <View style={styles.savedRow}>
+                {savedSessions.map((ss) => (
                   <Pressable
-                    key={d}
-                    onPress={() => setDifficultyFilter(difficultyFilter === d ? null : d)}
-                    style={[styles.filterChip, difficultyFilter === d && styles.filterChipActive]}
+                    key={ss.sessionId}
+                    onPress={() => router.push(`/(tabs)/learn/session/${ss.sessionId}`)}
+                    style={styles.savedCard}
                   >
-                    <Text style={[styles.filterChipText, difficultyFilter === d && styles.filterChipTextActive]}>
-                      {d.charAt(0).toUpperCase() + d.slice(1)}
+                    <Text style={styles.savedName} numberOfLines={2}>{ss.name}</Text>
+                    <Text style={styles.savedDate}>
+                      {new Date(ss.createdAt).toLocaleDateString()}
                     </Text>
+                    <Pressable onPress={() => handleRemoveSaved(ss.sessionId)} style={styles.savedRemove} hitSlop={8}>
+                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+                        <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                    </Pressable>
                   </Pressable>
                 ))}
               </View>
             </ScrollView>
-
-            {/* Focus area filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              <View style={styles.filterRow}>
-                {FOCUS_AREAS.map((f) => (
-                  <Pressable
-                    key={f}
-                    onPress={() => setFocusFilter(focusFilter === f ? null : f)}
-                    style={[styles.filterChip, focusFilter === f && styles.filterChipActive]}
-                  >
-                    <Text style={[styles.filterChipText, focusFilter === f && styles.filterChipTextActive]}>
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-
-            {loadingExercises ? (
-              <View style={styles.loading}><ActivityIndicator color={colors.fg.primary} /></View>
-            ) : filteredExercises.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyText}>No exercises match your filters</Text>
-                <Pressable onPress={() => { setDifficultyFilter(null); setFocusFilter(null); }}>
-                  <Text style={styles.clearFilters}>Clear filters</Text>
-                </Pressable>
-              </View>
-            ) : (
-              filteredExercises.map((ex) => (
-                <ExerciseCard key={ex.id} exercise={ex} />
-              ))
-            )}
-          </>
+          </View>
         )}
 
-        {tab === 'programs' && (
+        {/* Search results: matching programs section (2C) */}
+        {search && filteredPrograms.length > 0 && (
+          <View style={styles.searchResultsSection}>
+            <Text style={styles.searchResultsTitle}>Programs ({filteredPrograms.length})</Text>
+            {filteredPrograms.map((prog) => (
+              <ProgramCard key={prog.id} program={prog} />
+            ))}
+          </View>
+        )}
+
+        {search && filteredExercises.length > 0 && (
+          <View style={styles.searchResultsSection}>
+            <Text style={styles.searchResultsTitle}>Exercises ({filteredExercises.length})</Text>
+            {filteredExercises.map((ex) => (
+              <ExerciseCard key={ex.id} exercise={ex} />
+            ))}
+          </View>
+        )}
+
+        {search && filteredExercises.length === 0 && filteredPrograms.length === 0 && (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No results for "{search}"</Text>
+            <Pressable onPress={() => setSearch('')}>
+              <Text style={styles.clearFilters}>Clear search</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Tab switcher (hidden during search) */}
+        {!search && (
           <>
-            {loadingPrograms ? (
-              <View style={styles.loading}><ActivityIndicator color={colors.fg.primary} /></View>
-            ) : programs.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyText}>No programs available yet</Text>
-              </View>
-            ) : (
-              programs.map((prog) => (
-                <ProgramCard key={prog.id} program={prog} />
-              ))
+            <View style={styles.tabRow}>
+              <Pressable
+                onPress={() => setTab('exercises')}
+                style={[styles.tab, tab === 'exercises' && styles.tabActive]}
+              >
+                <Text style={[styles.tabText, tab === 'exercises' && styles.tabTextActive]}>
+                  Exercises ({exercises.length})
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setTab('programs')}
+                style={[styles.tab, tab === 'programs' && styles.tabActive]}
+              >
+                <Text style={[styles.tabText, tab === 'programs' && styles.tabTextActive]}>
+                  Programs ({programs.length})
+                </Text>
+              </Pressable>
+            </View>
+
+            {tab === 'exercises' && (
+              <>
+                {/* Difficulty filter */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  <View style={styles.filterRow}>
+                    <Pressable
+                      onPress={() => setDifficultyFilter(null)}
+                      style={[styles.filterChip, !difficultyFilter && styles.filterChipActive]}
+                    >
+                      <Text style={[styles.filterChipText, !difficultyFilter && styles.filterChipTextActive]}>All</Text>
+                    </Pressable>
+                    {DIFFICULTY_ORDER.map((d) => (
+                      <Pressable
+                        key={d}
+                        onPress={() => setDifficultyFilter(difficultyFilter === d ? null : d)}
+                        style={[styles.filterChip, difficultyFilter === d && styles.filterChipActive]}
+                      >
+                        <Text style={[styles.filterChipText, difficultyFilter === d && styles.filterChipTextActive]}>
+                          {d.charAt(0).toUpperCase() + d.slice(1)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {/* Focus area filter */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  <View style={styles.filterRow}>
+                    {FOCUS_AREAS.map((f) => (
+                      <Pressable
+                        key={f}
+                        onPress={() => setFocusFilter(focusFilter === f ? null : f)}
+                        style={[styles.filterChip, focusFilter === f && styles.filterChipActive]}
+                      >
+                        <Text style={[styles.filterChipText, focusFilter === f && styles.filterChipTextActive]}>
+                          {f.charAt(0).toUpperCase() + f.slice(1)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {loadingExercises ? (
+                  <View style={styles.loading}><ActivityIndicator color={colors.fg.primary} /></View>
+                ) : filteredExercises.length === 0 ? (
+                  <View style={styles.empty}>
+                    <Text style={styles.emptyText}>No exercises match your filters</Text>
+                    <Pressable onPress={() => { setDifficultyFilter(null); setFocusFilter(null); }}>
+                      <Text style={styles.clearFilters}>Clear filters</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  filteredExercises.map((ex) => (
+                    <ExerciseCard key={ex.id} exercise={ex} />
+                  ))
+                )}
+              </>
+            )}
+
+            {tab === 'programs' && (
+              <>
+                {loadingPrograms ? (
+                  <View style={styles.loading}><ActivityIndicator color={colors.fg.primary} /></View>
+                ) : programs.length === 0 ? (
+                  <View style={styles.empty}>
+                    <Text style={styles.emptyText}>No programs available yet</Text>
+                  </View>
+                ) : (
+                  programs.map((prog) => (
+                    <ProgramCard key={prog.id} program={prog} />
+                  ))
+                )}
+              </>
             )}
           </>
         )}
@@ -175,7 +282,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   title: {
     fontSize: typography.sizes.xl,
@@ -195,6 +302,78 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
     color: colors.button.primaryText,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.card,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.md,
+    height: 42,
+  },
+  searchIcon: {
+    marginRight: spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
+    color: colors.fg.primary,
+    paddingVertical: 0,
+  },
+  searchClear: {
+    padding: spacing.xs,
+  },
+  savedSection: {
+    marginBottom: spacing.md,
+  },
+  savedTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.fg.primary,
+    marginBottom: spacing.sm,
+  },
+  savedScroll: {
+    marginHorizontal: -spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  savedCard: {
+    width: 150,
+    padding: spacing.sm,
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  savedName: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    color: colors.fg.primary,
+    marginBottom: spacing.xs,
+  },
+  savedDate: {
+    fontSize: 11,
+    color: colors.fg.tertiary,
+  },
+  savedRemove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  searchResultsSection: {
+    marginBottom: spacing.md,
+  },
+  searchResultsTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.fg.primary,
+    marginBottom: spacing.sm,
   },
   tabRow: {
     flexDirection: 'row',

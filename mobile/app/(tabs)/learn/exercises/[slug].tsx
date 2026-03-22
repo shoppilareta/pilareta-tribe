@@ -1,12 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Badge } from '@/components/ui';
 import { getExercise } from '@/api/learn';
+import { getExerciseCompletionStats } from '@/api/learn';
+
+const FAVORITES_KEY = 'pilareta_favorite_exercises';
+
+async function getFavorites(): Promise<string[]> {
+  try {
+    const val = await SecureStore.getItemAsync(FAVORITES_KEY);
+    return val ? JSON.parse(val) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function setFavorites(slugs: string[]): Promise<void> {
+  await SecureStore.setItemAsync(FAVORITES_KEY, JSON.stringify(slugs));
+}
 
 const SECTION_COLORS: Record<string, string> = {
   beginner: 'rgba(34, 197, 94, 0.3)',
@@ -37,12 +55,35 @@ const sectionStyles = StyleSheet.create({
 
 export default function ExerciseDetail() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const [isFavorite, setIsFavorite] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['learn-exercise', slug],
     queryFn: () => getExercise(slug!),
     enabled: !!slug,
   });
+
+  // 3A: Exercise completion stats
+  const { data: statsData } = useQuery({
+    queryKey: ['exercise-completion-stats', slug],
+    queryFn: () => getExerciseCompletionStats(slug!),
+    enabled: !!slug,
+  });
+
+  // Load favorite state
+  useEffect(() => {
+    if (!slug) return;
+    getFavorites().then((favs) => setIsFavorite(favs.includes(slug)));
+  }, [slug]);
+
+  const toggleFavorite = useCallback(async () => {
+    if (!slug) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const favs = await getFavorites();
+    const next = isFavorite ? favs.filter((s) => s !== slug) : [...favs, slug];
+    await setFavorites(next);
+    setIsFavorite(!isFavorite);
+  }, [slug, isFavorite]);
 
   if (isLoading) {
     return (
@@ -73,7 +114,11 @@ export default function ExerciseDetail() {
           </Svg>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{ex.name}</Text>
-        <View style={{ width: 36 }} />
+        <Pressable onPress={toggleFavorite} style={styles.favoriteButton}>
+          <Svg width={22} height={22} viewBox="0 0 24 24" fill={isFavorite ? 'rgba(239, 68, 68, 0.9)' : 'none'} stroke={isFavorite ? 'rgba(239, 68, 68, 0.9)' : colors.fg.tertiary} strokeWidth={2}>
+            <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </Pressable>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -86,6 +131,21 @@ export default function ExerciseDetail() {
         </View>
 
         <Text style={styles.description}>{ex.description}</Text>
+
+        {/* 3A: Completion stats */}
+        {statsData && statsData.completionCount > 0 && (
+          <View style={styles.completionCard}>
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth={2}>
+              <Path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.completionText}>
+              You've done this exercise {statsData.completionCount} time{statsData.completionCount !== 1 ? 's' : ''}
+              {statsData.lastCompletedAt && (
+                ` \u00B7 Last: ${new Date(statsData.lastCompletedAt).toLocaleDateString()}`
+              )}
+            </Text>
+          </View>
+        )}
 
         {/* Quick info grid */}
         <View style={styles.infoGrid}>
@@ -220,12 +280,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backButton: { padding: spacing.xs, marginRight: spacing.sm },
   headerTitle: { flex: 1, fontSize: typography.sizes.lg, fontWeight: typography.weights.semibold, color: colors.fg.primary },
+  favoriteButton: { padding: spacing.xs },
   scroll: { flex: 1 },
   content: { padding: spacing.md, paddingBottom: 100 },
   badgeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   diffBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.xs },
   diffBadgeText: { fontSize: typography.sizes.sm, color: colors.fg.primary, textTransform: 'capitalize', fontWeight: typography.weights.medium },
-  description: { fontSize: typography.sizes.base, color: colors.fg.secondary, lineHeight: 22, marginBottom: spacing.lg },
+  description: { fontSize: typography.sizes.base, color: colors.fg.secondary, lineHeight: 22, marginBottom: spacing.md },
+  completionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: 'rgba(34, 197, 94, 0.08)', borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.lg },
+  completionText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, flex: 1 },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
   infoItem: { backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, padding: spacing.md, alignItems: 'center', minWidth: 70 },
   infoValue: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: 2 },

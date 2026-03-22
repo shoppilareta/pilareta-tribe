@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Dimensions, Linking, Alert } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Dimensions, Linking, Alert, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -44,6 +44,8 @@ export default function PostDetail() {
   const [liked, setLiked] = useState(post?.isLiked ?? false);
   const [saved, setSaved] = useState(post?.isSaved ?? false);
   const [likesCount, setLikesCount] = useState(post?.likesCount ?? 0);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageFailed, setImageFailed] = useState(false);
 
   // Sync state when post loads
   if (post && liked !== (post.isLiked ?? false)) {
@@ -80,6 +82,17 @@ export default function PostDetail() {
     }
   };
 
+  const handleShare = useCallback(async () => {
+    if (!post) return;
+    try {
+      await Share.share({
+        message: `Check out this post on Pilareta Tribe! https://tribe.pilareta.com/community/post/${post.id}`,
+      });
+    } catch {
+      // user cancelled
+    }
+  }, [post]);
+
   const handleDelete = () => {
     if (!post?.isOwner) return;
     Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
@@ -100,6 +113,11 @@ export default function PostDetail() {
         },
       },
     ]);
+  };
+
+  // 3C: Navigate back to feed with tag filter
+  const handleTagPress = (tagSlug: string) => {
+    router.replace({ pathname: '/(tabs)/community', params: { tag: tagSlug } });
   };
 
   if (isLoading) {
@@ -135,19 +153,26 @@ export default function PostDetail() {
           </Svg>
         </Pressable>
         <Text style={styles.headerTitle}>Post</Text>
-        {post.isOwner && (
-          <Pressable onPress={handleDelete} style={styles.deleteButton} hitSlop={8}>
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="rgba(239, 68, 68, 0.8)" strokeWidth={1.5}>
-              <Path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" strokeLinecap="round" strokeLinejoin="round" />
+        <View style={styles.headerRight}>
+          {/* Share button (1B) */}
+          <Pressable onPress={handleShare} style={styles.headerAction} hitSlop={8}>
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+              <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
           </Pressable>
-        )}
-        {!post.isOwner && <View style={{ width: 36 }} />}
+          {post.isOwner && (
+            <Pressable onPress={handleDelete} style={styles.headerAction} hitSlop={8}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="rgba(239, 68, 68, 0.8)" strokeWidth={1.5}>
+                <Path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Author */}
-        <View style={styles.authorRow}>
+        {/* Author (2C: tappable for profile navigation) */}
+        <Pressable style={styles.authorRow} onPress={() => router.push(`/community-profile/${post.userId}`)}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{displayName[0]?.toUpperCase()}</Text>
           </View>
@@ -155,16 +180,32 @@ export default function PostDetail() {
             <Text style={styles.authorName}>{displayName}</Text>
             <Text style={styles.postDate}>{formatDate(post.createdAt)}</Text>
           </View>
-        </View>
+        </Pressable>
 
-        {/* Media */}
-        {imageUrl && (
-          <Image
-            source={{ uri: imageUrl }}
-            style={[styles.image, { width: SCREEN_WIDTH, height: SCREEN_WIDTH / aspectRatio }]}
-            resizeMode="cover"
-          />
-        )}
+        {/* Media (3D: loading placeholder + error fallback) */}
+        {imageUrl && !imageFailed ? (
+          <View>
+            {imageLoading && (
+              <View style={[styles.imagePlaceholder, { width: SCREEN_WIDTH, height: SCREEN_WIDTH / aspectRatio }]}>
+                <ActivityIndicator color={colors.fg.tertiary} />
+              </View>
+            )}
+            <Image
+              source={{ uri: imageUrl }}
+              style={[styles.image, { width: SCREEN_WIDTH, height: SCREEN_WIDTH / aspectRatio }, imageLoading && { position: 'absolute', opacity: 0 }]}
+              resizeMode="cover"
+              onLoad={() => setImageLoading(false)}
+              onError={() => { setImageFailed(true); setImageLoading(false); }}
+            />
+          </View>
+        ) : imageUrl && imageFailed ? (
+          <View style={[styles.imagePlaceholder, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 0.6 }]}>
+            <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
+              <Path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.imageErrorText}>Image unavailable</Text>
+          </View>
+        ) : null}
 
         {/* Instagram link */}
         {post.mediaType === 'instagram' && post.instagramUrl && (
@@ -199,13 +240,20 @@ export default function PostDetail() {
           </View>
         )}
 
-        {/* Actions */}
+        {/* Actions (added share button) */}
         <View style={styles.actionsRow}>
           <Pressable onPress={handleLike} style={styles.actionButton} hitSlop={8}>
             <Svg width={22} height={22} viewBox="0 0 24 24" fill={liked ? 'rgba(239, 68, 68, 0.9)' : 'none'} stroke={liked ? 'rgba(239, 68, 68, 0.9)' : colors.fg.secondary} strokeWidth={1.5}>
               <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
             <Text style={[styles.actionText, liked && styles.actionTextActive]}>{likesCount || post.likesCount} likes</Text>
+          </Pressable>
+
+          <Pressable onPress={handleShare} style={styles.actionButton} hitSlop={8}>
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>
+              <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.actionText}>Share</Text>
           </Pressable>
 
           <Pressable onPress={handleSave} style={styles.actionButton} hitSlop={8}>
@@ -226,13 +274,13 @@ export default function PostDetail() {
           </View>
         )}
 
-        {/* Tags */}
+        {/* Tags (3C: tappable tags that navigate back to feed filtered by tag) */}
         {post.tags && post.tags.length > 0 && (
           <View style={styles.tagsRow}>
             {post.tags.map(({ tag }) => (
-              <View key={tag.id} style={styles.tag}>
+              <Pressable key={tag.id} style={styles.tag} onPress={() => handleTagPress(tag.slug)}>
                 <Text style={styles.tagText}>{tag.name}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}
@@ -265,6 +313,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backButton: { padding: spacing.xs, marginRight: spacing.sm },
   headerTitle: { flex: 1, fontSize: typography.sizes.lg, fontWeight: typography.weights.semibold, color: colors.fg.primary },
+  headerRight: { flexDirection: 'row', gap: spacing.sm },
+  headerAction: { padding: spacing.xs },
   deleteButton: { padding: spacing.xs },
   scroll: { flex: 1 },
   authorRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md },
@@ -274,6 +324,8 @@ const styles = StyleSheet.create({
   authorName: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary },
   postDate: { fontSize: typography.sizes.sm, color: colors.fg.tertiary },
   image: { backgroundColor: colors.cream05 },
+  imagePlaceholder: { backgroundColor: colors.cream05, alignItems: 'center', justifyContent: 'center' },
+  imageErrorText: { fontSize: typography.sizes.sm, color: colors.fg.muted, marginTop: spacing.sm },
   instagramLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.cream05 },
   instagramLinkText: { fontSize: typography.sizes.sm, color: colors.fg.secondary },
   recapCard: { margin: spacing.md, padding: spacing.md, backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default },
