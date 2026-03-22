@@ -1,121 +1,189 @@
 import SwiftUI
+import WatchKit
 
 struct ContentView: View {
     @StateObject private var workoutManager = WorkoutManager()
+    @State private var selectedTab = 0
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                // Streak display
-                VStack(spacing: 4) {
-                    Text("\(workoutManager.currentStreak)")
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
-                        .foregroundColor(Color(hex: "f6eddd"))
-                    Text("day streak")
-                        .font(.caption2)
-                        .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
-                }
-                .padding(.top, 8)
+        TabView(selection: $selectedTab) {
+            // Tab 1: Dashboard
+            DashboardView(workoutManager: workoutManager)
+                .tag(0)
 
-                // Quick log button
-                NavigationLink(destination: QuickLogView(workoutManager: workoutManager)) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Log Workout")
-                    }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Color(hex: "202219"))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color(hex: "f6eddd"))
-                    .cornerRadius(12)
-                }
+            // Tab 2: Workout Timer
+            WorkoutTimerView(workoutManager: workoutManager)
+                .tag(1)
 
-                // Today's calories
-                HStack {
-                    Image(systemName: "flame.fill")
-                        .foregroundColor(.orange)
-                    Text("\(workoutManager.todayCalories) cal")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
-                }
+            // Tab 3: Quick Log
+            NavigationStack {
+                QuickLogView(workoutManager: workoutManager)
             }
-            .padding(.horizontal, 8)
-            .navigationTitle("Pilareta")
-            .navigationBarTitleDisplayMode(.inline)
+            .tag(2)
         }
+        .tabViewStyle(.verticalPage)
         .onAppear {
             workoutManager.fetchStats()
         }
     }
 }
 
-struct QuickLogView: View {
-    @ObservedObject var workoutManager: WorkoutManager
-    @Environment(\.dismiss) var dismiss
-    @State private var selectedType = "reformer"
-    @State private var duration = 30
-    @State private var isSaving = false
+// MARK: - Dashboard View
 
-    let workoutTypes = [
-        ("Reformer", "reformer"),
-        ("Mat", "mat"),
-        ("Yoga", "yoga"),
-        ("Running", "running"),
-        ("Strength", "strength_training"),
-    ]
+struct DashboardView: View {
+    @ObservedObject var workoutManager: WorkoutManager
+    @State private var isRefreshing = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                // Type picker
-                ForEach(workoutTypes, id: \.1) { (label, value) in
-                    Button(action: { selectedType = value }) {
-                        Text(label)
-                            .font(.system(size: 14, weight: selectedType == value ? .semibold : .regular))
-                            .foregroundColor(selectedType == value ? Color(hex: "202219") : Color(hex: "f6eddd"))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(selectedType == value ? Color(hex: "f6eddd") : Color(hex: "f6eddd").opacity(0.1))
-                            .cornerRadius(8)
+                // Offline indicator
+                if workoutManager.isOffline {
+                    HStack(spacing: 4) {
+                        Image(systemName: "iphone.slash")
+                            .font(.system(size: 9))
+                        Text("Offline")
+                            .font(.system(size: 9, weight: .semibold))
                     }
-                    .buttonStyle(.plain)
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.12))
+                    .cornerRadius(6)
                 }
 
-                // Duration
-                Stepper("\(duration) min", value: $duration, in: 5...120, step: 5)
-                    .font(.system(size: 14))
-                    .foregroundColor(Color(hex: "f6eddd"))
+                // Streak circle
+                ZStack {
+                    Circle()
+                        .stroke(Color(hex: "f6eddd").opacity(0.15), lineWidth: 6)
+                        .frame(width: 90, height: 90)
 
-                // Save button
-                Button(action: {
-                    isSaving = true
-                    workoutManager.logWorkout(type: selectedType, duration: duration) {
-                        isSaving = false
-                        dismiss()
-                    }
-                }) {
-                    if isSaving {
-                        ProgressView()
-                    } else {
-                        Text("Save")
-                            .font(.system(size: 15, weight: .semibold))
+                    // Progress arc (streak out of 30-day goal)
+                    Circle()
+                        .trim(from: 0, to: min(CGFloat(workoutManager.currentStreak) / 30.0, 1.0))
+                        .stroke(
+                            Color(hex: "f6eddd"),
+                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                        )
+                        .frame(width: 90, height: 90)
+                        .rotationEffect(.degrees(-90))
+
+                    VStack(spacing: 2) {
+                        if workoutManager.isLoading {
+                            ProgressView()
+                                .tint(Color(hex: "f6eddd"))
+                        } else {
+                            Text("\(workoutManager.currentStreak)")
+                                .font(.system(size: 36, weight: .bold, design: .rounded))
+                                .foregroundColor(Color(hex: "f6eddd"))
+                        }
+                        Text("day streak")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.5))
                     }
                 }
-                .foregroundColor(Color(hex: "202219"))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color(hex: "f6eddd"))
-                .cornerRadius(12)
-                .disabled(isSaving)
+                .padding(.top, 4)
+
+                // Stats row
+                HStack(spacing: 16) {
+                    // Calories
+                    VStack(spacing: 2) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.orange)
+                            Text("\(workoutManager.todayCalories)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(Color(hex: "f6eddd"))
+                        }
+                        Text("cal today")
+                            .font(.system(size: 9))
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.4))
+                    }
+
+                    // Divider
+                    Rectangle()
+                        .fill(Color(hex: "f6eddd").opacity(0.15))
+                        .frame(width: 1, height: 24)
+
+                    // Weekly workouts
+                    VStack(spacing: 2) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 11))
+                                .foregroundColor(.green)
+                            Text("\(workoutManager.weeklyWorkouts)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(Color(hex: "f6eddd"))
+                        }
+                        Text("this week")
+                            .font(.system(size: 9))
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.4))
+                    }
+                }
+                .padding(.vertical, 4)
+
+                // Refresh button
+                Button(action: refreshStats) {
+                    HStack(spacing: 6) {
+                        if isRefreshing {
+                            ProgressView()
+                                .tint(Color(hex: "f6eddd"))
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 12))
+                        }
+                        Text("Refresh")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: "f6eddd").opacity(0.08))
+                    .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+                .disabled(isRefreshing)
+
+                // Last synced indicator
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(workoutManager.isPhoneReachable ? Color.green : Color.orange)
+                        .frame(width: 5, height: 5)
+                    Text("Synced: \(workoutManager.timeSinceLastSync)")
+                        .font(.system(size: 9))
+                        .foregroundColor(Color(hex: "f6eddd").opacity(0.35))
+                }
+
+                // Swipe hint
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8))
+                    Text("Swipe down for timer")
+                        .font(.system(size: 9))
+                }
+                .foregroundColor(Color(hex: "f6eddd").opacity(0.2))
+                .padding(.top, 4)
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 8)
         }
-        .navigationTitle("Log Workout")
+    }
+
+    private func refreshStats() {
+        isRefreshing = true
+        WKInterfaceDevice.current().play(.click)
+        workoutManager.fetchStats()
+
+        // Auto-reset refreshing state after a delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            isRefreshing = false
+        }
     }
 }
 
-// Color hex extension
+// MARK: - Color Hex Extension
+
 extension Color {
     init(hex: String) {
         let scanner = Scanner(string: hex)

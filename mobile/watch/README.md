@@ -38,10 +38,19 @@ The Apple Watch app requires a native iOS project (expo prebuild) and Xcode conf
    - Run on Apple Watch simulator paired with iPhone simulator
 
 ### Features
-- Quick workout logging (type + duration)
-- Streak display
-- Today's calorie count
-- Communication with iOS app via WatchConnectivity
+- **Dashboard** (Tab 1): Streak ring display, today's calories, weekly workout count, refresh button, last-synced indicator, offline badge
+- **Workout Timer** (Tab 2): Select workout type, start/pause/resume/stop timer, haptic feedback at milestones (every 5 min), completion alert with duration logged
+- **Quick Log** (Tab 3): Manual past-workout logging with type picker, duration stepper, success confirmation
+- **WatchConnectivity**: Real-time sync with iPhone app, 5-second timeout on all messages, automatic fallback to `transferUserInfo` queue when phone is unreachable
+- **Offline support**: Stats cached to UserDefaults, restored on launch, "Offline" badge shown when disconnected
+- **Haptic feedback**: Start/stop/pause haptics, milestone notifications every 5 minutes, button click feedback throughout
+
+### File Structure
+- `PilaretaWatchApp.swift` -- App entry point
+- `ContentView.swift` -- TabView with Dashboard, Timer, Quick Log tabs + Color hex extension
+- `WorkoutTimerView.swift` -- Full workout timer with type selection and controls
+- `QuickLogView.swift` -- Manual workout log form
+- `WorkoutManager.swift` -- WatchConnectivity manager with caching, timeout, and error recovery
 
 ### Custom EAS Build
 Add to `eas.json`:
