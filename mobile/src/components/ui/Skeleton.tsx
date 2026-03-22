@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, ViewStyle } from 'react-native';
-import { colors, radius } from '@/theme';
+import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
+import { colors, radius, spacing } from '@/theme';
 
 interface SkeletonProps {
   width?: number | string;
@@ -93,6 +93,117 @@ export function FeedPostSkeleton() {
     </Animated.View>
   );
 }
+
+/** ─── Shop skeleton loaders ─── */
+
+export function ProductCardSkeleton() {
+  return (
+    <View style={productSkeletonStyles.card}>
+      <View style={productSkeletonStyles.image} />
+      <View style={productSkeletonStyles.info}>
+        <Skeleton width="70%" height={12} />
+        <Skeleton width="40%" height={10} style={{ marginTop: 6 }} />
+        <View style={productSkeletonStyles.swatchRow}>
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} width={20} height={20} borderRadius={10} />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+export function ProductGridSkeleton() {
+  return (
+    <View style={productSkeletonStyles.grid}>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <View key={i} style={productSkeletonStyles.gridItem}>
+          <ProductCardSkeleton />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function CartItemSkeleton() {
+  return (
+    <View style={cartSkeletonStyles.container}>
+      <View style={cartSkeletonStyles.image} />
+      <View style={cartSkeletonStyles.info}>
+        <Skeleton width="75%" height={12} />
+        <Skeleton width="40%" height={12} style={{ marginTop: 6 }} />
+        <Skeleton width={90} height={28} borderRadius={radius.sm} style={{ marginTop: spacing.sm }} />
+      </View>
+    </View>
+  );
+}
+
+export function CartSkeleton() {
+  return (
+    <View style={cartSkeletonStyles.list}>
+      {[1, 2, 3].map((i) => (
+        <CartItemSkeleton key={i} />
+      ))}
+    </View>
+  );
+}
+
+const productSkeletonStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    overflow: 'hidden',
+  },
+  image: {
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: colors.cream05,
+  },
+  info: {
+    padding: spacing.sm,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+  gridItem: {
+    flex: 1,
+    minWidth: '45%',
+  },
+});
+
+const cartSkeletonStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  image: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.sm,
+    backgroundColor: colors.cream05,
+    marginRight: spacing.sm,
+  },
+  info: {
+    flex: 1,
+  },
+  list: {
+    paddingHorizontal: spacing.md,
+  },
+});
 
 const styles = StyleSheet.create({
   base: {

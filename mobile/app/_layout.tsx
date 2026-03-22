@@ -28,6 +28,7 @@ const AuthStoreMod = tryLoad('@/stores/authStore', () => require('@/stores/authS
 // Don't import onboarding screen directly - it pulls in too many deps
 // Instead, inline the check
 const SecureStoreMod = tryLoad('expo-secure-store', () => require('expo-secure-store'));
+const ToastMod = tryLoad('@/components/ui/Toast', () => require('@/components/ui/Toast'));
 
 const ONBOARDING_KEY = 'pilareta_onboarding_complete';
 async function hasCompletedOnboarding(): Promise<boolean> {
@@ -48,6 +49,7 @@ const QueryClientProvider = ReactQuery?.QueryClientProvider;
 const GestureHandlerRootView = GestureHandler?.GestureHandlerRootView;
 const colors = ThemeMod?.colors ?? { bg: { primary: '#202219' }, fg: { primary: '#f6eddd' } };
 const useAuthStore = AuthStoreMod?.useAuthStore;
+const ToastProvider = ToastMod?.ToastProvider;
 
 // Keep splash visible while loading
 try {
@@ -187,6 +189,10 @@ export default function RootLayout() {
   }
 
   content = <><AppServices />{content}<DiagnosticOverlay /></>;
+
+  if (ToastProvider) {
+    content = <ToastProvider>{content}</ToastProvider>;
+  }
 
   if (queryClient && QueryClientProvider) {
     content = <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>;

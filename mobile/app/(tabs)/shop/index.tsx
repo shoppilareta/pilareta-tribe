@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, SectionList, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, SectionList, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
+import { ProductGridSkeleton } from '@/components/ui';
 import { ProductCard, BannerCarousel } from '@/components/shop';
 import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
@@ -74,6 +75,9 @@ function getCategoryOrder(label: string): number {
 
 export default function ShopScreen() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState<'default' | 'price-asc' | 'price-desc'>('default');
+  const [showSortMenu, setShowSortMenu] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['shop-products'],
@@ -88,8 +92,28 @@ export default function ShopScreen() {
 
   // Build sections grouped by category
   const { sections, categoryNames } = useMemo(() => {
+    // Filter by search query
+    let filtered = products;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      filtered = products.filter(p =>
+        p.title.toLowerCase().includes(q) ||
+        (p.tags && p.tags.some((t: string) => t.toLowerCase().includes(q)))
+      );
+    }
+
+    // Sort by price if needed
+    if (sortOption !== 'default') {
+      filtered = [...filtered].sort((a, b) => {
+        const priceA = parseFloat(a.priceRange.minVariantPrice.amount);
+        const priceB = parseFloat(b.priceRange.minVariantPrice.amount);
+        return sortOption === 'price-asc' ? priceA - priceB : priceB - priceA;
+      });
+    }
+
+    // Categorize into sections
     const categoryMap: Record<string, ShopifyProduct[]> = {};
-    for (const p of products) {
+    for (const p of filtered) {
       const cat = categorizeProduct(p);
       if (!categoryMap[cat]) categoryMap[cat] = [];
       categoryMap[cat].push(p);
@@ -105,7 +129,7 @@ export default function ShopScreen() {
     }));
 
     return { sections: sectionList, categoryNames: sortedCategories };
-  }, [products]);
+  }, [products, searchQuery, sortOption]);
 
   // Filter sections if a category is active
   const filteredSections = activeCategory
@@ -146,34 +170,92 @@ export default function ShopScreen() {
         </View>
       </View>
 
+      {/* Search bar */}
+      <View style={styles.searchContainer}>
+        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+          <Path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search products..."
+          placeholderTextColor={colors.fg.muted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
+              <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </Pressable>
+        )}
+      </View>
+
       {/* Category pills */}
       {categoryNames.length > 1 && (
         <View style={styles.pillBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillScroll}>
-            <Pressable
-              style={[styles.pill, !activeCategory && styles.pillActive]}
-              onPress={() => setActiveCategory(null)}
-            >
-              <Text style={[styles.pillText, !activeCategory && styles.pillTextActive]}>All</Text>
-            </Pressable>
-            {categoryNames.map((cat) => (
+          <View style={styles.pillRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillScroll} style={{ flex: 1 }}>
               <Pressable
-                key={cat}
-                style={[styles.pill, activeCategory === cat && styles.pillActive]}
-                onPress={() => setActiveCategory(activeCategory === cat ? null : cat)}
+                style={[styles.pill, !activeCategory && styles.pillActive]}
+                onPress={() => setActiveCategory(null)}
               >
-                <Text style={[styles.pillText, activeCategory === cat && styles.pillTextActive]}>{cat}</Text>
+                <Text style={[styles.pillText, !activeCategory && styles.pillTextActive]}>All</Text>
+              </Pressable>
+              {categoryNames.map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[styles.pill, activeCategory === cat && styles.pillActive]}
+                  onPress={() => setActiveCategory(activeCategory === cat ? null : cat)}
+                >
+                  <Text style={[styles.pillText, activeCategory === cat && styles.pillTextActive]}>{cat}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable
+              style={styles.sortButton}
+              onPress={() => setShowSortMenu(!showSortMenu)}
+            >
+              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={sortOption !== 'default' ? colors.fg.primary : colors.fg.tertiary} strokeWidth={2}>
+                <Path d="M3 6h18M6 12h12M9 18h6" strokeLinecap="round" />
+              </Svg>
+              <Text style={[styles.sortLabel, sortOption !== 'default' && { color: colors.fg.primary }]}>
+                {sortOption === 'price-asc' ? '\u20B9\u2191' : sortOption === 'price-desc' ? '\u20B9\u2193' : 'Sort'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* Sort dropdown menu */}
+      {showSortMenu && (
+        <>
+          <Pressable style={styles.sortBackdrop} onPress={() => setShowSortMenu(false)} />
+          <View style={styles.sortMenu}>
+            {([
+              { value: 'default' as const, label: 'Default' },
+              { value: 'price-asc' as const, label: 'Price: Low to High' },
+              { value: 'price-desc' as const, label: 'Price: High to Low' },
+            ]).map(opt => (
+              <Pressable
+                key={opt.value}
+                style={[styles.sortMenuItem, sortOption === opt.value && styles.sortMenuItemActive]}
+                onPress={() => { setSortOption(opt.value); setShowSortMenu(false); }}
+              >
+                <Text style={[styles.sortMenuText, sortOption === opt.value && styles.sortMenuTextActive]}>
+                  {opt.label}
+                </Text>
               </Pressable>
             ))}
-          </ScrollView>
-        </View>
+          </View>
+        </>
       )}
 
       {/* Products */}
       {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.fg.primary} />
-        </View>
+        <ProductGridSkeleton />
       ) : isError ? (
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>Something went wrong</Text>
@@ -186,6 +268,14 @@ export default function ShopScreen() {
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>No products available</Text>
           <Text style={styles.emptyText}>Check back soon for new items.</Text>
+        </View>
+      ) : searchQuery && filteredSections.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptySearchTitle}>No products found</Text>
+          <Text style={styles.emptySearchSubtitle}>Try a different search term</Text>
+          <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
+            <Text style={styles.clearSearchText}>Clear search</Text>
+          </Pressable>
         </View>
       ) : (
         <SectionList
@@ -256,4 +346,98 @@ const styles = StyleSheet.create({
   cartLoading: { position: 'absolute', bottom: spacing.xl, alignSelf: 'center', backgroundColor: colors.bg.card, borderRadius: 999, padding: spacing.sm, borderWidth: 1, borderColor: colors.border.default },
   signInButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.fg.primary },
   signInButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(70, 74, 60, 0.3)',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    height: 40,
+    gap: spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.fg.primary,
+    fontSize: typography.sizes.sm,
+    paddingVertical: 0,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radius.full,
+    gap: 4,
+    marginRight: spacing.md,
+  },
+  sortLabel: {
+    fontSize: typography.sizes.xs,
+    color: colors.fg.tertiary,
+  },
+  sortBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 98,
+  },
+  sortMenu: {
+    position: 'absolute',
+    right: spacing.md,
+    top: 200,
+    backgroundColor: 'rgba(50, 54, 42, 0.98)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingVertical: spacing.xs,
+    zIndex: 99,
+    minWidth: 180,
+  },
+  sortMenuItem: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  sortMenuItemActive: {
+    backgroundColor: 'rgba(246, 237, 221, 0.1)',
+  },
+  sortMenuText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.secondary,
+  },
+  sortMenuTextActive: {
+    color: colors.fg.primary,
+    fontWeight: typography.weights.semibold,
+  },
+  emptySearchTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.fg.primary,
+    marginBottom: spacing.xs,
+  },
+  emptySearchSubtitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    marginBottom: spacing.md,
+  },
+  clearSearchButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  clearSearchText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.secondary,
+    fontWeight: typography.weights.medium,
+  },
 });

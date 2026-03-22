@@ -188,7 +188,8 @@ export interface ShopCartResponse {
       merchandise: {
         id: string;
         title: string;
-        product: { title: string; images: { url: string }[] };
+        image?: { url: string; altText?: string | null };
+        product: { title: string; handle: string };
         price: { amount: string; currencyCode: string };
       };
     }[];

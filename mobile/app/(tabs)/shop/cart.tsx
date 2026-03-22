@@ -5,9 +5,10 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
-import { Button } from '@/components/ui';
+import { Button, CartSkeleton } from '@/components/ui';
 import { CartItem } from '@/components/shop';
 import { useCartStore } from '@/stores/cartStore';
+import { useToast } from '@/components/ui/Toast';
 
 function formatPrice(amount: string, currencyCode: string): string {
   const num = parseFloat(amount);
@@ -27,6 +28,7 @@ export default function CartScreen() {
     removeItem,
     clearCart,
   } = useCartStore();
+  const { showToast } = useToast();
 
   useEffect(() => {
     loadCart();
@@ -35,11 +37,13 @@ export default function CartScreen() {
   const handleUpdateQuantity = async (lineId: string, quantity: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await updateQuantity(lineId, quantity);
+    showToast('Cart updated');
   };
 
   const handleRemove = async (lineId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await removeItem(lineId);
+    showToast('Removed from cart');
   };
 
   const handleCheckout = () => {
@@ -67,9 +71,7 @@ export default function CartScreen() {
       </View>
 
       {loading && lines.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.fg.primary} />
-        </View>
+        <CartSkeleton />
       ) : lines.length === 0 ? (
         <View style={styles.centered}>
           <Svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1}>

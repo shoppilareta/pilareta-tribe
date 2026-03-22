@@ -10,6 +10,7 @@ import { getColorCode } from '@/utils/colorCode';
 import { getProducts } from '@/api/shop';
 import { useCartStore } from '@/stores/cartStore';
 import { ImageZoomModal } from '@/components/ui/ImageZoomModal';
+import { useToast } from '@/components/ui/Toast';
 import type { ShopifyProduct } from '@shared/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,6 +50,7 @@ function BackArrow() {
 export default function ProductDetailScreen() {
   const { handle } = useLocalSearchParams<{ handle: string }>();
   const { addItem, loading: cartLoading } = useCartStore();
+  const { showToast } = useToast();
   const [selectedImage, setSelectedImage] = useState(0);
   const [zoomVisible, setZoomVisible] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -165,6 +167,7 @@ export default function ProductDetailScreen() {
     try {
       await addItem(selectedVariant.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast('Added to cart');
       router.back();
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

@@ -8,7 +8,8 @@ interface CartLineItem {
   merchandise: {
     id: string;
     title: string;
-    product: { title: string; images: { url: string }[] };
+    image?: { url: string; altText?: string | null };
+    product: { title: string; handle: string };
     price: { amount: string; currencyCode: string };
   };
 }
@@ -26,7 +27,7 @@ function formatPrice(amount: string, currencyCode: string): string {
 }
 
 export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
-  const image = item.merchandise.product.images?.[0];
+  const image = item.merchandise.image;
   const price = item.merchandise.price;
   const lineTotal = parseFloat(price.amount) * item.quantity;
 
