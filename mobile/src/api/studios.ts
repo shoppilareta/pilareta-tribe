@@ -37,3 +37,19 @@ export async function quickSearch(q: string, limit = 10): Promise<{ studios: Stu
 export async function getStudio(id: string): Promise<{ studio: Studio }> {
   return apiFetch(`/api/studios/${id}`, { skipAuth: true });
 }
+
+// Studio Favorites
+export async function getStudioFavorites(): Promise<{ studioIds: string[] }> {
+  return apiFetch('/api/studios/favorites');
+}
+
+export async function addStudioFavorite(studioId: string): Promise<{ favorited: boolean }> {
+  return apiFetch('/api/studios/favorites', {
+    method: 'POST',
+    body: JSON.stringify({ studioId }),
+  });
+}
+
+export async function removeStudioFavorite(studioId: string): Promise<{ favorited: boolean }> {
+  return apiFetch(`/api/studios/favorites/${studioId}`, { method: 'DELETE' });
+}

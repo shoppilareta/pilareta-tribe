@@ -11,6 +11,7 @@ export default function StudiosLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="[id]" />
+      <Stack.Screen name="favorites" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
   );
 }

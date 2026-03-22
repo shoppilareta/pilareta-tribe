@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, TextInput, Alert, Image, Dimensions } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, ActivityIndicator, Linking, Platform, TextInput, Alert, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +8,12 @@ import Svg, { Path } from 'react-native-svg';
 import Constants from 'expo-constants';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Button } from '@/components/ui';
-import { getStudio } from '@/api/studios';
+import { ImageZoomModal } from '@/components/ui/ImageZoomModal';
+import { StudioCard } from '@/components/studios';
+import { getStudio, getNearbyStudios } from '@/api/studios';
+import { getFeed } from '@/api/community';
+import { useStudioFavorites } from '@/hooks/useStudioFavorites';
+import { useAuthStore } from '@/stores/authStore';
 import { apiFetch } from '@/api/client';
 
 const GOOGLE_MAPS_KEY = Constants.expoConfig?.ios?.config?.googleMapsApiKey
@@ -22,57 +27,181 @@ type DetailTab = 'info' | 'claim' | 'suggest';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+/** Returns open/closed status with the relevant time boundary, or null if hours unavailable. */
+function getOpenClosedStatus(openingHours: unknown): { isOpen: boolean; timeLabel: string } | null {
+  if (!openingHours || typeof openingHours !== 'object') return null;
+  const oh = openingHours as {
+    periods?: { open?: { day: number; time: string }; close?: { day: number; time: string } }[];
+  };
+  if (!Array.isArray(oh.periods) || oh.periods.length === 0) return null;
+
+  const now = new Date();
+  const currentDay = now.getDay();
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const fmtTime = (t: string) => {
+    const h = parseInt(t.slice(0, 2), 10);
+    const m = t.slice(2);
+    if (isNaN(h)) return t;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${m} ${ampm}`;
+  };
+
+  // 24-hour place
+  if (
+    oh.periods.length === 1 &&
+    oh.periods[0]?.open?.day === 0 &&
+    oh.periods[0]?.open?.time === '0000' &&
+    !oh.periods[0]?.close
+  ) {
+    return { isOpen: true, timeLabel: 'Open 24 hours' };
+  }
+
+  // Check if currently open and find close time
+  for (const period of oh.periods) {
+    if (!period.open) continue;
+    const openDay = period.open.day;
+    const openTime = period.open.time;
+    const closeDay = period.close?.day ?? openDay;
+    const closeTime = period.close?.time ?? '2359';
+
+    if (openDay === closeDay) {
+      if (currentDay === openDay && currentTime >= openTime && currentTime < closeTime) {
+        return { isOpen: true, timeLabel: `Closes at ${fmtTime(closeTime)}` };
+      }
+    } else {
+      if (
+        (currentDay === openDay && currentTime >= openTime) ||
+        (currentDay === closeDay && currentTime < closeTime)
+      ) {
+        return { isOpen: true, timeLabel: `Closes at ${fmtTime(closeTime)}` };
+      }
+    }
+  }
+
+  // Currently closed - find next open time
+  // Look for the next period that opens on today (later) or the next day
+  const sortedPeriods = [...oh.periods]
+    .filter((p) => p.open)
+    .sort((a, b) => {
+      const aDayDiff = ((a.open!.day - currentDay) + 7) % 7 || (a.open!.time > currentTime ? 0 : 7);
+      const bDayDiff = ((b.open!.day - currentDay) + 7) % 7 || (b.open!.time > currentTime ? 0 : 7);
+      if (aDayDiff !== bDayDiff) return aDayDiff - bDayDiff;
+      return a.open!.time.localeCompare(b.open!.time);
+    });
+
+  // Find the next opening after now
+  for (const period of sortedPeriods) {
+    if (!period.open) continue;
+    const openDay = period.open.day;
+    const openTime = period.open.time;
+    if (openDay === currentDay && openTime > currentTime) {
+      return { isOpen: false, timeLabel: `Opens at ${fmtTime(openTime)}` };
+    }
+    if (openDay !== currentDay) {
+      const dayName = DAY_NAMES[openDay];
+      return { isOpen: false, timeLabel: `Opens ${dayName} at ${fmtTime(openTime)}` };
+    }
+  }
+
+  // Fallback: find the earliest period on the next available day
+  if (sortedPeriods.length > 0 && sortedPeriods[0].open) {
+    const nextPeriod = sortedPeriods[0];
+    const dayName = DAY_NAMES[nextPeriod.open!.day];
+    return { isOpen: false, timeLabel: `Opens ${dayName} at ${fmtTime(nextPeriod.open!.time)}` };
+  }
+
+  return null;
+}
+
+const AMENITY_LABELS: Record<string, string> = {
+  'reformer': 'Reformer',
+  'mat': 'Mat',
+  'showers': 'Showers',
+  'parking': 'Parking',
+  'wifi': 'WiFi',
+  'ac': 'AC',
+  'lockers': 'Lockers',
+  'changing_rooms': 'Changing Rooms',
+  'changing rooms': 'Changing Rooms',
+  'towels': 'Towels',
+};
+
+function getAmenityLabel(amenity: string): string {
+  const lower = amenity.toLowerCase();
+  return AMENITY_LABELS[lower] ?? amenity;
+}
+
 function formatOpeningHours(openingHours: unknown): string[] {
-  if (!openingHours || typeof openingHours !== 'object') return [];
+  try {
+    if (!openingHours || typeof openingHours !== 'object') return [];
 
-  const oh = openingHours as Record<string, unknown>;
+    const oh = openingHours as Record<string, unknown>;
 
-  // Google Places format: { weekday_text: string[] }
-  if (Array.isArray(oh.weekday_text)) {
-    return oh.weekday_text.map(String);
-  }
-
-  // Google Places format: { periods: Array<{ open: { day, time }, close: { day, time } }> }
-  if (Array.isArray(oh.periods)) {
-    const dayHours: Record<number, string> = {};
-    for (const period of oh.periods) {
-      const p = period as Record<string, any>;
-      const openDay = p.open?.day;
-      const openTime = p.open?.time;
-      const closeTime = p.close?.time;
-
-      if (openDay == null || !openTime) continue;
-
-      const fmtTime = (t: string) => {
-        const h = parseInt(t.slice(0, 2), 10);
-        const m = t.slice(2);
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-        return `${h12}:${m} ${ampm}`;
-      };
-
-      const dayName = DAY_NAMES[openDay] || `Day ${openDay}`;
-      const timeStr = closeTime ? `${fmtTime(openTime)} - ${fmtTime(closeTime)}` : `${fmtTime(openTime)} - Open`;
-      dayHours[openDay] = dayHours[openDay] ? `${dayHours[openDay]}, ${timeStr}` : timeStr;
+    // Google Places format: { weekday_text: string[] }
+    if (Array.isArray(oh.weekday_text) && oh.weekday_text.length > 0) {
+      return oh.weekday_text.filter((t): t is string => typeof t === 'string').map(String);
     }
 
-    return DAY_NAMES.map((name, i) => `${name}: ${dayHours[i] || 'Closed'}`);
-  }
+    // Google Places format: { periods: Array<{ open: { day, time }, close: { day, time } }> }
+    if (Array.isArray(oh.periods) && oh.periods.length > 0) {
+      // Handle "Open 24 hours" — single period with open day 0, time 0000, no close
+      if (
+        oh.periods.length === 1 &&
+        (oh.periods[0] as Record<string, any>)?.open?.day === 0 &&
+        (oh.periods[0] as Record<string, any>)?.open?.time === '0000' &&
+        !(oh.periods[0] as Record<string, any>)?.close
+      ) {
+        return ['Open 24 hours'];
+      }
 
-  // Simple object format: { Monday: "9:00 - 17:00", ... }
-  if (!Array.isArray(oh)) {
-    const entries = Object.entries(oh).filter(([k]) => k !== 'open_now' && k !== 'periods');
-    if (entries.length > 0) {
-      return entries.map(([day, hours]) => `${day}: ${typeof hours === 'string' ? hours : 'See website'}`);
+      const dayHours: Record<number, string> = {};
+      for (const period of oh.periods) {
+        if (!period || typeof period !== 'object') continue;
+        const p = period as Record<string, any>;
+        const openDay = p.open?.day;
+        const openTime = p.open?.time;
+        const closeTime = p.close?.time;
+
+        if (openDay == null || typeof openDay !== 'number' || !openTime || typeof openTime !== 'string') continue;
+
+        const fmtTime = (t: string) => {
+          const h = parseInt(t.slice(0, 2), 10);
+          const m = t.slice(2);
+          if (isNaN(h)) return t;
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+          return `${h12}:${m} ${ampm}`;
+        };
+
+        const dayName = DAY_NAMES[openDay] || `Day ${openDay}`;
+        const timeStr = closeTime && typeof closeTime === 'string'
+          ? `${fmtTime(openTime)} - ${fmtTime(closeTime)}`
+          : `${fmtTime(openTime)} - Open`;
+        dayHours[openDay] = dayHours[openDay] ? `${dayHours[openDay]}, ${timeStr}` : timeStr;
+      }
+
+      return DAY_NAMES.map((name, i) => `${name}: ${dayHours[i] || 'Closed'}`);
     }
-  }
 
-  // Array of strings
-  if (Array.isArray(openingHours)) {
-    return openingHours.filter(item => typeof item === 'string').map(String);
-  }
+    // Simple object format: { Monday: "9:00 - 17:00", ... }
+    if (!Array.isArray(oh)) {
+      const entries = Object.entries(oh).filter(([k]) => k !== 'open_now' && k !== 'periods' && k !== 'weekday_text');
+      if (entries.length > 0) {
+        return entries.map(([day, hours]) => `${day}: ${typeof hours === 'string' ? hours : 'See website'}`);
+      }
+    }
 
-  return [];
+    // Array of strings
+    if (Array.isArray(openingHours)) {
+      return openingHours.filter(item => typeof item === 'string').map(String);
+    }
+
+    return [];
+  } catch {
+    return ['Hours not available'];
+  }
 }
 
 function getPhotoUrl(photos: unknown): string | null {
@@ -89,9 +218,40 @@ function getPhotoUrl(photos: unknown): string | null {
   return null;
 }
 
+function getPhotoUrls(photos: unknown, maxCount = 5): string[] {
+  if (!Array.isArray(photos) || photos.length === 0) return [];
+  const urls: string[] = [];
+  for (const item of photos.slice(0, maxCount)) {
+    if (typeof item === 'string') {
+      urls.push(item);
+    } else if (item && typeof item === 'object') {
+      const p = item as Record<string, unknown>;
+      if (typeof p.url === 'string') {
+        urls.push(p.url);
+      } else if (typeof p.photo_reference === 'string') {
+        urls.push(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${p.photo_reference}&key=${GOOGLE_MAPS_KEY}`);
+      }
+    }
+  }
+  return urls;
+}
+
 export default function StudioDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
+  const isAuthenticated = !!useAuthStore((s) => s.accessToken);
+  const { isFavorited, toggleFavorite } = useStudioFavorites();
+  const favorited = id ? isFavorited(id) : false;
+
+  const handleToggleFavorite = () => {
+    if (!id) return;
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    toggleFavorite(id);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['studio-detail', id],
@@ -120,6 +280,7 @@ export default function StudioDetail() {
   }
 
   const photoUrl = getPhotoUrl(studio.photos);
+  const photoUrls = getPhotoUrls(studio.photos, 5);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -131,7 +292,11 @@ export default function StudioDetail() {
           </Svg>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{studio.name}</Text>
-        <View style={{ width: 36 }} />
+        <Pressable onPress={handleToggleFavorite} style={styles.headerHeartButton} hitSlop={8}>
+          <Svg width={20} height={20} viewBox="0 0 24 24" fill={favorited ? colors.error : 'none'} stroke={favorited ? colors.error : colors.fg.primary} strokeWidth={2}>
+            <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+          </Svg>
+        </Pressable>
       </View>
 
       {/* Tabs */}
@@ -150,25 +315,97 @@ export default function StudioDetail() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'info' && <StudioInfo studio={studio} photoUrl={photoUrl} />}
+        {activeTab === 'info' && <StudioInfo studio={studio} photoUrl={photoUrl} photoUrls={photoUrls} />}
         {activeTab === 'claim' && <ClaimForm studioId={studio.id} />}
         {activeTab === 'suggest' && <SuggestEditForm studioId={studio.id} />}
+
+        {/* Community Posts from this studio */}
+        {activeTab === 'info' && (
+          <CommunityPostsSection studioId={studio.id} />
+        )}
+
+        {/* Nearby Studios */}
+        {activeTab === 'info' && studio.latitude != null && studio.longitude != null && (
+          <NearbyStudiosCarousel studioId={studio.id} lat={studio.latitude} lng={studio.longitude} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function StudioInfo({ studio, photoUrl }: { studio: NonNullable<Awaited<ReturnType<typeof getStudio>>['studio']>; photoUrl: string | null }) {
+function StudioInfo({ studio, photoUrl, photoUrls }: { studio: NonNullable<Awaited<ReturnType<typeof getStudio>>['studio']>; photoUrl: string | null; photoUrls: string[] }) {
   const hours = formatOpeningHours(studio.openingHours);
+  const openClosedStatus = useMemo(() => getOpenClosedStatus(studio.openingHours), [studio.openingHours]);
+  const [zoomVisible, setZoomVisible] = useState(false);
+  const [zoomIndex, setZoomIndex] = useState(0);
+
+  const handleDirections = () => {
+    if (!studio) return;
+    const { latitude, longitude, name } = studio;
+    if (latitude != null && longitude != null) {
+      const url = Platform.select({
+        ios: `maps://app?daddr=${latitude},${longitude}&q=${encodeURIComponent(name)}`,
+        android: `google.navigation:q=${latitude},${longitude}`,
+        default: `https://maps.google.com/maps?daddr=${latitude},${longitude}`,
+      });
+      if (url) Linking.openURL(url);
+    } else {
+      // Fallback to address search
+      const addr = encodeURIComponent(studio.formattedAddress || studio.address || name);
+      Linking.openURL(`https://maps.google.com/?q=${addr}`);
+    }
+  };
 
   return (
     <>
-      {/* Photo */}
-      {photoUrl && (
-        <View style={styles.photoContainer}>
-          <Image source={{ uri: photoUrl }} style={styles.photo} resizeMode="cover" />
+      {/* Open/Closed Banner */}
+      {openClosedStatus && (
+        <View style={[styles.openClosedBanner, openClosedStatus.isOpen ? styles.openBanner : styles.closedBanner]}>
+          <View style={[styles.openClosedDot, openClosedStatus.isOpen ? styles.openDot : styles.closedDot]} />
+          <Text style={[styles.openClosedText, openClosedStatus.isOpen ? styles.openText : styles.closedText]}>
+            {openClosedStatus.isOpen ? 'Open' : 'Closed'}
+            {'  ·  '}
+            {openClosedStatus.timeLabel}
+          </Text>
         </View>
       )}
+
+      {/* Photo Gallery */}
+      {photoUrls.length > 1 ? (
+        <View style={styles.galleryContainer}>
+          <FlatList
+            data={photoUrls}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={({ item, index }) => (
+              <Pressable onPress={() => { setZoomIndex(index); setZoomVisible(true); }}>
+                <Image source={{ uri: item }} style={styles.galleryPhoto} resizeMode="cover" />
+              </Pressable>
+            )}
+            ItemSeparatorComponent={() => <View style={{ width: spacing.xs }} />}
+            contentContainerStyle={{ paddingBottom: spacing.sm }}
+          />
+          <ImageZoomModal
+            visible={zoomVisible}
+            images={photoUrls.map((url) => ({ url }))}
+            initialIndex={zoomIndex}
+            onClose={() => setZoomVisible(false)}
+          />
+        </View>
+      ) : photoUrl ? (
+        <Pressable onPress={() => { setZoomIndex(0); setZoomVisible(true); }}>
+          <View style={styles.photoContainer}>
+            <Image source={{ uri: photoUrl }} style={styles.photo} resizeMode="cover" />
+          </View>
+          <ImageZoomModal
+            visible={zoomVisible}
+            images={[{ url: photoUrl }]}
+            initialIndex={0}
+            onClose={() => setZoomVisible(false)}
+          />
+        </Pressable>
+      ) : null}
 
       {/* Rating */}
       {studio.rating != null && (
@@ -216,6 +453,35 @@ function StudioInfo({ studio, photoUrl }: { studio: NonNullable<Awaited<ReturnTy
         />
       )}
 
+      {/* Action Buttons Row */}
+      <View style={styles.actionRow}>
+        <Pressable style={styles.directionsButton} onPress={handleDirections}>
+          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.button.primaryText} strokeWidth={2}>
+            <Path d="M12 22s-8-4.5-8-11.8A8 8 0 0120 10.2c0 7.3-8 11.8-8 11.8z" />
+            <Path d="M12 13a3 3 0 100-6 3 3 0 000 6z" />
+          </Svg>
+          <Text style={styles.directionsButtonText}>Get Directions</Text>
+        </Pressable>
+        {studio.phoneNumber && (
+          <Pressable style={styles.actionButton} onPress={() => Linking.openURL(`tel:${studio.phoneNumber}`)}>
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.button.primaryText} strokeWidth={2}>
+              <Path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.actionButtonText}>Call</Text>
+          </Pressable>
+        )}
+        {studio.website && (
+          <Pressable style={styles.actionButton} onPress={() => Linking.openURL(studio.website!)}>
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.button.primaryText} strokeWidth={2}>
+              <Path d="M12 2a10 10 0 100 20 10 10 0 000-20z" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M2 12h20" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.actionButtonText}>Website</Text>
+          </Pressable>
+        )}
+      </View>
+
       {/* Opening hours */}
       {hours.length > 0 && (
         <View style={styles.section}>
@@ -235,7 +501,7 @@ function StudioInfo({ studio, photoUrl }: { studio: NonNullable<Awaited<ReturnTy
           <View style={styles.amenitiesGrid}>
             {studio.amenities.map((a) => (
               <View key={a} style={styles.amenityChip}>
-                <Text style={styles.amenityText}>{a}</Text>
+                <Text style={styles.amenityText}>{getAmenityLabel(a)}</Text>
               </View>
             ))}
           </View>
@@ -382,6 +648,95 @@ function SuggestEditForm({ studioId }: { studioId: string }) {
   );
 }
 
+function CommunityPostsSection({ studioId }: { studioId: string }) {
+  const { data } = useQuery({
+    queryKey: ['studio-community-posts', studioId],
+    queryFn: () => getFeed({ studioId, limit: 5 }),
+    enabled: !!studioId,
+  });
+
+  const posts = data?.posts ?? [];
+  if (posts.length === 0) return null;
+
+  return (
+    <View style={styles.communitySection}>
+      <Text style={styles.communitySectionTitle}>Community Posts</Text>
+      <FlatList
+        data={posts}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(p) => p.id}
+        renderItem={({ item }) => (
+          <Pressable
+            style={styles.communityCard}
+            onPress={() => router.push(`/(tabs)/community/${item.id}`)}
+          >
+            {item.mediaUrl ? (
+              <Image source={{ uri: item.mediaUrl }} style={styles.communityCardImage} resizeMode="cover" />
+            ) : (
+              <View style={[styles.communityCardImage, styles.communityCardPlaceholder]}>
+                <Text style={styles.communityCardPlaceholderText}>No image</Text>
+              </View>
+            )}
+            {item.caption ? (
+              <Text style={styles.communityCardCaption} numberOfLines={2}>{item.caption}</Text>
+            ) : null}
+          </Pressable>
+        )}
+        ItemSeparatorComponent={() => <View style={{ width: spacing.sm }} />}
+      />
+    </View>
+  );
+}
+
+function NearbyStudiosCarousel({ studioId, lat, lng }: { studioId: string; lat: number; lng: number }) {
+  const { isFavorited, toggleFavorite } = useStudioFavorites();
+  const isAuthenticated = !!useAuthStore((s) => s.accessToken);
+
+  const { data } = useQuery({
+    queryKey: ['nearby-studios-detail', lat, lng],
+    queryFn: () => getNearbyStudios(lat, lng, 10000),
+  });
+
+  const nearbyStudios = useMemo(() => {
+    if (!data?.studios) return [];
+    return data.studios.filter((s) => s.id !== studioId).slice(0, 5);
+  }, [data, studioId]);
+
+  const handleToggleFavorite = (id: string) => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    toggleFavorite(id);
+  };
+
+  if (nearbyStudios.length === 0) return null;
+
+  return (
+    <View style={styles.nearbySection}>
+      <Text style={styles.nearbySectionTitle}>Nearby Studios</Text>
+      <FlatList
+        data={nearbyStudios}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(s) => s.id}
+        renderItem={({ item }) => (
+          <View style={styles.nearbyCardWrapper}>
+            <StudioCard
+              studio={item}
+              isFavorited={isFavorited(item.id)}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          </View>
+        )}
+        ItemSeparatorComponent={() => <View style={{ width: spacing.sm }} />}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.primary },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
@@ -389,6 +744,7 @@ const styles = StyleSheet.create({
   link: { fontSize: typography.sizes.base, color: colors.fg.primary, textDecorationLine: 'underline' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backButton: { padding: spacing.xs, marginRight: spacing.sm },
+  headerHeartButton: { padding: spacing.xs },
   headerTitle: { flex: 1, fontSize: typography.sizes.lg, fontWeight: typography.weights.semibold, color: colors.fg.primary },
   tabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border.default },
   tab: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center' },
@@ -407,6 +763,11 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.md },
   infoText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, flex: 1, lineHeight: 20 },
   infoTextLink: { color: colors.fg.primary, textDecorationLine: 'underline' },
+  actionRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, marginTop: spacing.xs },
+  directionsButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.button.primaryBg, paddingVertical: 12, paddingHorizontal: spacing.md, borderRadius: radius.md },
+  directionsButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.button.primaryText },
+  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.button.primaryBg, paddingVertical: 12, paddingHorizontal: spacing.sm, borderRadius: radius.md },
+  actionButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.button.primaryText },
   section: { marginBottom: spacing.lg, marginTop: spacing.sm },
   sectionTitle: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.sm },
   hoursText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 22 },
@@ -422,4 +783,66 @@ const styles = StyleSheet.create({
   roleChipActive: { backgroundColor: colors.fg.primary, borderColor: colors.fg.primary },
   roleChipText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, textTransform: 'capitalize' },
   roleChipTextActive: { color: colors.bg.primary },
+  galleryContainer: { marginBottom: spacing.md },
+  galleryPhoto: { width: SCREEN_WIDTH * 0.7, height: PHOTO_HEIGHT, borderRadius: radius.md, backgroundColor: colors.cream05 },
+  nearbySection: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default },
+  nearbySectionTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.bold, color: colors.fg.primary, marginBottom: spacing.sm },
+  nearbyCardWrapper: { width: SCREEN_WIDTH * 0.75 },
+  // Open/Closed banner
+  openClosedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
+  openBanner: { backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' },
+  closedBanner: { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
+  openClosedDot: { width: 8, height: 8, borderRadius: 4 },
+  openDot: { backgroundColor: colors.success },
+  closedDot: { backgroundColor: colors.error },
+  openClosedText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.medium },
+  openText: { color: colors.success },
+  closedText: { color: colors.error },
+  // Community posts section
+  communitySection: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+  },
+  communitySectionTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
+    color: colors.fg.primary,
+    marginBottom: spacing.sm,
+  },
+  communityCard: {
+    width: 140,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.bg.card,
+  },
+  communityCardImage: {
+    width: 140,
+    height: 140,
+    backgroundColor: colors.cream05,
+  },
+  communityCardPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  communityCardPlaceholderText: {
+    fontSize: 11,
+    color: colors.fg.muted,
+  },
+  communityCardCaption: {
+    fontSize: 11,
+    color: colors.fg.secondary,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    lineHeight: 15,
+  },
 });

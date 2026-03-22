@@ -37,6 +37,7 @@ model User {
   pushTokens            PushToken[]
   wishlistItems         ProductWishlist[]
   restockAlerts         RestockAlert[]
+  studioFavorites       StudioFavorite[]
 }
 
 model Session {
@@ -210,6 +211,7 @@ model Studio {
   editSuggestions   StudioEditSuggestion[]
   ugcPosts          UgcPost[]
   workoutLogs       WorkoutLog[]
+  studioFavorites   StudioFavorite[]
 
   @@index([city]) // Studio search/filter by city
 }
@@ -723,6 +725,23 @@ model RestockAlert {
   @@unique([email, productHandle])
   @@index([productHandle])
   @@index([userId])
+}
+
+// ============================================
+// STUDIO FAVORITES
+// ============================================
+
+model StudioFavorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studioId  String
+  studio    Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, studioId])
+  @@index([userId])
+  @@index([studioId])
 }
 
 // ============================================

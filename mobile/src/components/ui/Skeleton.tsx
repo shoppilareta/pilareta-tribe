@@ -94,6 +94,74 @@ export function FeedPostSkeleton() {
   );
 }
 
+/** ─── Studio skeleton loaders ─── */
+
+export function StudioCardSkeleton() {
+  return (
+    <View style={studioSkeletonStyles.card}>
+      <View style={studioSkeletonStyles.photo} />
+      <View style={studioSkeletonStyles.content}>
+        <Skeleton width="70%" height={14} />
+        <View style={studioSkeletonStyles.addressRow}>
+          <Skeleton width={14} height={14} borderRadius={7} />
+          <Skeleton width="55%" height={12} />
+        </View>
+        <View style={studioSkeletonStyles.metaRow}>
+          <Skeleton width={50} height={12} />
+          <Skeleton width={70} height={12} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+export function StudioListSkeleton() {
+  return (
+    <View style={studioSkeletonStyles.list}>
+      {[1, 2, 3, 4].map((i) => (
+        <StudioCardSkeleton key={i} />
+      ))}
+    </View>
+  );
+}
+
+const studioSkeletonStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  photo: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.sm,
+    backgroundColor: colors.cream05,
+    marginRight: spacing.sm,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 8,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  list: {
+    padding: spacing.md,
+  },
+});
+
 /** ─── Shop skeleton loaders ─── */
 
 export function ProductCardSkeleton() {
