@@ -8,6 +8,7 @@ struct WorkoutSummary {
     let duration: Int
     let avgHeartRate: Double
     let calories: Int
+    let coolDownSeconds: Int
 }
 
 // MARK: - Stat Badge Component
@@ -55,8 +56,34 @@ struct WorkoutTimerView: View {
     @State private var celebrationDuration: Int = 0
     @State private var celebrationType: String = ""
     @State private var selectedTypeIndex: Double = 0
+    @State private var motivationText: String? = nil
+    @State private var showBadgeCelebration = false
+
+    // Target Duration
+    @State private var targetDuration: Int = 0 // 0 means no target
+    @State private var goalReached = false
+
+    // Cool-Down Phase
+    @State private var showCoolDownPrompt = false
+    @State private var inCoolDown = false
+    @State private var coolDownSeconds: TimeInterval = 0
+    @State private var coolDownTimer: Timer? = nil
+    @State private var coolDownPhase: Int = 0
+
+    // Breathing Cues
+    @State private var breathingEnabled = false
+    @State private var breathingTimer: Timer? = nil
+    @State private var isInhaling = true
 
     let workoutTypes = ["Reformer", "Mat", "Tower", "Yoga", "Running", "Strength"]
+
+    let coolDownPrompts = [
+        "Child's Pose \u{2014} breathe deeply",
+        "Spinal Twist \u{2014} each side",
+        "Hamstring Stretch",
+        "Deep Breathing \u{2014} 4 in, 4 out",
+        "You're done! Great workout.",
+    ]
 
     // Map display names to API values
     private func apiType(for displayType: String) -> String {
@@ -75,6 +102,8 @@ struct WorkoutTimerView: View {
         ZStack {
             if showSummary, let summary = workoutSummary {
                 summaryView(summary: summary)
+            } else if inCoolDown {
+                coolDownView
             } else if !isActive {
                 preWorkoutView
             } else if isLuminanceReduced {
@@ -83,17 +112,56 @@ struct WorkoutTimerView: View {
                 activeWorkoutView
             }
 
+            // Cool-down prompt overlay
+            if showCoolDownPrompt {
+                coolDownPromptOverlay
+                    .transition(.opacity)
+                    .zIndex(99)
+            }
+
             // Celebration overlay
             if showCelebration {
                 celebrationOverlay
                     .transition(.scale.combined(with: .opacity))
                     .zIndex(100)
             }
+
+            // Badge celebration overlay
+            if showBadgeCelebration, let badge = workoutManager.newBadgeUnlocked {
+                badgeCelebrationOverlay(badge: badge)
+                    .transition(.scale.combined(with: .opacity))
+                    .zIndex(101)
+            }
+
+            // In-workout motivation overlay
+            if isActive, let motivation = motivationText {
+                VStack {
+                    Spacer()
+                    Text(motivation)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color(hex: "f6eddd"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(hex: "f6eddd").opacity(0.15))
+                        .cornerRadius(8)
+                        .padding(.bottom, 60)
+                }
+                .transition(.opacity)
+                .zIndex(50)
+            }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.7), value: showCelebration)
+        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: showBadgeCelebration)
+        .animation(.easeInOut(duration: 0.3), value: motivationText != nil)
+        .animation(.easeInOut(duration: 0.3), value: showCoolDownPrompt)
+        .animation(.easeInOut(duration: 0.3), value: inCoolDown)
         .onDisappear {
             timer?.invalidate()
             timer = nil
+            breathingTimer?.invalidate()
+            breathingTimer = nil
+            coolDownTimer?.invalidate()
+            coolDownTimer = nil
         }
     }
 
@@ -129,6 +197,33 @@ struct WorkoutTimerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "202219").opacity(0.95))
+    }
+
+    // MARK: - Badge Celebration Overlay
+
+    private func badgeCelebrationOverlay(badge: String) -> some View {
+        VStack(spacing: 8) {
+            Spacer()
+
+            Text("\u{1F38A}")
+                .font(.system(size: 40))
+
+            Text("Badge Unlocked!")
+                .font(.headline)
+                .foregroundColor(.yellow)
+
+            Text(badge)
+                .font(.caption)
+                .foregroundColor(Color(hex: "f6eddd"))
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(hex: "202219").opacity(0.95))
+        .onAppear {
+            WKInterfaceDevice.current().play(.success)
+            WKInterfaceDevice.current().play(.notification)
+        }
     }
 
     // MARK: - Pre-Workout View
@@ -174,9 +269,48 @@ struct WorkoutTimerView: View {
                     }
                 }
 
+                // Target duration picker
+                VStack(spacing: 8) {
+                    Text("GOAL")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(Color(hex: "f6eddd").opacity(0.4))
+
+                    HStack(spacing: 12) {
+                        ForEach([0, 15, 30, 45, 60], id: \.self) { mins in
+                            Button(action: {
+                                WKInterfaceDevice.current().play(.click)
+                                targetDuration = mins
+                            }) {
+                                Text(mins == 0 ? "\u{221E}" : "\(mins)")
+                                    .font(.system(size: 14, weight: targetDuration == mins ? .bold : .regular))
+                                    .foregroundColor(targetDuration == mins ? Color(hex: "202219") : Color(hex: "f6eddd"))
+                                    .frame(width: 32, height: 28)
+                                    .background(targetDuration == mins ? Color(hex: "f6eddd") : Color(hex: "f6eddd").opacity(0.1))
+                                    .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    if targetDuration > 0 {
+                        Text("\(targetDuration) min goal")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.5))
+                    }
+                }
+
                 // Water Lock toggle
                 Toggle(isOn: $waterLockEnabled) {
                     Label("Water Lock", systemImage: "drop.fill")
+                        .font(.caption)
+                        .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
+                }
+                .toggleStyle(.switch)
+                .tint(Color(hex: "f6eddd").opacity(0.5))
+
+                // Breathing cues toggle
+                Toggle(isOn: $breathingEnabled) {
+                    Label("Breathing Cues", systemImage: "wind")
                         .font(.caption)
                         .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
                 }
@@ -268,11 +402,58 @@ struct WorkoutTimerView: View {
             }
             .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
 
-            // Timer display MM:SS
-            Text(formatTime(elapsedSeconds))
-                .font(.system(size: 44, weight: .bold, design: .monospaced))
-                .foregroundColor(Color(hex: "f6eddd"))
-                .minimumScaleFactor(0.7)
+            // Timer display with optional progress ring
+            ZStack {
+                // Target duration progress ring
+                if targetDuration > 0 {
+                    let targetSeconds = Double(targetDuration * 60)
+                    let progress = min(elapsedSeconds / targetSeconds, 1.0)
+
+                    Circle()
+                        .stroke(Color(hex: "f6eddd").opacity(0.1), lineWidth: 3)
+                        .frame(width: 110, height: 110)
+
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(
+                            goalReached
+                                ? LinearGradient(colors: [.green, .green.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                : LinearGradient(colors: [Color(hex: "f6eddd"), Color(hex: "f6eddd").opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .frame(width: 110, height: 110)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeInOut(duration: 0.5), value: progress)
+                }
+
+                VStack(spacing: 2) {
+                    // Timer MM:SS
+                    Text(formatTime(elapsedSeconds))
+                        .font(.system(size: targetDuration > 0 ? 36 : 44, weight: .bold, design: .monospaced))
+                        .foregroundColor(goalReached ? .green : Color(hex: "f6eddd"))
+                        .minimumScaleFactor(0.7)
+
+                    // Target progress text
+                    if targetDuration > 0 {
+                        let elapsedMins = Int(elapsedSeconds) / 60
+                        Text("\(elapsedMins)/\(targetDuration) min")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(goalReached ? .green.opacity(0.8) : Color(hex: "f6eddd").opacity(0.5))
+                    }
+                }
+            }
+
+            // Goal reached banner
+            if goalReached {
+                Text("Goal reached!")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color.green.opacity(0.15))
+                    .cornerRadius(4)
+                    .transition(.scale.combined(with: .opacity))
+            }
 
             // Heart rate display
             if workoutManager.currentHeartRate > 0 {
@@ -303,6 +484,14 @@ struct WorkoutTimerView: View {
                     .foregroundColor(Color(hex: "f6eddd").opacity(0.3))
             }
 
+            // Breathing cue indicator
+            if breathingEnabled {
+                Text(isInhaling ? "Inhale..." : "Exhale...")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(hex: "f6eddd").opacity(0.3))
+                    .animation(.easeInOut(duration: 2), value: isInhaling)
+            }
+
             // Pause indicator
             if isPaused {
                 Text("PAUSED")
@@ -329,8 +518,8 @@ struct WorkoutTimerView: View {
                 }
                 .buttonStyle(.plain)
 
-                // End workout
-                Button(action: endWorkout) {
+                // End workout (triggers cool-down prompt)
+                Button(action: handleStopTap) {
                     Image(systemName: "stop.fill")
                         .font(.title3)
                         .frame(width: 48, height: 48)
@@ -341,6 +530,106 @@ struct WorkoutTimerView: View {
                 .buttonStyle(.plain)
             }
             .padding(.bottom, 4)
+        }
+    }
+
+    // MARK: - Cool-Down Prompt Overlay
+
+    private var coolDownPromptOverlay: some View {
+        VStack(spacing: 12) {
+            Spacer()
+
+            Text("Cool Down?")
+                .font(.headline)
+                .foregroundColor(Color(hex: "f6eddd"))
+
+            Text("5 minutes of gentle stretching")
+                .font(.caption)
+                .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 12) {
+                Button("Skip") {
+                    showCoolDownPrompt = false
+                    finalizeWorkout()
+                }
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
+
+                Button("Start") {
+                    showCoolDownPrompt = false
+                    startCoolDown()
+                }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.green)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(hex: "202219").opacity(0.95))
+    }
+
+    // MARK: - Cool-Down View
+
+    private var coolDownView: some View {
+        VStack(spacing: 8) {
+            Spacer()
+
+            Text("COOL DOWN")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundColor(.cyan.opacity(0.7))
+
+            // Cool-down countdown timer
+            let remaining = max(0, 300 - coolDownSeconds)
+            Text(formatTime(remaining))
+                .font(.system(size: 40, weight: .bold, design: .monospaced))
+                .foregroundColor(.cyan)
+                .minimumScaleFactor(0.7)
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.cyan.opacity(0.15))
+                        .frame(height: 4)
+                        .cornerRadius(2)
+                    Rectangle()
+                        .fill(Color.cyan)
+                        .frame(width: geo.size.width * CGFloat(min(coolDownSeconds / 300.0, 1.0)), height: 4)
+                        .cornerRadius(2)
+                        .animation(.easeInOut(duration: 0.5), value: coolDownSeconds)
+                }
+            }
+            .frame(height: 4)
+            .padding(.horizontal, 16)
+
+            // Current stretch prompt
+            Text(coolDownPrompts[min(coolDownPhase, coolDownPrompts.count - 1)])
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color(hex: "f6eddd").opacity(0.8))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
+                .id("cooldown-phase-\(coolDownPhase)")
+                .animation(.easeInOut(duration: 0.5), value: coolDownPhase)
+
+            Spacer()
+
+            // End cool-down button
+            Button(action: endCoolDown) {
+                HStack(spacing: 6) {
+                    Image(systemName: "stop.fill")
+                        .font(.caption)
+                    Text("End")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .frame(width: 80, height: 40)
+                .background(Color.cyan.opacity(0.25))
+                .foregroundColor(.cyan)
+                .cornerRadius(20)
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 8)
         }
     }
 
@@ -384,6 +673,18 @@ struct WorkoutTimerView: View {
                     }
                 }
 
+                // Cool-down time if applicable
+                if summary.coolDownSeconds > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "figure.cooldown")
+                            .font(.caption)
+                            .foregroundColor(.cyan)
+                        Text("\(summary.coolDownSeconds / 60) min cool-down")
+                            .font(.system(size: 12))
+                            .foregroundColor(.cyan.opacity(0.8))
+                    }
+                }
+
                 HStack(spacing: 4) {
                     Image(systemName: iconForType(summary.type))
                         .font(.caption2)
@@ -415,11 +716,11 @@ struct WorkoutTimerView: View {
 
     var hrZone: String {
         let hr = workoutManager.currentHeartRate
-        if hr < 100 { return "Zone 1 — Easy" }
-        if hr < 120 { return "Zone 2 — Fat Burn" }
-        if hr < 140 { return "Zone 3 — Cardio" }
-        if hr < 160 { return "Zone 4 — Hard" }
-        return "Zone 5 — Max"
+        if hr < 100 { return "Zone 1 \u{2014} Easy" }
+        if hr < 120 { return "Zone 2 \u{2014} Fat Burn" }
+        if hr < 140 { return "Zone 3 \u{2014} Cardio" }
+        if hr < 160 { return "Zone 4 \u{2014} Hard" }
+        return "Zone 5 \u{2014} Max"
     }
 
     var hrZoneColor: Color {
@@ -449,6 +750,11 @@ struct WorkoutTimerView: View {
         previousHRZone = 0
         showSummary = false
         workoutSummary = nil
+        goalReached = false
+        coolDownSeconds = 0
+        coolDownPhase = 0
+        inCoolDown = false
+        showCoolDownPrompt = false
 
         // Start HealthKit workout session
         workoutManager.startHealthKitWorkout(type: apiType(for: workoutType))
@@ -462,6 +768,7 @@ struct WorkoutTimerView: View {
         }
 
         startTimer()
+        startBreathingCues()
         WKInterfaceDevice.current().play(.start)
     }
 
@@ -471,16 +778,82 @@ struct WorkoutTimerView: View {
         if isPaused {
             timer?.invalidate()
             timer = nil
+            breathingTimer?.invalidate()
+            breathingTimer = nil
             WKInterfaceDevice.current().play(.stop)
         } else {
             startTimer()
+            startBreathingCues()
             WKInterfaceDevice.current().play(.start)
         }
     }
 
-    func endWorkout() {
+    func handleStopTap() {
+        if inCoolDown {
+            endCoolDown()
+        } else {
+            // Pause the workout timer while showing prompt
+            if !isPaused {
+                timer?.invalidate()
+                timer = nil
+                breathingTimer?.invalidate()
+                breathingTimer = nil
+            }
+            showCoolDownPrompt = true
+        }
+    }
+
+    func startCoolDown() {
+        // Stop the main workout timer
         timer?.invalidate()
         timer = nil
+        breathingTimer?.invalidate()
+        breathingTimer = nil
+
+        inCoolDown = true
+        coolDownSeconds = 0
+        coolDownPhase = 0
+
+        // Keep isActive true so elapsed time is preserved for summary
+        isActive = false
+        isPaused = false
+
+        WKInterfaceDevice.current().play(.start)
+
+        coolDownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            DispatchQueue.main.async {
+                self.coolDownSeconds += 1
+
+                // Update phase every 60 seconds
+                let newPhase = min(Int(self.coolDownSeconds) / 60, self.coolDownPrompts.count - 1)
+                if newPhase != self.coolDownPhase {
+                    self.coolDownPhase = newPhase
+                    WKInterfaceDevice.current().play(.notification)
+                }
+
+                // Auto-end after 5 minutes
+                if self.coolDownSeconds >= 300 {
+                    self.endCoolDown()
+                }
+            }
+        }
+    }
+
+    func endCoolDown() {
+        coolDownTimer?.invalidate()
+        coolDownTimer = nil
+        inCoolDown = false
+
+        let finalCoolDownSeconds = Int(coolDownSeconds)
+        finalizeWorkout(coolDownTime: finalCoolDownSeconds)
+    }
+
+    /// Called when the user ends the workout (with or without cool-down).
+    func finalizeWorkout(coolDownTime: Int = 0) {
+        timer?.invalidate()
+        timer = nil
+        breathingTimer?.invalidate()
+        breathingTimer = nil
 
         let durationMinutes = max(1, Int(round(elapsedSeconds / 60)))
 
@@ -494,12 +867,14 @@ struct WorkoutTimerView: View {
 
         // End HealthKit workout and get summary data
         let capturedType = workoutType
+        let capturedCoolDown = coolDownTime
         workoutManager.endHealthKitWorkout { avgHR, calories in
             self.workoutSummary = WorkoutSummary(
                 type: capturedType,
                 duration: durationMinutes,
                 avgHeartRate: avgHR,
-                calories: Int(calories)
+                calories: Int(calories),
+                coolDownSeconds: capturedCoolDown
             )
         }
 
@@ -509,6 +884,9 @@ struct WorkoutTimerView: View {
         // Send workout to phone
         workoutManager.logWorkout(type: apiType(for: workoutType), duration: durationMinutes)
 
+        // Check and unlock achievement badges
+        workoutManager.checkAndUnlockBadges()
+
         // Update pending sync count
         workoutManager.updatePendingSyncCount()
 
@@ -516,11 +894,24 @@ struct WorkoutTimerView: View {
         isActive = false
         isPaused = false
         elapsedSeconds = 0
+        motivationText = nil
+        goalReached = false
 
-        // Dismiss celebration after 3 seconds, then show summary
+        // Dismiss celebration after 3 seconds, then check for badge unlock
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             showCelebration = false
-            showSummary = true
+
+            if workoutManager.newBadgeUnlocked != nil {
+                // Show badge celebration before summary
+                showBadgeCelebration = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    showBadgeCelebration = false
+                    workoutManager.newBadgeUnlocked = nil
+                    showSummary = true
+                }
+            } else {
+                showSummary = true
+            }
         }
     }
 
@@ -528,19 +919,72 @@ struct WorkoutTimerView: View {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             elapsedSeconds += 1
             checkMilestones()
+            checkTargetGoal()
         }
     }
 
-    // MARK: - Milestone Haptics
+    // MARK: - Breathing Cues
+
+    func startBreathingCues() {
+        guard breathingEnabled else { return }
+
+        isInhaling = true
+        breathingTimer?.invalidate()
+
+        // 8-second cycle: 4s inhale, 4s exhale
+        breathingTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+            DispatchQueue.main.async {
+                self.isInhaling.toggle()
+                if self.isInhaling {
+                    WKInterfaceDevice.current().play(.directionUp) // inhale
+                } else {
+                    WKInterfaceDevice.current().play(.directionDown) // exhale
+                }
+            }
+        }
+    }
+
+    // MARK: - Target Goal Check
+
+    func checkTargetGoal() {
+        guard targetDuration > 0, !goalReached else { return }
+
+        let targetSeconds = Double(targetDuration * 60)
+        if elapsedSeconds >= targetSeconds {
+            goalReached = true
+            WKInterfaceDevice.current().play(.success)
+
+            // Secondary haptic for emphasis
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                WKInterfaceDevice.current().play(.notification)
+            }
+        }
+    }
+
+    // MARK: - Milestone Haptics & Motivation
 
     func checkMilestones() {
         let totalSeconds = Int(elapsedSeconds)
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
 
-        // Every 5 minutes: achievement haptic
-        if seconds == 0 && minutes > 0 && minutes % 5 == 0 {
-            WKInterfaceDevice.current().play(.notification)
+        if seconds == 0 && minutes > 0 {
+            // Show motivation at specific times
+            switch minutes {
+            case 5: showMotivation("Warmed up! Let's go \u{1F4AA}")
+            case 10: showMotivation("You're in the zone! \u{1F525}")
+            case 15: showMotivation("Quarter hour done! Keep pushing")
+            case 20: showMotivation("20 minutes strong! \u{1F48E}")
+            case 30: showMotivation("Halfway hero! \u{1F3C6}")
+            case 45: showMotivation("Beast mode! 45 minutes! \u{1F981}")
+            case 60: showMotivation("ONE HOUR! Legendary! \u{2B50}")
+            default: break
+            }
+
+            // Haptic every 5 minutes
+            if minutes % 5 == 0 {
+                WKInterfaceDevice.current().play(.notification)
+            }
         }
 
         // Subtle haptic every minute (for first 3 minutes, as a "warm-up" cue)
@@ -555,6 +999,13 @@ struct WorkoutTimerView: View {
                 WKInterfaceDevice.current().play(.retry)
             }
             previousHRZone = currentZone
+        }
+    }
+
+    func showMotivation(_ text: String) {
+        motivationText = text
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if motivationText == text { motivationText = nil }
         }
     }
 

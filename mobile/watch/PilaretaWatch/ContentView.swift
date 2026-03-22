@@ -44,6 +44,10 @@ struct ContentView: View {
             workoutManager.fetchStats()
             workoutManager.updatePendingSyncCount()
         }
+        .onContinueUserActivity("com.pilareta.tribe.workout") { _ in
+            // Navigate to timer tab when complication is tapped
+            selectedTab = 1
+        }
     }
 }
 
@@ -53,13 +57,64 @@ struct DashboardView: View {
     @ObservedObject var workoutManager: WorkoutManager
     @State private var isRefreshing = false
     @State private var showStreakDetail = false
+    @State private var showAchievements = false
 
     // Animation state for rings
     @State private var ringAnimationProgress: CGFloat = 0
 
+    // MARK: - Morning Briefing
+
+    var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 { return "Good morning" }
+        if hour < 17 { return "Good afternoon" }
+        return "Good evening"
+    }
+
+    var motivationalMessage: String {
+        let streak = workoutManager.currentStreak
+        let calories = workoutManager.todayCalories
+
+        if calories > 0 {
+            return "You've burned \(calories) cal today. Keep going! \u{1F4AA}"
+        } else if streak > 0 {
+            return "\u{1F525} \(streak)-day streak! Don't let it end today."
+        } else {
+            return "Today's a great day for Pilates. Let's go! \u{2728}"
+        }
+    }
+
+    var unlockedCount: Int {
+        let streak = workoutManager.currentStreak
+        let totalWorkouts = UserDefaults.standard.integer(forKey: "total_workouts_logged")
+        var count = 0
+        if totalWorkouts >= 1 { count += 1 }
+        if streak >= 7 || UserDefaults.standard.bool(forKey: "badge_streak_7") { count += 1 }
+        if streak >= 14 || UserDefaults.standard.bool(forKey: "badge_streak_14") { count += 1 }
+        if streak >= 30 || UserDefaults.standard.bool(forKey: "badge_streak_30") { count += 1 }
+        if totalWorkouts >= 10 { count += 1 }
+        if totalWorkouts >= 50 { count += 1 }
+        if totalWorkouts >= 100 { count += 1 }
+        if UserDefaults.standard.bool(forKey: "badge_early_bird") { count += 1 }
+        return count
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                // Morning briefing
+                VStack(spacing: 6) {
+                    Text(greeting)
+                        .font(.caption)
+                        .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
+
+                    Text(motivationalMessage)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color(hex: "f6eddd"))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 8)
+                }
+
                 // Offline indicator
                 if workoutManager.isOffline {
                     HStack(spacing: 4) {
@@ -205,6 +260,36 @@ struct DashboardView: View {
                 }
                 .padding(.vertical, 4)
 
+                // Weekly trends bar
+                if workoutManager.weeklyWorkouts > 0 {
+                    VStack(spacing: 4) {
+                        HStack {
+                            Text("This week")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(hex: "f6eddd").opacity(0.5))
+                            Spacer()
+                            Text("\(workoutManager.weeklyWorkouts) workouts")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(Color(hex: "f6eddd"))
+                        }
+
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Rectangle()
+                                    .fill(Color(hex: "f6eddd").opacity(0.1))
+                                    .frame(height: 4)
+                                    .cornerRadius(2)
+                                Rectangle()
+                                    .fill(Color.green)
+                                    .frame(width: geo.size.width * CGFloat(min(workoutManager.weeklyWorkouts, 7)) / 7.0, height: 4)
+                                    .cornerRadius(2)
+                            }
+                        }
+                        .frame(height: 4)
+                    }
+                    .padding(.horizontal, 16)
+                }
+
                 // Refresh button
                 Button(action: refreshStats) {
                     HStack(spacing: 6) {
@@ -227,6 +312,24 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isRefreshing)
+
+                // Achievements button
+                Button(action: { showAchievements = true }) {
+                    HStack {
+                        Text("\u{1F3C6}")
+                        Text("\(unlockedCount) badges")
+                            .font(.caption2)
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(Color(hex: "f6eddd").opacity(0.08))
+                    .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+                .sheet(isPresented: $showAchievements) {
+                    AchievementsView().environmentObject(workoutManager)
+                }
 
                 // Last synced indicator
                 HStack(spacing: 4) {

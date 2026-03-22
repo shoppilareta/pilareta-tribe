@@ -14,6 +14,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate, WKExtendedR
     @Published var isLoading: Bool = false
     @Published var isPhoneReachable: Bool = false
     @Published var pendingSyncCount: Int = 0
+    @Published var newBadgeUnlocked: String? = nil
 
     // MARK: - HealthKit State
 
@@ -357,6 +358,47 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate, WKExtendedR
                 WKInterfaceDevice.current().play(.retry)
                 completion?()
             }
+        }
+    }
+
+    // MARK: - Achievement Badges
+
+    func checkAndUnlockBadges() {
+        let totalWorkouts = UserDefaults.standard.integer(forKey: "total_workouts_logged") + 1
+        UserDefaults.standard.set(totalWorkouts, forKey: "total_workouts_logged")
+
+        // Reset badge notification
+        newBadgeUnlocked = nil
+
+        // Check streak badges (highest first so the best badge wins)
+        if currentStreak >= 30 && !UserDefaults.standard.bool(forKey: "badge_streak_30") {
+            UserDefaults.standard.set(true, forKey: "badge_streak_30")
+            newBadgeUnlocked = "Monthly Master \u{1F3C6}"
+        } else if currentStreak >= 14 && !UserDefaults.standard.bool(forKey: "badge_streak_14") {
+            UserDefaults.standard.set(true, forKey: "badge_streak_14")
+            newBadgeUnlocked = "Consistency King \u{1F451}"
+        } else if currentStreak >= 7 && !UserDefaults.standard.bool(forKey: "badge_streak_7") {
+            UserDefaults.standard.set(true, forKey: "badge_streak_7")
+            newBadgeUnlocked = "Week Warrior \u{1F525}"
+        }
+
+        // Check workout count badges (highest first)
+        if totalWorkouts >= 100 && !UserDefaults.standard.bool(forKey: "badge_workouts_100") {
+            UserDefaults.standard.set(true, forKey: "badge_workouts_100")
+            newBadgeUnlocked = "Century Club \u{1F3AF}"
+        } else if totalWorkouts >= 50 && !UserDefaults.standard.bool(forKey: "badge_workouts_50") {
+            UserDefaults.standard.set(true, forKey: "badge_workouts_50")
+            newBadgeUnlocked = "Dedicated \u{1F48E}"
+        } else if totalWorkouts >= 10 && !UserDefaults.standard.bool(forKey: "badge_workouts_10") {
+            UserDefaults.standard.set(true, forKey: "badge_workouts_10")
+            newBadgeUnlocked = "Getting Started \u{2B50}"
+        }
+
+        // Early bird check
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 7 && !UserDefaults.standard.bool(forKey: "badge_early_bird") {
+            UserDefaults.standard.set(true, forKey: "badge_early_bird")
+            newBadgeUnlocked = "Early Bird \u{1F305}"
         }
     }
 

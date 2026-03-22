@@ -16,7 +16,8 @@ class ComplicationProvider: NSObject, CLKComplicationDataSource {
                     .graphicCircular,
                     .graphicCorner,
                     .graphicRectangular
-                ]
+                ],
+                userActivity: NSUserActivity(activityType: "com.pilareta.tribe.workout")
             ),
             CLKComplicationDescriptor(
                 identifier: "calories",
@@ -25,7 +26,8 @@ class ComplicationProvider: NSObject, CLKComplicationDataSource {
                     .circularSmall,
                     .modularSmall,
                     .graphicCircular
-                ]
+                ],
+                userActivity: NSUserActivity(activityType: "com.pilareta.tribe.workout")
             )
         ]
         handler(descriptors)
