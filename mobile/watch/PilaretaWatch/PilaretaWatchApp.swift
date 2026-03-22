@@ -66,9 +66,13 @@ class AppDelegate: NSObject, WKApplicationDelegate {
         WKApplication.shared().scheduleBackgroundRefresh(
             withPreferredDate: targetDate,
             userInfo: nil
-        ) { error in
+        ) { [weak self] error in
             if let error = error {
                 print("[BackgroundRefresh] Failed to schedule: \(error.localizedDescription)")
+                // Retry in 5 minutes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 300) {
+                    self?.scheduleBackgroundRefresh()
+                }
             } else {
                 print("[BackgroundRefresh] Scheduled for \(targetDate)")
             }

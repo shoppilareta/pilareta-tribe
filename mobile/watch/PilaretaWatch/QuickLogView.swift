@@ -133,10 +133,11 @@ struct QuickLogView: View {
                     isContinuous: false
                 )
                 .onChange(of: crownValue) { _, newValue in
-                    let newDuration = Int(round(newValue / 5.0) * 5)
-                    let clamped = max(5, min(180, newDuration))
-                    if clamped != duration {
-                        duration = clamped
+                    let clamped = max(5.0, min(180.0, newValue))
+                    let stepped = Int(round(clamped / 5.0)) * 5
+                    if stepped != duration {
+                        duration = stepped
+                        crownValue = Double(stepped)
                         WKInterfaceDevice.current().play(.click)
                     }
                 }

@@ -2,7 +2,7 @@ import SwiftUI
 import WatchKit
 
 struct ContentView: View {
-    @StateObject private var workoutManager = WorkoutManager()
+    @EnvironmentObject var workoutManager: WorkoutManager
     @State private var selectedTab = 0
 
     var body: some View {
@@ -395,7 +395,12 @@ struct StreakDetailView: View {
 
 extension Color {
     init(hex: String) {
-        let scanner = Scanner(string: hex)
+        let cleaned = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        guard cleaned.count == 6 else {
+            self.init(.gray)
+            return
+        }
+        let scanner = Scanner(string: cleaned)
         var rgb: UInt64 = 0
         scanner.scanHexInt64(&rgb)
         self.init(

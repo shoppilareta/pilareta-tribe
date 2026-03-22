@@ -34,8 +34,10 @@ class ComplicationProvider: NSObject, CLKComplicationDataSource {
     // MARK: - Timeline Entry
 
     func getCurrentTimelineEntry(for complication: CLKComplication, withHandler handler: @escaping (CLKComplicationTimelineEntry?) -> Void) {
-        let streak = UserDefaults.standard.integer(forKey: "cached_streak")
-        let calories = UserDefaults.standard.integer(forKey: "cached_calories")
+        let hasEverSyncedStreak = UserDefaults.standard.object(forKey: "cached_streak") != nil
+        let streak = hasEverSyncedStreak ? UserDefaults.standard.integer(forKey: "cached_streak") : nil
+        let hasEverSyncedCalories = UserDefaults.standard.object(forKey: "cached_calories") != nil
+        let calories = hasEverSyncedCalories ? UserDefaults.standard.integer(forKey: "cached_calories") : nil
 
         switch complication.identifier {
         case "streak":
@@ -49,34 +51,38 @@ class ComplicationProvider: NSObject, CLKComplicationDataSource {
 
     // MARK: - Streak Complication Templates
 
-    private func makeStreakEntry(streak: Int, complication: CLKComplication) -> CLKComplicationTimelineEntry? {
+    private func makeStreakEntry(streak: Int?, complication: CLKComplication) -> CLKComplicationTimelineEntry? {
         let date = Date()
+        let streakText = streak.map { "\($0) days" } ?? "---"
+        let streakShort = streak.map { "\u{1F525}\($0)" } ?? "\u{1F525}---"
+        let streakCorner = streak.map { "\($0) day streak" } ?? "--- days"
+        let streakRect = streak.map { "\u{1F525} \($0) day streak" } ?? "\u{1F525} ---"
 
         switch complication.family {
         case .graphicCircular:
             let template = CLKComplicationTemplateGraphicCircularStackText(
                 line1TextProvider: CLKTextProvider(format: "\u{1F525}"),
-                line2TextProvider: CLKTextProvider(format: "%d days", streak)
+                line2TextProvider: CLKTextProvider(format: "%@", streakText)
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)
 
         case .circularSmall:
             let template = CLKComplicationTemplateCircularSmallStackText(
-                line1TextProvider: CLKTextProvider(format: "\u{1F525}%d", streak),
+                line1TextProvider: CLKTextProvider(format: "%@", streakShort),
                 line2TextProvider: CLKTextProvider(format: "streak")
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)
 
         case .modularSmall:
             let template = CLKComplicationTemplateModularSmallStackText(
-                line1TextProvider: CLKTextProvider(format: "\u{1F525}%d", streak),
+                line1TextProvider: CLKTextProvider(format: "%@", streakShort),
                 line2TextProvider: CLKTextProvider(format: "streak")
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)
 
         case .graphicCorner:
             let template = CLKComplicationTemplateGraphicCornerStackText(
-                innerTextProvider: CLKTextProvider(format: "%d day streak", streak),
+                innerTextProvider: CLKTextProvider(format: "%@", streakCorner),
                 outerTextProvider: CLKTextProvider(format: "\u{1F525} Pilareta")
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)
@@ -84,7 +90,7 @@ class ComplicationProvider: NSObject, CLKComplicationDataSource {
         case .graphicRectangular:
             let template = CLKComplicationTemplateGraphicRectangularStandardBody(
                 headerTextProvider: CLKTextProvider(format: "Pilareta Streak"),
-                body1TextProvider: CLKTextProvider(format: "\u{1F525} %d day streak", streak),
+                body1TextProvider: CLKTextProvider(format: "%@", streakRect),
                 body2TextProvider: CLKTextProvider(format: "Keep it going!")
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)
@@ -96,27 +102,29 @@ class ComplicationProvider: NSObject, CLKComplicationDataSource {
 
     // MARK: - Calories Complication Templates
 
-    private func makeCaloriesEntry(calories: Int, complication: CLKComplication) -> CLKComplicationTimelineEntry? {
+    private func makeCaloriesEntry(calories: Int?, complication: CLKComplication) -> CLKComplicationTimelineEntry? {
         let date = Date()
+        let calText = calories.map { "\($0) cal" } ?? "--- cal"
+        let calShort = calories.map { "\($0)" } ?? "---"
 
         switch complication.family {
         case .graphicCircular:
             let template = CLKComplicationTemplateGraphicCircularStackText(
                 line1TextProvider: CLKTextProvider(format: "\u{1F525}"),
-                line2TextProvider: CLKTextProvider(format: "%d cal", calories)
+                line2TextProvider: CLKTextProvider(format: "%@", calText)
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)
 
         case .circularSmall:
             let template = CLKComplicationTemplateCircularSmallStackText(
-                line1TextProvider: CLKTextProvider(format: "%d", calories),
+                line1TextProvider: CLKTextProvider(format: "%@", calShort),
                 line2TextProvider: CLKTextProvider(format: "cal")
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)
 
         case .modularSmall:
             let template = CLKComplicationTemplateModularSmallStackText(
-                line1TextProvider: CLKTextProvider(format: "%d", calories),
+                line1TextProvider: CLKTextProvider(format: "%@", calShort),
                 line2TextProvider: CLKTextProvider(format: "cal")
             )
             return CLKComplicationTimelineEntry(date: date, complicationTemplate: template)

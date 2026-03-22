@@ -91,6 +91,10 @@ struct WorkoutTimerView: View {
             }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.7), value: showCelebration)
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
+        }
     }
 
     // MARK: - Celebration Overlay
@@ -293,6 +297,10 @@ struct WorkoutTimerView: View {
                         .background(hrZoneColor.opacity(0.15))
                         .cornerRadius(4)
                 }
+            } else {
+                Text("-- BPM")
+                    .font(.caption)
+                    .foregroundColor(Color(hex: "f6eddd").opacity(0.3))
             }
 
             // Pause indicator
@@ -485,9 +493,10 @@ struct WorkoutTimerView: View {
         WKInterfaceDevice.current().play(.success)
 
         // End HealthKit workout and get summary data
+        let capturedType = workoutType
         workoutManager.endHealthKitWorkout { avgHR, calories in
             self.workoutSummary = WorkoutSummary(
-                type: self.workoutType,
+                type: capturedType,
                 duration: durationMinutes,
                 avgHeartRate: avgHR,
                 calories: Int(calories)

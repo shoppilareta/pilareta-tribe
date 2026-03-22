@@ -3,7 +3,7 @@ import HealthKit
 import WatchConnectivity
 import WatchKit
 
-class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
+class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate, WKExtendedRuntimeSessionDelegate {
     // MARK: - Published State
 
     @Published var currentStreak: Int = 0
@@ -40,6 +40,9 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     // Timeout duration for WCSession calls
     private let messageTimeout: TimeInterval = 5.0
 
+    // Shared date formatter (avoid creating new instances per call)
+    private static let isoFormatter = ISO8601DateFormatter()
+
     override init() {
         super.init()
         loadCachedStats()
@@ -60,10 +63,12 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
 
         let typesToShare: Set<HKSampleType> = [HKObjectType.workoutType()]
-        let typesToRead: Set<HKObjectType> = [
-            HKObjectType.quantityType(forIdentifier: .heartRate)!,
-            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
-        ]
+        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate),
+              let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) else {
+            print("[HealthKit] Failed to create quantity types")
+            return
+        }
+        let typesToRead: Set<HKObjectType> = [heartRateType, energyType]
 
         healthStore.requestAuthorization(toShare: typesToShare, toRead: typesToRead) { success, error in
             if success {
@@ -177,19 +182,15 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty else { return }
         let bpmUnit = HKUnit.count().unitDivided(by: .minute())
 
-        for sample in quantitySamples {
-            let hr = sample.quantity.doubleValue(for: bpmUnit)
-            heartRateSamples.append(hr)
-        }
+        let newValues = quantitySamples.map { $0.quantity.doubleValue(for: bpmUnit) }
+        let latestHR = newValues.last ?? 0
 
-        if let lastSample = quantitySamples.last {
-            let latestHR = lastSample.quantity.doubleValue(for: bpmUnit)
-            DispatchQueue.main.async {
-                self.currentHeartRate = latestHR
-                if !self.heartRateSamples.isEmpty {
-                    self.averageHeartRate = self.heartRateSamples.reduce(0, +)
-                        / Double(self.heartRateSamples.count)
-                }
+        DispatchQueue.main.async {
+            self.heartRateSamples.append(contentsOf: newValues)
+            self.currentHeartRate = latestHR
+            if !self.heartRateSamples.isEmpty {
+                self.averageHeartRate = self.heartRateSamples.reduce(0, +)
+                    / Double(self.heartRateSamples.count)
             }
         }
     }
@@ -208,8 +209,10 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     func startExtendedSession() {
         guard extendedSession == nil else { return }
-        extendedSession = WKExtendedRuntimeSession()
-        extendedSession?.start()
+        let session = WKExtendedRuntimeSession()
+        session.delegate = self
+        session.start()
+        extendedSession = session
         print("[ExtendedRuntime] Session started")
     }
 
@@ -238,9 +241,8 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         lastSyncStatus = "Syncing..."
 
         // Timeout timer -- if no reply within messageTimeout, mark as timed out
-        var didReceiveReply = false
         let timeoutWork = DispatchWorkItem { [weak self] in
-            guard let self = self, !didReceiveReply else { return }
+            guard let self = self else { return }
             DispatchQueue.main.async {
                 self.isLoading = false
                 self.lastSyncStatus = "Sync timed out"
@@ -249,7 +251,6 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + messageTimeout, execute: timeoutWork)
 
         WCSession.default.sendMessage(["action": "getStats"], replyHandler: { [weak self] response in
-            didReceiveReply = true
             timeoutWork.cancel()
             guard let self = self else { return }
 
@@ -263,7 +264,6 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 self.cacheStats()
             }
         }, errorHandler: { [weak self] error in
-            didReceiveReply = true
             timeoutWork.cancel()
             guard let self = self else { return }
 
@@ -284,7 +284,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             "workoutType": type,
             "durationMinutes": duration,
             "rpe": rpe,
-            "workoutDate": ISO8601DateFormatter().string(from: Date()),
+            "workoutDate": Self.isoFormatter.string(from: Date()),
         ]
 
         guard WCSession.default.activationState == .activated else {
@@ -300,9 +300,8 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
 
         if WCSession.default.isReachable {
-            var didReceiveReply = false
             let timeoutWork = DispatchWorkItem { [weak self] in
-                guard let self = self, !didReceiveReply else { return }
+                guard let self = self else { return }
                 // Timeout -- fall back to transferUserInfo
                 WCSession.default.transferUserInfo(payload)
                 DispatchQueue.main.async {
@@ -315,7 +314,6 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + messageTimeout, execute: timeoutWork)
 
             WCSession.default.sendMessage(payload, replyHandler: { [weak self] response in
-                didReceiveReply = true
                 timeoutWork.cancel()
                 guard let self = self else { return }
 
@@ -337,7 +335,6 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                     completion?()
                 }
             }, errorHandler: { [weak self] error in
-                didReceiveReply = true
                 timeoutWork.cancel()
                 guard let self = self else { return }
 
@@ -408,7 +405,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     var isOffline: Bool {
-        return !WCSession.default.isReachable
+        return WCSession.default.activationState != .activated || !WCSession.default.isReachable
     }
 
     /// Update count of workouts queued but not yet delivered to iPhone
@@ -460,6 +457,27 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             } else {
                 self.lastSyncStatus = "iPhone disconnected"
             }
+        }
+    }
+
+    // MARK: - WKExtendedRuntimeSessionDelegate
+
+    func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        print("[ExtendedRuntime] Session did start")
+    }
+
+    func extendedRuntimeSessionWillExpire(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        print("[ExtendedRuntime] Session will expire")
+    }
+
+    func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
+        if let error = error {
+            print("[ExtendedRuntime] Invalidated with error: \(error.localizedDescription)")
+        } else {
+            print("[ExtendedRuntime] Invalidated with reason: \(reason.rawValue)")
+        }
+        DispatchQueue.main.async {
+            self.extendedSession = nil
         }
     }
 }
