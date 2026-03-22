@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useCart } from './CartProvider';
+import { useToastSafe } from './ToastProvider';
 import type { ShopifyProduct, ShopifyProductVariant } from '@/lib/shopify/types';
 
 interface AddToCartButtonProps {
@@ -18,6 +19,7 @@ export function AddToCartButton({
   showQuantity = false,
 }: AddToCartButtonProps) {
   const { addToCart, isLoading } = useCart();
+  const { showToast } = useToastSafe();
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -32,9 +34,11 @@ export function AddToCartButton({
     setIsAdding(true);
     try {
       await addToCart(product, selectedVariant, quantity);
+      showToast('Added to cart');
       setQuantity(1);
     } catch (error) {
       console.error('Failed to add to cart:', error);
+      showToast('Failed to add to cart', 'error');
     } finally {
       setIsAdding(false);
     }

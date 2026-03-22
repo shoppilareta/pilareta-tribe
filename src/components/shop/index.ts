@@ -7,3 +7,6 @@ export { ProductGrid } from './ProductGrid';
 export { ProductQuickView } from './ProductQuickView';
 export { ShopTile } from './ShopTile';
 export { BannerCarousel } from './BannerCarousel';
+export { ShopPageClient } from './ShopPageClient';
+export { ToastProvider, useToast, useToastSafe } from './ToastProvider';
+export { WishlistProvider, useWishlist } from './WishlistProvider';

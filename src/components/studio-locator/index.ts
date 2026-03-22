@@ -10,5 +10,6 @@ export { StudioActions } from './StudioActions';
 export { ClaimStudioForm } from './ClaimStudioForm';
 export { SuggestEditForm } from './SuggestEditForm';
 export { ViewToggle } from './ViewToggle';
+export { FilterSortPanel, type FilterState, type SortOption } from './FilterSortPanel';
 export { useStudios, type Studio } from './hooks/useStudios';
 export { useGeolocation } from './hooks/useGeolocation';

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import type { ShopifyProduct } from '@/lib/shopify/types';
 import { getColorCode } from '@/lib/colorCode';
 import { useCart } from './CartProvider';
+import { useToastSafe } from './ToastProvider';
 
 interface ProductQuickViewProps {
   product: ShopifyProduct;
@@ -21,6 +22,7 @@ function formatPrice(amount: string, currencyCode: string): string {
 
 export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewProps) {
   const { addToCart, isLoading } = useCart();
+  const { showToast } = useToastSafe();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isAdding, setIsAdding] = useState(false);
@@ -113,9 +115,11 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
     setIsAdding(true);
     try {
       await addToCart(product, selectedVariant, 1);
+      showToast('Added to cart');
       onClose();
     } catch (error) {
       console.error('Failed to add to cart:', error);
+      showToast('Failed to add to cart', 'error');
     } finally {
       setIsAdding(false);
     }
@@ -214,12 +218,45 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
                   <h2 className="text-2xl md:text-3xl font-medium text-[#f6eddd] leading-tight mb-4">
                     {product.title}
                   </h2>
-                  <p className="text-2xl font-semibold text-[#f6eddd]">
-                    {selectedVariant
-                      ? formatPrice(selectedVariant.price.amount, selectedVariant.price.currencyCode)
-                      : formatPrice(product.priceRange.minVariantPrice.amount, product.priceRange.minVariantPrice.currencyCode)
+                  {(() => {
+                    const v = selectedVariant;
+                    const hasCompare = v?.compareAtPrice && parseFloat(v.compareAtPrice.amount) > parseFloat(v.price.amount);
+                    if (hasCompare && v?.compareAtPrice) {
+                      const savePercent = Math.round(
+                        ((parseFloat(v.compareAtPrice.amount) - parseFloat(v.price.amount)) / parseFloat(v.compareAtPrice.amount)) * 100
+                      );
+                      return (
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-2xl font-semibold" style={{ color: '#ef4444' }}>
+                            {formatPrice(v.price.amount, v.price.currencyCode)}
+                          </span>
+                          <span className="text-lg line-through text-[#f6eddd]/40">
+                            {formatPrice(v.compareAtPrice.amount, v.compareAtPrice.currencyCode)}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: '#ef4444',
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '9999px',
+                            }}
+                          >
+                            Save {savePercent}%
+                          </span>
+                        </div>
+                      );
                     }
-                  </p>
+                    return (
+                      <p className="text-2xl font-semibold text-[#f6eddd]">
+                        {v
+                          ? formatPrice(v.price.amount, v.price.currencyCode)
+                          : formatPrice(product.priceRange.minVariantPrice.amount, product.priceRange.minVariantPrice.currencyCode)
+                        }
+                      </p>
+                    );
+                  })()}
                 </div>
 
                 {/* Options */}

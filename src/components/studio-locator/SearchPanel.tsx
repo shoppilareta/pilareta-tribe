@@ -196,29 +196,15 @@ export function SearchPanel({ onSearch, onNearMe, loading, locationLoading }: Se
         <NearMeButton onClick={onNearMe} loading={locationLoading} disabled={loading} />
       </form>
 
-      {/* Quick filters hint */}
+      {/* Quick search suggestions */}
       <div
         style={{
-          marginTop: '0.75rem',
-          display: 'flex',
-          gap: '0.5rem',
-          flexWrap: 'wrap',
+          marginTop: '0.5rem',
+          fontSize: '0.75rem',
+          color: 'rgba(246, 237, 221, 0.4)',
         }}
       >
-        {['Reformer', 'Mat Classes', 'Private Sessions'].map((filter) => (
-          <span
-            key={filter}
-            style={{
-              padding: '0.25rem 0.625rem',
-              fontSize: '0.75rem',
-              background: 'rgba(246, 237, 221, 0.05)',
-              borderRadius: '9999px',
-              color: 'rgba(246, 237, 221, 0.5)',
-            }}
-          >
-            {filter}
-          </span>
-        ))}
+        Try: Mumbai, Bangalore, Delhi, Pune...
       </div>
     </div>
   );

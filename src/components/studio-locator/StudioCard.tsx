@@ -1,11 +1,56 @@
 'use client';
 
+import { useMemo } from 'react';
 import type { Studio } from './hooks/useStudios';
 
 interface StudioCardProps {
   studio: Studio;
   onClick: () => void;
   selected?: boolean;
+  isFavorited?: boolean;
+  onToggleFavorite?: (studioId: string) => void;
+}
+
+/**
+ * Determine if a studio is currently open based on Google Places openingHours data.
+ * Returns true (open), false (closed), or null (unknown/no data).
+ */
+function isStudioOpenNow(openingHours: Studio['openingHours']): boolean | null {
+  if (!openingHours || typeof openingHours !== 'object') return null;
+  // If the API directly tells us, trust it
+  if (openingHours.open_now !== undefined) return openingHours.open_now;
+  const periods = openingHours.periods;
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+
+  const now = new Date();
+  const currentDay = now.getDay(); // Sunday=0, same as Google Places
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+
+  for (const period of periods) {
+    if (!period.open) continue;
+    // 24-hour place
+    if (period.open.day === 0 && period.open.time === '0000' && !period.close) {
+      return true;
+    }
+    const openDay = period.open.day;
+    const openTime = period.open.time;
+    const closeDay = period.close?.day ?? openDay;
+    const closeTime = period.close?.time ?? '2359';
+
+    if (openDay === closeDay) {
+      if (currentDay === openDay && currentTime >= openTime && currentTime < closeTime) {
+        return true;
+      }
+    } else {
+      if (
+        (currentDay === openDay && currentTime >= openTime) ||
+        (currentDay === closeDay && currentTime < closeTime)
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function formatDistance(distanceKm: number | undefined): string {
@@ -21,8 +66,9 @@ function getPhotoUrl(photoReference: string): string {
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=100&photo_reference=${photoReference}&key=${apiKey}`;
 }
 
-export function StudioCard({ studio, onClick, selected }: StudioCardProps) {
+export function StudioCard({ studio, onClick, selected, isFavorited, onToggleFavorite }: StudioCardProps) {
   const hasPhoto = studio.photos && studio.photos.length > 0;
+  const openNow = useMemo(() => isStudioOpenNow(studio.openingHours), [studio.openingHours]);
 
   return (
     <button
@@ -83,19 +129,63 @@ export function StudioCard({ studio, onClick, selected }: StudioCardProps) {
         {/* Content */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-            <h3
-              style={{
-                fontSize: '0.9375rem',
-                fontWeight: 500,
-                color: '#f6eddd',
-                margin: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {studio.name}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flex: 1, minWidth: 0 }}>
+              <h3
+                style={{
+                  fontSize: '0.9375rem',
+                  fontWeight: 500,
+                  color: '#f6eddd',
+                  margin: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {studio.name}
+              </h3>
+              {/* Favorite heart */}
+              {onToggleFavorite && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(studio.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.stopPropagation(); onToggleFavorite(studio.id); }
+                  }}
+                  style={{
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0.125rem',
+                  }}
+                  title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill={isFavorited ? '#ef4444' : 'none'} stroke={isFavorited ? '#ef4444' : 'rgba(246, 237, 221, 0.5)'} strokeWidth="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                  </svg>
+                </span>
+              )}
+              {/* Open/Closed badge */}
+              {openNow !== null && (
+                <span
+                  style={{
+                    fontSize: '0.625rem',
+                    fontWeight: 600,
+                    padding: '0.0625rem 0.375rem',
+                    borderRadius: '9999px',
+                    flexShrink: 0,
+                    background: openNow ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    color: openNow ? '#22c55e' : '#ef4444',
+                  }}
+                >
+                  {openNow ? 'Open' : 'Closed'}
+                </span>
+              )}
+            </div>
             {studio.distance !== undefined && (
               <span
                 style={{

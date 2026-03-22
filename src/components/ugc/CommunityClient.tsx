@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useFeed, type UgcPost } from './hooks/useFeed';
 import { FeaturedSection } from './FeaturedSection';
 import { FilterBar } from './FilterBar';
@@ -18,12 +18,72 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId || null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [activeFeed, setActiveFeed] = useState<'discover' | 'following'>('discover');
+  const [activeFeed, setActiveFeed] = useState<'discover' | 'following' | 'my-posts'>('discover');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // My Posts state (separate from the main feed)
+  const [myPosts, setMyPosts] = useState<UgcPost[]>([]);
+  const [myPostsLoading, setMyPostsLoading] = useState(false);
+  const [myPostsHasMore, setMyPostsHasMore] = useState(false);
+  const [myPostsCursor, setMyPostsCursor] = useState<string | null>(null);
+  const [myPostsLoadingMore, setMyPostsLoadingMore] = useState(false);
 
   const { posts, loading, loadingMore, hasMore, loadMore, refresh, updatePostInteraction } = useFeed({
     tag: selectedTag || undefined,
     feed: activeFeed === 'following' ? 'following' : undefined,
   });
+
+  // Fetch my posts when tab is active
+  const fetchMyPosts = useCallback(async (cursor?: string) => {
+    const isLoadMore = !!cursor;
+    if (isLoadMore) {
+      setMyPostsLoadingMore(true);
+    } else {
+      setMyPostsLoading(true);
+    }
+    try {
+      const params = new URLSearchParams();
+      if (cursor) params.append('cursor', cursor);
+      const response = await fetch(`/api/ugc/my-posts?${params}`);
+      const data = await response.json();
+      if (response.ok) {
+        if (isLoadMore) {
+          setMyPosts((prev) => [...prev, ...data.posts]);
+        } else {
+          setMyPosts(data.posts);
+        }
+        setMyPostsHasMore(data.hasMore);
+        setMyPostsCursor(data.nextCursor);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setMyPostsLoading(false);
+      setMyPostsLoadingMore(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeFeed === 'my-posts' && isLoggedIn) {
+      fetchMyPosts();
+    }
+  }, [activeFeed, isLoggedIn, fetchMyPosts]);
+
+  const loadMoreMyPosts = useCallback(() => {
+    if (myPostsCursor && !myPostsLoadingMore) {
+      fetchMyPosts(myPostsCursor);
+    }
+  }, [myPostsCursor, myPostsLoadingMore, fetchMyPosts]);
+
+  // Client-side search filtering
+  const filteredPosts = useMemo(() => {
+    const source = activeFeed === 'my-posts' ? myPosts : posts;
+    if (!searchQuery.trim()) return source;
+    const q = searchQuery.toLowerCase();
+    return source.filter(
+      (post) => post.caption && post.caption.toLowerCase().includes(q)
+    );
+  }, [posts, myPosts, activeFeed, searchQuery]);
 
   // Handle URL changes for post deep linking
   useEffect(() => {
@@ -137,6 +197,50 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
         </button>
       </div>
 
+      {/* Search Bar */}
+      <div
+        style={{
+          padding: '0.75rem 1rem',
+          borderBottom: '1px solid rgba(246, 237, 221, 0.1)',
+        }}
+      >
+        <div style={{ position: 'relative' }}>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="rgba(246, 237, 221, 0.5)"
+            strokeWidth="2"
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search posts by caption..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px 10px 36px',
+              background: 'rgba(246, 237, 221, 0.05)',
+              border: '1px solid rgba(246, 237, 221, 0.1)',
+              borderRadius: '2px',
+              color: '#f6eddd',
+              fontSize: '0.875rem',
+              outline: 'none',
+            }}
+          />
+        </div>
+      </div>
+
       {/* Feed Tabs */}
       {isLoggedIn && (
         <div
@@ -145,66 +249,49 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
             borderBottom: '1px solid rgba(246, 237, 221, 0.1)',
           }}
         >
-          <button
-            type="button"
-            onClick={() => setActiveFeed('discover')}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              background: 'none',
-              border: 'none',
-              borderBottom: activeFeed === 'discover'
-                ? '2px solid #f6eddd'
-                : '2px solid transparent',
-              color: activeFeed === 'discover'
-                ? '#f6eddd'
-                : 'rgba(246, 237, 221, 0.5)',
-              fontSize: '0.875rem',
-              fontWeight: activeFeed === 'discover' ? 600 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            Discover
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFeed('following')}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              background: 'none',
-              border: 'none',
-              borderBottom: activeFeed === 'following'
-                ? '2px solid #f6eddd'
-                : '2px solid transparent',
-              color: activeFeed === 'following'
-                ? '#f6eddd'
-                : 'rgba(246, 237, 221, 0.5)',
-              fontSize: '0.875rem',
-              fontWeight: activeFeed === 'following' ? 600 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            Following
-          </button>
+          {(['discover', 'following', 'my-posts'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveFeed(tab)}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeFeed === tab
+                  ? '2px solid #f6eddd'
+                  : '2px solid transparent',
+                color: activeFeed === tab
+                  ? '#f6eddd'
+                  : 'rgba(246, 237, 221, 0.5)',
+                fontSize: '0.875rem',
+                fontWeight: activeFeed === tab ? 600 : 400,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {tab === 'discover' ? 'Discover' : tab === 'following' ? 'Following' : 'My Posts'}
+            </button>
+          ))}
         </div>
       )}
 
       {/* Featured Section */}
-      {activeFeed === 'discover' && <FeaturedSection onPostClick={handlePostClick} />}
+      {activeFeed === 'discover' && !searchQuery && <FeaturedSection onPostClick={handlePostClick} />}
 
       {/* Filter Bar */}
-      <FilterBar selectedTag={selectedTag} onTagChange={handleTagChange} />
+      {activeFeed !== 'my-posts' && (
+        <FilterBar selectedTag={selectedTag} onTagChange={handleTagChange} />
+      )}
 
       {/* Post Grid */}
       <PostGrid
-        posts={posts}
-        loading={loading}
-        loadingMore={loadingMore}
-        hasMore={hasMore}
-        onLoadMore={loadMore}
+        posts={filteredPosts}
+        loading={activeFeed === 'my-posts' ? myPostsLoading : loading}
+        loadingMore={activeFeed === 'my-posts' ? myPostsLoadingMore : loadingMore}
+        hasMore={searchQuery ? false : (activeFeed === 'my-posts' ? myPostsHasMore : hasMore)}
+        onLoadMore={activeFeed === 'my-posts' ? loadMoreMyPosts : loadMore}
         onPostClick={handlePostClick}
       />
 

@@ -1,6 +1,6 @@
 import { getProducts } from '@/lib/shopify/queries';
 import { isShopifyConfigured } from '@/lib/shopify/client';
-import { ProductGrid, BannerCarousel } from '@/components/shop';
+import { BannerCarousel, ShopPageClient } from '@/components/shop';
 import Link from 'next/link';
 import type { ShopifyProduct } from '@/lib/shopify/types';
 
@@ -63,8 +63,8 @@ export default async function ShopPage() {
         </div>
       )}
 
-      {/* Products Grid */}
-      {!error && <ProductGrid products={products} />}
+      {/* Products with Search, Sort, Filters */}
+      {!error && <ShopPageClient products={products} />}
 
       {/* External Shop Link */}
       {!error && products.length > 0 && (

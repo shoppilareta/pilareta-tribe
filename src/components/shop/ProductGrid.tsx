@@ -6,6 +6,7 @@ import { ProductCard } from './ProductCard';
 
 interface ProductGridProps {
   products: ShopifyProduct[];
+  skipGrouping?: boolean;
 }
 
 // Preferred ordering for collection groups
@@ -49,7 +50,7 @@ function getCollectionLabel(product: ShopifyProduct): string {
   return labels[key] || 'Other';
 }
 
-export function ProductGrid({ products }: ProductGridProps) {
+export function ProductGrid({ products, skipGrouping = false }: ProductGridProps) {
   const groups = useMemo(() => {
     if (products.length === 0) return [];
 
@@ -88,8 +89,8 @@ export function ProductGrid({ products }: ProductGridProps) {
     );
   }
 
-  // If only one group, skip the section headers
-  if (groups.length === 1) {
+  // Flat grid when search/filter/sort is active, or only one group
+  if (skipGrouping || groups.length === 1) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => (

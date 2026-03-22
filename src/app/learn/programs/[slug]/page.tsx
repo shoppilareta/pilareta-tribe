@@ -74,6 +74,12 @@ const SECTION_LABELS: Record<string, string> = {
   cooldown: 'Cooldown',
 };
 
+interface ProgramProgress {
+  currentWeek: number;
+  completedSessionIds: string[];
+  status: string;
+}
+
 export default function ProgramDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -81,6 +87,7 @@ export default function ProgramDetailPage() {
   const [loading, setLoading] = useState(true);
   const [expandedWeek, setExpandedWeek] = useState<number | null>(1);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgramProgress | null>(null);
 
   useEffect(() => {
     async function fetchProgram() {
@@ -96,7 +103,21 @@ export default function ProgramDetailPage() {
         setLoading(false);
       }
     }
+    async function fetchProgress() {
+      try {
+        const response = await fetch(`/api/learn/programs/${slug}/progress`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.progress) {
+            setProgress(data.progress);
+          }
+        }
+      } catch {
+        // progress is non-critical
+      }
+    }
     fetchProgram();
+    fetchProgress();
   }, [slug]);
 
   if (loading) {
@@ -229,6 +250,86 @@ export default function ProgramDetailPage() {
           </div>
         )}
 
+        {/* Progress Overview */}
+        {progress && program && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '1rem' }}>Your Progress</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {program.weeks.map((week) => {
+                const weekSessionIds = week.sessions.map((s) => s.id);
+                const completedInWeek = weekSessionIds.filter((id) =>
+                  progress.completedSessionIds.includes(id)
+                ).length;
+                const totalInWeek = weekSessionIds.length;
+                const pct = totalInWeek > 0 ? (completedInWeek / totalInWeek) * 100 : 0;
+
+                return (
+                  <div key={week.id}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.8125rem',
+                      marginBottom: '0.375rem',
+                      color: 'rgba(246, 237, 221, 0.7)',
+                    }}>
+                      <span>Week {week.weekNumber}{week.title ? `: ${week.title}` : ''}</span>
+                      <span>{completedInWeek}/{totalInWeek}</span>
+                    </div>
+                    <div style={{
+                      height: '6px',
+                      borderRadius: '3px',
+                      background: 'rgba(246, 237, 221, 0.1)',
+                      overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${pct}%`,
+                        background: pct === 100 ? '#22c55e' : '#f6eddd',
+                        borderRadius: '3px',
+                        transition: 'width 0.3s ease',
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Resume button: find the first uncompleted session */}
+            {(() => {
+              for (const week of program.weeks) {
+                for (const session of week.sessions) {
+                  if (!progress.completedSessionIds.includes(session.id) && session.template) {
+                    return (
+                      <div style={{ marginTop: '1rem' }}>
+                        <a
+                          href={`/learn/session/${session.template.id}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.75rem 1.5rem',
+                            background: '#f6eddd',
+                            color: '#1a1a1a',
+                            borderRadius: '9999px',
+                            fontWeight: 500,
+                            fontSize: '0.875rem',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          Resume: Week {week.weekNumber}, Day {session.dayNumber}
+                          <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </a>
+                      </div>
+                    );
+                  }
+                }
+              }
+              return null;
+            })()}
+          </div>
+        )}
+
         {/* Weekly Schedule */}
         <h2 style={{ fontSize: '1.25rem', fontWeight: 500, marginBottom: '1rem' }}>Weekly Schedule</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -302,7 +403,9 @@ export default function ProgramDetailPage() {
                           style={{
                             width: '100%',
                             padding: '0.75rem 1rem',
-                            background: 'rgba(246, 237, 221, 0.05)',
+                            background: progress?.completedSessionIds.includes(session.id)
+                              ? 'rgba(34, 197, 94, 0.1)'
+                              : 'rgba(246, 237, 221, 0.05)',
                             border: 'none',
                             borderRadius: '0.5rem',
                             color: 'inherit',
@@ -313,13 +416,20 @@ export default function ProgramDetailPage() {
                             textAlign: 'left'
                           }}
                         >
-                          <div>
-                            <span style={{ fontWeight: 500 }}>Day {session.dayNumber}</span>
-                            {session.title && (
-                              <span style={{ color: 'rgba(246, 237, 221, 0.6)', marginLeft: '0.5rem' }}>
-                                {session.title}
-                              </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {progress?.completedSessionIds.includes(session.id) && (
+                              <svg style={{ width: '1rem', height: '1rem', color: '#22c55e', flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
                             )}
+                            <div>
+                              <span style={{ fontWeight: 500 }}>Day {session.dayNumber}</span>
+                              {session.title && (
+                                <span style={{ color: 'rgba(246, 237, 221, 0.6)', marginLeft: '0.5rem' }}>
+                                  {session.title}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             {session.template && (

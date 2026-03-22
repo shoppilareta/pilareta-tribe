@@ -8,6 +8,15 @@ import { WeeklyProgress } from './WeeklyProgress';
 import { RecentLogs } from './RecentLogs';
 import { CalendarView } from './CalendarView';
 import { FocusBalanceChart } from './FocusBalanceChart';
+import { GoalProgress } from './GoalProgress';
+import { FocusAreaTopList } from './FocusAreaTopList';
+import { PersonalRecordsCard } from './PersonalRecordsCard';
+
+interface PersonalRecords {
+  longestSession: number;
+  mostActiveWeekWorkouts: number;
+  bestStreak: number;
+}
 
 interface WorkoutStats {
   currentStreak: number;
@@ -22,6 +31,10 @@ interface WorkoutStats {
   totalCalories: number;
   averageRpe: number | null;
   workoutTypeBreakdown: Record<string, number>;
+  weeklyWorkoutGoal?: number | null;
+  weeklyMinuteGoal?: number | null;
+  weeklyWorkouts?: number;
+  personalRecords?: PersonalRecords;
 }
 
 interface TrackDashboardProps {
@@ -107,6 +120,14 @@ export function TrackDashboard({ firstName, onLogWorkout, refreshKey, onRefresh 
               <WeeklyProgress progress={weeklyProgress} />
             </div>
 
+            {/* T1: Goal Progress */}
+            <GoalProgress
+              weeklyWorkoutGoal={stats.weeklyWorkoutGoal}
+              weeklyMinuteGoal={stats.weeklyMinuteGoal}
+              weeklyWorkouts={stats.weeklyWorkouts ?? weeklyProgress.filter(Boolean).length}
+              weeklyMinutes={stats.weeklyMinutes}
+            />
+
             {/* Stats Overview */}
             <StatsOverview
               totalWorkouts={stats.totalWorkouts}
@@ -154,13 +175,26 @@ export function TrackDashboard({ firstName, onLogWorkout, refreshKey, onRefresh 
             </div>
 
             {activeTab === 'overview' ? (
-              <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
-                {/* Recent Logs */}
-                <RecentLogs refreshKey={refreshKey} onLogWorkout={onLogWorkout} onRefresh={onRefresh} />
+              <>
+                {/* T2: Focus Area Breakdown + T3: Personal Records */}
+                <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginBottom: '1.5rem' }}>
+                  <FocusAreaTopList focusAreaCounts={stats.focusAreaCounts} />
+                  {stats.personalRecords && (
+                    <PersonalRecordsCard
+                      records={stats.personalRecords}
+                      currentStreak={stats.currentStreak}
+                    />
+                  )}
+                </div>
 
-                {/* Focus Balance Chart */}
-                <FocusBalanceChart focusAreaCounts={stats.focusAreaCounts} />
-              </div>
+                <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+                  {/* Recent Logs */}
+                  <RecentLogs refreshKey={refreshKey} onLogWorkout={onLogWorkout} onRefresh={onRefresh} />
+
+                  {/* Focus Balance Chart (radar) */}
+                  <FocusBalanceChart focusAreaCounts={stats.focusAreaCounts} />
+                </div>
+              </>
             ) : (
               <CalendarView refreshKey={refreshKey} />
             )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 import type { UgcPost } from './hooks/useFeed';
 import { InstagramEmbedCompact } from './InstagramEmbed';
 import { WorkoutRecapCard } from './WorkoutRecapCard';
@@ -46,6 +46,26 @@ interface PostCardProps {
 function PostCardComponent({ post, onClick }: PostCardProps) {
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const [useDynamicThumb, setUseDynamicThumb] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const handleShare = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/community?post=${post.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Check out this post on Pilareta', url });
+      } catch {
+        // User cancelled — fallback to clipboard
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    }
+  }, [post.id]);
   // Hide name for admin users, otherwise use displayName from API
   const userName = post.user.isAdmin
     ? 'Pilareta Team'
@@ -305,6 +325,39 @@ function PostCardComponent({ post, onClick }: PostCardProps) {
               </svg>
               <span>{post.commentsCount}</span>
             </div>
+
+            {/* Share */}
+            <button
+              type="button"
+              onClick={handleShare}
+              title={shareCopied ? 'Link copied!' : 'Share'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'none',
+                border: 'none',
+                color: shareCopied ? '#22c55e' : '#f6eddd',
+                cursor: 'pointer',
+                padding: 0,
+                marginLeft: 'auto',
+                fontSize: '0.8rem',
+              }}
+            >
+              {shareCopied ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
       </div>

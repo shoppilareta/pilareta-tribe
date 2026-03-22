@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { SearchPanel } from './SearchPanel';
 import { StudioMap } from './StudioMap';
 import { StudioList } from './StudioList';
@@ -8,8 +8,34 @@ import { StudioDetailModal } from './StudioDetailModal';
 import { ClaimStudioForm } from './ClaimStudioForm';
 import { SuggestEditForm } from './SuggestEditForm';
 import { ViewToggle } from './ViewToggle';
+import { FilterSortPanel, type FilterState, type SortOption } from './FilterSortPanel';
 import { useStudios, type Studio } from './hooks/useStudios';
 import { useGeolocation } from './hooks/useGeolocation';
+
+// Helper: check if studio is open now (same logic as StudioCard)
+function isStudioOpenNow(openingHours: Studio['openingHours']): boolean | null {
+  if (!openingHours || typeof openingHours !== 'object') return null;
+  if (openingHours.open_now !== undefined) return openingHours.open_now;
+  const periods = openingHours.periods;
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+  const now = new Date();
+  const currentDay = now.getDay();
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+  for (const period of periods) {
+    if (!period.open) continue;
+    if (period.open.day === 0 && period.open.time === '0000' && !period.close) return true;
+    const openDay = period.open.day;
+    const openTime = period.open.time;
+    const closeDay = period.close?.day ?? openDay;
+    const closeTime = period.close?.time ?? '2359';
+    if (openDay === closeDay) {
+      if (currentDay === openDay && currentTime >= openTime && currentTime < closeTime) return true;
+    } else {
+      if ((currentDay === openDay && currentTime >= openTime) || (currentDay === closeDay && currentTime < closeTime)) return true;
+    }
+  }
+  return false;
+}
 
 // Default to India if geolocation unavailable
 const INDIA_CENTER = { lat: 20.5937, lng: 78.9629 };
@@ -23,8 +49,91 @@ export function StudioLocatorClient() {
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>(INDIA_CENTER);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({ openNow: false, amenities: [] });
+  const [sortBy, setSortBy] = useState<SortOption>('nearest');
 
   const { studios, loading, error, searchNearby, geocodeAndSearch, getStudioDetails, clearError } = useStudios();
+
+  // Fetch auth status and favorites
+  useEffect(() => {
+    async function loadFavorites() {
+      try {
+        const userRes = await fetch('/api/user');
+        if (!userRes.ok) return;
+        const userData = await userRes.json();
+        if (!userData.user) return;
+        setIsAuthenticated(true);
+
+        const favRes = await fetch('/api/studios/favorites');
+        if (favRes.ok) {
+          const favData = await favRes.json();
+          setFavoriteIds(new Set(favData.studioIds || []));
+        }
+      } catch {
+        // Not authenticated or favorites unavailable
+      }
+    }
+    loadFavorites();
+  }, []);
+
+  const handleToggleFavorite = useCallback(async (studioId: string) => {
+    if (!isAuthenticated) return;
+    const wasFavorited = favoriteIds.has(studioId);
+
+    // Optimistic update
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (wasFavorited) next.delete(studioId); else next.add(studioId);
+      return next;
+    });
+
+    try {
+      if (wasFavorited) {
+        await fetch(`/api/studios/favorites/${studioId}`, { method: 'DELETE' });
+      } else {
+        await fetch('/api/studios/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studioId }),
+        });
+      }
+    } catch {
+      // Revert on failure
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (wasFavorited) next.add(studioId); else next.delete(studioId);
+        return next;
+      });
+    }
+  }, [isAuthenticated, favoriteIds]);
+
+  // Apply filters and sorting to studios
+  const filteredStudios = useMemo(() => {
+    let result = [...studios];
+
+    // Open Now filter
+    if (filters.openNow) {
+      result = result.filter((s) => isStudioOpenNow(s.openingHours) === true);
+    }
+
+    // Amenity filters
+    if (filters.amenities.length > 0) {
+      result = result.filter((s) => {
+        const studioAmenities = (s.amenities || []).map((a) => a.toLowerCase());
+        return filters.amenities.every((f) => studioAmenities.some((a) => a.includes(f.toLowerCase())));
+      });
+    }
+
+    // Sorting
+    if (sortBy === 'highest_rated') {
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
+    // 'nearest' is the default API order (by distance), no re-sort needed
+
+    return result;
+  }, [studios, filters, sortBy]);
   const { getCurrentLocation, loading: locationLoading, error: locationError, clearError: clearLocationError, latitude: userLat, longitude: userLng } = useGeolocation();
 
   // Auto-detect location on mount
@@ -154,6 +263,14 @@ export function StudioLocatorClient() {
         locationLoading={locationLoading}
       />
 
+      {/* Filter/Sort Panel */}
+      <FilterSortPanel
+        filters={filters}
+        onFiltersChange={setFilters}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+      />
+
       {/* Error/Success Messages */}
       {displayError && (
         <div
@@ -234,7 +351,7 @@ export function StudioLocatorClient() {
           }}
         >
           <StudioMap
-            studios={studios}
+            studios={filteredStudios}
             center={mapCenter}
             selectedStudioId={selectedStudio?.id || null}
             onSelectStudio={handleSelectStudio}
@@ -255,10 +372,12 @@ export function StudioLocatorClient() {
           }}
         >
           <StudioList
-            studios={studios}
+            studios={filteredStudios}
             loading={loading}
             selectedStudioId={selectedStudio?.id || null}
             onSelectStudio={handleSelectStudio}
+            favoriteIds={isAuthenticated ? favoriteIds : undefined}
+            onToggleFavorite={isAuthenticated ? handleToggleFavorite : undefined}
           />
         </div>
       </div>

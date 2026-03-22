@@ -53,6 +53,13 @@ interface Exercise {
   defaultTempo: string | null;
   rpeTarget: number;
   springSuggestion: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
+}
+
+interface ExerciseStats {
+  completionCount: number;
+  lastCompletedAt: string | null;
 }
 
 const DIFFICULTY_LABELS: Record<string, { label: string; color: string }> = {
@@ -66,6 +73,7 @@ export default function ExerciseDetailPage() {
   const slug = params.slug as string;
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<ExerciseStats | null>(null);
 
   useEffect(() => {
     async function fetchExercise() {
@@ -81,7 +89,19 @@ export default function ExerciseDetailPage() {
         setLoading(false);
       }
     }
+    async function fetchStats() {
+      try {
+        const response = await fetch(`/api/learn/exercises/${slug}/stats`);
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch {
+        // stats are non-critical
+      }
+    }
     fetchExercise();
+    fetchStats();
   }, [slug]);
 
   if (loading) {
@@ -159,6 +179,46 @@ export default function ExerciseDetailPage() {
             {exercise.description}
           </p>
         </div>
+
+        {/* Video Player (if available) */}
+        {exercise.videoUrl && (
+          <div style={{ marginBottom: '1.5rem', borderRadius: '0.5rem', overflow: 'hidden' }}>
+            <video
+              controls
+              poster={exercise.imageUrl || undefined}
+              style={{ width: '100%', display: 'block', borderRadius: '0.5rem' }}
+            >
+              <source src={exercise.videoUrl} type="video/mp4" />
+            </video>
+          </div>
+        )}
+
+        {/* Completion Stats */}
+        {stats && stats.completionCount > 0 && (
+          <div
+            style={{
+              marginBottom: '1.5rem',
+              padding: '0.75rem 1rem',
+              background: 'rgba(246, 237, 221, 0.05)',
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem',
+              color: 'rgba(246, 237, 221, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <svg style={{ width: '1rem', height: '1rem', opacity: 0.7 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              You&apos;ve done this exercise {stats.completionCount} {stats.completionCount === 1 ? 'time' : 'times'}
+              {stats.lastCompletedAt && (
+                <> &mdash; Last: {new Date(stats.lastCompletedAt).toLocaleDateString()}</>
+              )}
+            </span>
+          </div>
+        )}
 
         {/* 3D Animation Viewer (if available) */}
         {EXERCISES_WITH_3D.includes(exercise.slug) && (

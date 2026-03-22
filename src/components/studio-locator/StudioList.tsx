@@ -8,9 +8,11 @@ interface StudioListProps {
   loading: boolean;
   selectedStudioId: string | null;
   onSelectStudio: (studio: Studio) => void;
+  favoriteIds?: Set<string>;
+  onToggleFavorite?: (studioId: string) => void;
 }
 
-export function StudioList({ studios, loading, selectedStudioId, onSelectStudio }: StudioListProps) {
+export function StudioList({ studios, loading, selectedStudioId, onSelectStudio, favoriteIds, onToggleFavorite }: StudioListProps) {
   if (loading) {
     return (
       <div style={{
@@ -110,6 +112,8 @@ export function StudioList({ studios, loading, selectedStudioId, onSelectStudio 
           studio={studio}
           onClick={() => onSelectStudio(studio)}
           selected={studio.id === selectedStudioId}
+          isFavorited={favoriteIds?.has(studio.id)}
+          onToggleFavorite={onToggleFavorite}
         />
       ))}
     </div>
