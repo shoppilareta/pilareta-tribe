@@ -6,22 +6,32 @@ import Svg, { Path } from 'react-native-svg';
 
 interface WeeklyProgressProps {
   progress: boolean[];
+  weeklyWorkoutGoal?: number | null;
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export function WeeklyProgress({ progress }: WeeklyProgressProps) {
+export function WeeklyProgress({ progress, weeklyWorkoutGoal }: WeeklyProgressProps) {
   const today = new Date();
   const dayOfWeek = today.getDay();
   const todayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   const workoutsThisWeek = progress.filter(Boolean).length;
-  const progressPercent = (workoutsThisWeek / 7) * 100;
+  const goalDays = weeklyWorkoutGoal ?? 7;
+  const progressPercent = (workoutsThisWeek / goalDays) * 100;
+
+  // Determine if on track: at current day of week, should have completed
+  // at least 70% of the proportional goal
+  const daysPassed = todayIndex + 1; // Mon=1 ... Sun=7
+  const expectedByNow = (goalDays / 7) * daysPassed;
+  const onTrack = weeklyWorkoutGoal == null || workoutsThisWeek >= expectedByNow * 0.7;
 
   return (
     <Card padding="md">
       <View style={styles.header}>
         <Text style={styles.title}>This Week</Text>
-        <Text style={styles.count}>{workoutsThisWeek}/7 days</Text>
+        <Text style={styles.count}>
+          {workoutsThisWeek}/{goalDays} days
+        </Text>
       </View>
 
       <View style={styles.daysRow}>
@@ -63,10 +73,14 @@ export function WeeklyProgress({ progress }: WeeklyProgressProps) {
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBarBg}>
           <LinearGradient
-            colors={['rgba(34, 197, 94, 0.8)', 'rgba(22, 163, 74, 0.8)']}
+            colors={
+              onTrack
+                ? ['rgba(34, 197, 94, 0.8)', 'rgba(22, 163, 74, 0.8)']
+                : ['rgba(245, 158, 11, 0.8)', 'rgba(217, 119, 6, 0.8)']
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={[styles.progressBarFill, { width: `${progressPercent}%` }]}
+            style={[styles.progressBarFill, { width: `${Math.min(progressPercent, 100)}%` }]}
           />
         </View>
       </View>

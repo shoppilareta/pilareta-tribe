@@ -235,10 +235,39 @@ interface MonthlyStatsProps {
   currentStreak: number;
 }
 
-function MonthlyStats({ workouts, currentStreak }: MonthlyStatsProps) {
+interface MonthlyStatsEnhancedProps extends MonthlyStatsProps {
+  year: number;
+  month: number;
+  prevMonthWorkoutCount: number | null;
+}
+
+function MonthlyStats({ workouts, currentStreak, year, month, prevMonthWorkoutCount }: MonthlyStatsEnhancedProps) {
   const totalWorkouts = workouts.length;
   const totalMinutes = workouts.reduce((sum, w) => sum + w.durationMinutes, 0);
   const activeDays = new Set(workouts.map((w) => w.workoutDate.slice(0, 10))).size;
+
+  // Consistency: days with workout / days elapsed in month
+  const today = new Date();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+  const daysElapsed = isCurrentMonth ? today.getDate() : daysInMonth;
+  const consistency = daysElapsed > 0 ? Math.round((activeDays / daysElapsed) * 100) : 0;
+
+  // Comparison with previous month
+  let comparisonText: string | null = null;
+  if (prevMonthWorkoutCount !== null) {
+    const diff = totalWorkouts - prevMonthWorkoutCount;
+    if (diff > 0) {
+      const prevMonthIdx = month === 0 ? 11 : month - 1;
+      comparisonText = `\u2191 ${diff} more than ${MONTH_NAMES[prevMonthIdx].slice(0, 3)}`;
+    } else if (diff < 0) {
+      const prevMonthIdx = month === 0 ? 11 : month - 1;
+      comparisonText = `\u2193 ${Math.abs(diff)} fewer than ${MONTH_NAMES[prevMonthIdx].slice(0, 3)}`;
+    } else {
+      const prevMonthIdx = month === 0 ? 11 : month - 1;
+      comparisonText = `Same as ${MONTH_NAMES[prevMonthIdx].slice(0, 3)}`;
+    }
+  }
 
   const statItems = [
     { label: 'Workouts', value: String(totalWorkouts) },
@@ -248,13 +277,25 @@ function MonthlyStats({ workouts, currentStreak }: MonthlyStatsProps) {
   ];
 
   return (
-    <View style={styles.monthlyStatsRow}>
-      {statItems.map((item) => (
-        <View key={item.label} style={styles.monthlyStat}>
-          <Text style={styles.monthlyStatValue}>{item.value}</Text>
-          <Text style={styles.monthlyStatLabel}>{item.label}</Text>
-        </View>
-      ))}
+    <View>
+      <View style={styles.monthlyStatsRow}>
+        {statItems.map((item) => (
+          <View key={item.label} style={styles.monthlyStat}>
+            <Text style={styles.monthlyStatValue}>{item.value}</Text>
+            <Text style={styles.monthlyStatLabel}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Consistency & comparison row */}
+      <View style={styles.consistencyRow}>
+        <Text style={styles.consistencyText}>
+          Consistency: {consistency}%
+        </Text>
+        {comparisonText && (
+          <Text style={styles.comparisonText}>{comparisonText}</Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -303,6 +344,23 @@ export function MonthlyCalendar({ currentStreak = 0 }: MonthlyCalendarProps) {
   });
 
   const logs = data?.logs ?? [];
+
+  // Fetch previous month's logs for comparison
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+
+  const { data: prevData } = useQuery({
+    queryKey: ['track-calendar-logs', prevYear, prevMonth],
+    queryFn: () => getLogs({
+      startDate: getMonthStart(prevYear, prevMonth),
+      endDate: getMonthEnd(prevYear, prevMonth),
+      limit: 200,
+    }),
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const prevMonthWorkoutCount = prevData ? prevData.logs.length : null;
 
   // Group workouts by date key
   const workoutsByDay: WorkoutsByDay = useMemo(() => {
@@ -440,7 +498,13 @@ export function MonthlyCalendar({ currentStreak = 0 }: MonthlyCalendarProps) {
         <Text style={styles.monthlyStatsTitle}>
           {isCurrentMonth ? 'This Month' : `${MONTH_NAMES[month]} ${year}`}
         </Text>
-        <MonthlyStats workouts={logs} currentStreak={currentStreak} />
+        <MonthlyStats
+          workouts={logs}
+          currentStreak={currentStreak}
+          year={year}
+          month={month}
+          prevMonthWorkoutCount={prevMonthWorkoutCount}
+        />
       </Card>
     </View>
   );
@@ -668,5 +732,23 @@ const styles = StyleSheet.create({
     color: colors.fg.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  consistencyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+  },
+  consistencyText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    color: colors.fg.secondary,
+  },
+  comparisonText: {
+    fontSize: typography.sizes.xs,
+    color: colors.fg.tertiary,
   },
 });

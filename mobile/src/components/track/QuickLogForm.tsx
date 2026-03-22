@@ -235,6 +235,7 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
           ))}
         </View>
       </ScrollView>
+      <Text style={styles.dateHint}>You can log workouts up to 7 days back</Text>
 
       {/* Duration */}
       <Text style={styles.sectionLabel}>Duration</Text>
@@ -324,11 +325,9 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
             </Pressable>
           ))}
         </View>
-        <View style={styles.rpeLabels}>
-          <Text style={styles.rpeLabelText}>Light</Text>
-          <Text style={styles.rpeLabelText}>Moderate</Text>
-          <Text style={styles.rpeLabelText}>All-out</Text>
-        </View>
+        <Text style={styles.rpeSelectedLabel}>
+          {rpe <= 2 ? 'Very Light' : rpe <= 4 ? 'Light' : rpe <= 6 ? 'Moderate' : rpe <= 8 ? 'Hard' : 'All-out'}
+        </Text>
       </View>
 
       {/* Type-specific fields */}
@@ -544,6 +543,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.md,
   },
+  dateHint: {
+    fontSize: typography.sizes.xs,
+    color: colors.fg.muted,
+    marginTop: spacing.xs,
+  },
   chipScroll: {
     marginHorizontal: -spacing.md,
     paddingHorizontal: spacing.md,
@@ -633,13 +637,12 @@ const styles = StyleSheet.create({
     color: colors.bg.primary,
     fontWeight: typography.weights.bold,
   },
-  rpeLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rpeLabelText: {
-    fontSize: 10,
-    color: colors.fg.muted,
+  rpeSelectedLabel: {
+    fontSize: typography.sizes.sm,
+    color: colors.accent.amber,
+    fontWeight: typography.weights.medium,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   moreToggle: {
     paddingVertical: spacing.md,

@@ -668,6 +668,10 @@ model UserWorkoutStats {
   // Focus area distribution
   focusAreaCounts Json?
 
+  // Goals
+  weeklyWorkoutGoal Int?     // e.g., 5 (days per week)
+  weeklyMinuteGoal  Int?     // e.g., 150 (minutes per week)
+
   updatedAt       DateTime  @updatedAt
 }
 

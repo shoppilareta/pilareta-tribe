@@ -12,6 +12,7 @@ interface RecapCardProps {
   sessionName?: string | null;
   currentStreak?: number;
   focusAreas?: string[];
+  isPersonalBest?: boolean;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -36,6 +37,27 @@ function getRpeLabel(value: number): string {
   return 'All-out';
 }
 
+const STREAK_MILESTONES = [7, 14, 30, 60, 100];
+
+function getStreakMilestone(streak: number): number | null {
+  // Return the milestone if the streak exactly matches one
+  for (const m of STREAK_MILESTONES) {
+    if (streak === m) return m;
+  }
+  return null;
+}
+
+const FOCUS_AREA_LABELS: Record<string, string> = {
+  core: 'Core',
+  glutes: 'Glutes',
+  legs: 'Legs',
+  arms: 'Arms',
+  back: 'Back',
+  mobility: 'Mobility',
+  posture: 'Posture',
+  full_body: 'Full Body',
+};
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', {
@@ -55,7 +77,10 @@ export function RecapCard({
   sessionName,
   currentStreak = 0,
   focusAreas = [],
+  isPersonalBest = false,
 }: RecapCardProps) {
+  const streakMilestone = getStreakMilestone(currentStreak);
+
   return (
     <View style={styles.card}>
       <LinearGradient
@@ -68,8 +93,18 @@ export function RecapCard({
       {/* Decorative radial light */}
       <View style={styles.radialDecor} />
 
-      {/* Streak badge */}
-      {currentStreak > 1 && (
+      {/* Streak milestone badge */}
+      {streakMilestone ? (
+        <LinearGradient
+          colors={['rgba(245, 158, 11, 0.6)', 'rgba(249, 115, 22, 0.5)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.streakBadge}
+        >
+          <Text style={styles.streakEmoji}>🏆</Text>
+          <Text style={styles.streakText}>{streakMilestone}-Day Streak!</Text>
+        </LinearGradient>
+      ) : currentStreak > 1 ? (
         <LinearGradient
           colors={['rgba(249, 115, 22, 0.5)', 'rgba(239, 68, 68, 0.4)']}
           start={{ x: 0, y: 0 }}
@@ -79,6 +114,13 @@ export function RecapCard({
           <Text style={styles.streakEmoji}>🔥</Text>
           <Text style={styles.streakText}>{currentStreak} day streak</Text>
         </LinearGradient>
+      ) : null}
+
+      {/* Personal best badge */}
+      {isPersonalBest && (
+        <View style={styles.personalBestBadge}>
+          <Text style={styles.personalBestText}>⭐ New Personal Best!</Text>
+        </View>
       )}
 
       {/* Top section */}
@@ -97,6 +139,18 @@ export function RecapCard({
           <Text style={styles.studioText}>
             {studioName ? `at ${studioName}` : sessionName}
           </Text>
+        )}
+        {/* Focus area chips */}
+        {focusAreas.length > 0 && (
+          <View style={styles.focusChipsRow}>
+            {focusAreas.slice(0, 4).map((area) => (
+              <View key={area} style={styles.focusChip}>
+                <Text style={styles.focusChipText}>
+                  {FOCUS_AREA_LABELS[area] || area.charAt(0).toUpperCase() + area.slice(1)}
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
       </View>
 
@@ -218,6 +272,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(246, 237, 221, 0.5)',
     marginTop: 4,
+  },
+  personalBestBadge: {
+    position: 'absolute',
+    top: 44,
+    right: 16,
+    backgroundColor: 'rgba(245, 158, 11, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    zIndex: 1,
+  },
+  personalBestText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent.amber,
+  },
+  focusChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  focusChip: {
+    backgroundColor: 'rgba(246, 237, 221, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  focusChipText: {
+    fontSize: 10,
+    color: 'rgba(246, 237, 221, 0.6)',
+    fontWeight: '500',
   },
   bottomSection: {
     flexDirection: 'row',

@@ -37,6 +37,17 @@ export interface WorkoutLog {
   sharedPost?: { id: string; status: string } | null;
 }
 
+export interface WeeklyTrendItem {
+  label: string;
+  minutes: number;
+}
+
+export interface PersonalRecords {
+  longestSession: number;          // max durationMinutes ever
+  mostActiveWeekWorkouts: number;  // most workouts in a single week
+  bestStreak: number;              // longestStreak (already tracked)
+}
+
 export interface WorkoutStats {
   currentStreak: number;
   longestStreak: number;
@@ -50,6 +61,12 @@ export interface WorkoutStats {
   totalCalories: number;
   averageRpe: number;
   workoutTypeBreakdown: Record<string, number>;
+  weeklyWorkoutGoal: number | null;
+  weeklyMinuteGoal: number | null;
+  weeklyWorkouts: number;
+  monthlyWorkouts: number;
+  weeklyTrend: WeeklyTrendItem[];
+  personalRecords: PersonalRecords;
 }
 
 export interface WeeklyProgress {

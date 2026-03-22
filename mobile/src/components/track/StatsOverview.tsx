@@ -10,6 +10,7 @@ interface StatsOverviewProps {
   monthlyMinutes: number;
   totalCalories: number;
   averageRpe: number | null;
+  monthlyWorkouts?: number;
 }
 
 function formatMinutes(mins: number): string {
@@ -57,7 +58,16 @@ export function StatsOverview({
   monthlyMinutes,
   totalCalories,
   averageRpe,
+  monthlyWorkouts,
 }: StatsOverviewProps) {
+  // Calculate consistency: (workouts this month / days elapsed) * 100, capped at 100
+  const now = new Date();
+  const daysElapsed = now.getDate(); // 1-based day of month = days elapsed
+  const consistencyRaw = monthlyWorkouts != null && daysElapsed > 0
+    ? (monthlyWorkouts / daysElapsed) * 100
+    : null;
+  const consistency = consistencyRaw != null ? Math.min(Math.round(consistencyRaw), 100) : null;
+
   const stats = [
     { label: 'This Week', value: formatMinutes(weeklyMinutes), type: 'week' as const },
     { label: 'This Month', value: formatMinutes(monthlyMinutes), type: 'month' as const },
@@ -91,6 +101,26 @@ export function StatsOverview({
           </Text>
         )}
       </View>
+
+      {consistency != null && (
+        <View style={styles.consistencyContainer}>
+          <View style={styles.consistencyHeader}>
+            <Text style={styles.consistencyLabel}>Consistency</Text>
+            <Text style={styles.consistencyValue}>{consistency}%</Text>
+          </View>
+          <View style={styles.consistencyBarBg}>
+            <View
+              style={[
+                styles.consistencyBarFill,
+                {
+                  width: `${consistency}%`,
+                  backgroundColor: consistency >= 70 ? 'rgba(34, 197, 94, 0.8)' : consistency >= 40 ? 'rgba(245, 158, 11, 0.8)' : 'rgba(239, 68, 68, 0.6)',
+                },
+              ]}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -145,5 +175,40 @@ const styles = StyleSheet.create({
     color: colors.fg.primary,
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.medium,
+  },
+  consistencyContainer: {
+    marginTop: spacing.md,
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing.md,
+  },
+  consistencyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  consistencyLabel: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  consistencyValue: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
+    color: colors.fg.primary,
+  },
+  consistencyBarBg: {
+    height: 6,
+    backgroundColor: colors.cream10,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  consistencyBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });

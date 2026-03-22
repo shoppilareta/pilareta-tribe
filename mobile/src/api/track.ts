@@ -12,6 +12,13 @@ export async function getStats(): Promise<TrackStatsResponse> {
   return apiFetch('/api/track/stats');
 }
 
+export async function updateGoals(data: { weeklyWorkoutGoal?: number | null; weeklyMinuteGoal?: number | null }) {
+  return apiFetch<{ success: boolean }>('/api/track/stats', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function getLogs(params?: CursorPaginationParams & {
   startDate?: string;
   endDate?: string;

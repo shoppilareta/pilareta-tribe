@@ -185,6 +185,9 @@ export default function LiveWorkoutScreen() {
             </Pressable>
           ))}
         </View>
+        <Text style={styles.rpeSelectedLabel}>
+          {rpe <= 2 ? 'Very Light' : rpe <= 4 ? 'Light' : rpe <= 6 ? 'Moderate' : rpe <= 8 ? 'Hard' : 'All-out'}
+        </Text>
 
         {/* Controls */}
         <View style={styles.controls}>
@@ -338,6 +341,13 @@ const styles = StyleSheet.create({
   rpeTextSelected: {
     color: colors.bg.primary,
     fontWeight: typography.weights.bold,
+  },
+  rpeSelectedLabel: {
+    fontSize: typography.sizes.sm,
+    color: colors.accent.amber,
+    fontWeight: typography.weights.medium,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   controls: {
     flexDirection: 'row',

@@ -3,6 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 
+const STREAK_MILESTONES = [7, 14, 30, 60, 100];
+
 interface StreakDisplayProps {
   currentStreak: number;
   longestStreak: number;
@@ -29,6 +31,26 @@ function formatLastWorkout(dateStr: string | null): string {
   if (diffDays < 7) return `${diffDays} days ago`;
 
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function isLastWorkoutYesterday(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const logDate = new Date(dateStr);
+  logDate.setHours(0, 0, 0, 0);
+  return logDate.getTime() === yesterday.getTime();
+}
+
+function getNextMilestone(currentStreak: number): { target: number; daysLeft: number } | null {
+  for (const m of STREAK_MILESTONES) {
+    if (currentStreak < m) {
+      return { target: m, daysLeft: m - currentStreak };
+    }
+  }
+  return null;
 }
 
 export function StreakDisplay({ currentStreak, longestStreak, lastWorkoutDate }: StreakDisplayProps) {
@@ -74,6 +96,9 @@ function StreakContent({
   isActive,
   isPersonalBest,
 }: StreakDisplayProps & { isActive: boolean; isPersonalBest: boolean }) {
+  const showGracePeriod = currentStreak > 0 && isLastWorkoutYesterday(lastWorkoutDate);
+  const nextMilestone = getNextMilestone(currentStreak);
+
   return (
     <View>
       <View style={styles.topRow}>
@@ -83,6 +108,13 @@ function StreakContent({
           <Text style={styles.streakLabel}>day streak</Text>
         </View>
       </View>
+
+      {/* Grace period warning */}
+      {showGracePeriod && (
+        <View style={styles.gracePeriod}>
+          <Text style={styles.gracePeriodText}>Log today to keep your streak!</Text>
+        </View>
+      )}
 
       <View style={styles.bottomRow}>
         <Text style={styles.metaText}>
@@ -94,6 +126,32 @@ function StreakContent({
           <Text style={styles.metaValue}>{formatLastWorkout(lastWorkoutDate)}</Text>
         </Text>
       </View>
+
+      {/* Milestone badges */}
+      {isActive && (
+        <View style={styles.milestoneRow}>
+          {STREAK_MILESTONES.map((m) => {
+            const reached = currentStreak >= m;
+            return (
+              <View
+                key={m}
+                style={[styles.milestoneBadge, reached && styles.milestoneBadgeReached]}
+              >
+                <Text style={[styles.milestoneBadgeText, reached && styles.milestoneBadgeTextReached]}>
+                  {m}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Next milestone hint */}
+      {isActive && nextMilestone && (
+        <Text style={styles.milestoneHint}>
+          {nextMilestone.daysLeft} more day{nextMilestone.daysLeft !== 1 ? 's' : ''} to {nextMilestone.target}-day milestone!
+        </Text>
+      )}
 
       {isPersonalBest && (
         <View style={styles.personalBest}>
@@ -146,6 +204,55 @@ const styles = StyleSheet.create({
   metaValue: {
     color: colors.fg.primary,
     fontWeight: typography.weights.medium,
+  },
+  gracePeriod: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+    alignItems: 'center',
+  },
+  gracePeriodText: {
+    fontSize: typography.sizes.sm,
+    color: colors.accent.amber,
+    fontWeight: typography.weights.medium,
+  },
+  milestoneRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  milestoneBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.cream10,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  milestoneBadgeReached: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: colors.accent.amber,
+  },
+  milestoneBadgeText: {
+    fontSize: 10,
+    fontWeight: typography.weights.medium,
+    color: colors.fg.muted,
+  },
+  milestoneBadgeTextReached: {
+    color: colors.accent.amber,
+    fontWeight: typography.weights.bold,
+  },
+  milestoneHint: {
+    fontSize: typography.sizes.xs,
+    color: colors.fg.tertiary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   personalBest: {
     marginTop: spacing.sm,

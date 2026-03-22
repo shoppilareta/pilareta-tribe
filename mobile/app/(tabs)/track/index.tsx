@@ -11,6 +11,10 @@ import { StreakDisplay } from '@/components/track/StreakDisplay';
 import { WeeklyProgress } from '@/components/track/WeeklyProgress';
 import { RecentLogs } from '@/components/track/RecentLogs';
 import { MonthlyCalendar } from '@/components/track/MonthlyCalendar';
+import { GoalCard } from '@/components/track/GoalCard';
+import { FocusAreaBreakdown } from '@/components/track/FocusAreaBreakdown';
+import { TrendChart } from '@/components/track/TrendChart';
+import { PersonalRecords } from '@/components/track/PersonalRecords';
 import { Skeleton, StatsSkeleton, WorkoutCardSkeleton } from '@/components/ui';
 import Svg, { Path } from 'react-native-svg';
 
@@ -168,11 +172,26 @@ export default function TrackDashboard() {
               </View>
             ) : null}
 
+            {/* Goal Card */}
+            {stats ? (
+              <View style={styles.section}>
+                <GoalCard
+                  weeklyWorkoutGoal={stats.weeklyWorkoutGoal}
+                  weeklyMinuteGoal={stats.weeklyMinuteGoal}
+                  currentWorkouts={stats.weeklyWorkouts ?? weeklyProgress.filter(Boolean).length}
+                  currentMinutes={stats.weeklyMinutes}
+                  onGoalsSaved={onRefresh}
+                />
+              </View>
+            ) : null}
+
             {/* Weekly Progress */}
             {isLoading && !weeklyProgress.length ? (
               <View style={styles.section}><Skeleton width="100%" height={80} borderRadius={12} /></View>
             ) : (
-              <View style={styles.section}><WeeklyProgress progress={weeklyProgress} /></View>
+              <View style={styles.section}>
+                <WeeklyProgress progress={weeklyProgress} weeklyWorkoutGoal={stats?.weeklyWorkoutGoal} />
+              </View>
             )}
 
             {/* Stats */}
@@ -180,7 +199,36 @@ export default function TrackDashboard() {
               <View style={styles.section}><StatsSkeleton /></View>
             ) : stats ? (
               <View style={styles.section}>
-                <StatsOverview totalWorkouts={stats.totalWorkouts} totalMinutes={stats.totalMinutes} weeklyMinutes={stats.weeklyMinutes} monthlyMinutes={stats.monthlyMinutes} totalCalories={stats.totalCalories} averageRpe={stats.averageRpe} />
+                <StatsOverview
+                  totalWorkouts={stats.totalWorkouts}
+                  totalMinutes={stats.totalMinutes}
+                  weeklyMinutes={stats.weeklyMinutes}
+                  monthlyMinutes={stats.monthlyMinutes}
+                  totalCalories={stats.totalCalories}
+                  averageRpe={stats.averageRpe}
+                  monthlyWorkouts={stats.monthlyWorkouts}
+                />
+              </View>
+            ) : null}
+
+            {/* Focus Area Breakdown */}
+            {stats?.focusAreaCounts ? (
+              <View style={styles.section}>
+                <FocusAreaBreakdown focusAreaCounts={stats.focusAreaCounts as Record<string, number>} />
+              </View>
+            ) : null}
+
+            {/* Weekly Trend */}
+            {stats?.weeklyTrend && stats.weeklyTrend.length > 0 ? (
+              <View style={styles.section}>
+                <TrendChart weeklyData={stats.weeklyTrend} />
+              </View>
+            ) : null}
+
+            {/* Personal Records */}
+            {stats?.personalRecords ? (
+              <View style={styles.section}>
+                <PersonalRecords records={stats.personalRecords} currentStreak={stats.currentStreak} />
               </View>
             ) : null}
 

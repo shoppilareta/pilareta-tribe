@@ -8,23 +8,37 @@ import { QuickLogForm } from '@/components/track/QuickLogForm';
 import { GoalCelebration } from '@/components/track/GoalCelebration';
 import { getStats } from '@/api/track';
 
+const STREAK_MILESTONES = [7, 14, 30, 60, 100];
+
 export default function LogWorkout() {
   const queryClient = useQueryClient();
   const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState<string | undefined>(undefined);
 
   const handleComplete = async () => {
     queryClient.invalidateQueries({ queryKey: ['track-stats'] });
     queryClient.invalidateQueries({ queryKey: ['track-logs'] });
 
-    // Check if daily calorie target was met
+    // Check if daily calorie target was met or streak milestone reached
     try {
       const stats = await getStats();
+
+      // Check calorie goal
       if (
         stats?.profile?.dailyCalorieTarget &&
         stats?.todayCalories >= stats.profile.dailyCalorieTarget
       ) {
+        setCelebrationMessage(undefined);
         setShowCelebration(true);
         return; // Don't navigate back yet — celebration will dismiss
+      }
+
+      // Check streak milestones
+      const currentStreak = stats?.stats?.currentStreak;
+      if (currentStreak && STREAK_MILESTONES.includes(currentStreak)) {
+        setCelebrationMessage(`${currentStreak}-day streak milestone!`);
+        setShowCelebration(true);
+        return;
       }
     } catch {
       // Ignore errors checking target
@@ -45,6 +59,7 @@ export default function LogWorkout() {
       <QuickLogForm onComplete={handleComplete} onCancel={handleCancel} />
       <GoalCelebration
         visible={showCelebration}
+        message={celebrationMessage}
         onDismiss={() => {
           setShowCelebration(false);
           router.back();
