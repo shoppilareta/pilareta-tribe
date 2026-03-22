@@ -48,14 +48,24 @@ export default function CartScreen() {
 
   const handleUpdateQuantity = async (lineId: string, quantity: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await updateQuantity(lineId, quantity);
-    showToast('Cart updated');
+    try {
+      await updateQuantity(lineId, quantity);
+      showToast('Cart updated');
+    } catch {
+      showToast('Failed to update cart. Please try again.', 'error');
+      loadCart(); // Refresh cart from server to get correct state
+    }
   };
 
   const handleRemove = async (lineId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await removeItem(lineId);
-    showToast('Removed from cart');
+    try {
+      await removeItem(lineId);
+      showToast('Removed from cart');
+    } catch {
+      showToast('Failed to remove item. Please try again.', 'error');
+      loadCart(); // Refresh cart from server to get correct state
+    }
   };
 
   const handleApplyDiscount = async () => {
@@ -64,8 +74,9 @@ export default function CartScreen() {
       await applyDiscountAction(promoCode.trim());
       setPromoCode('');
       showToast('Discount applied!');
-    } catch (err) {
-      setPromoError(err instanceof Error ? err.message : 'Invalid promo code');
+    } catch (err: any) {
+      const message = err?.data?.error || (err instanceof Error ? err.message : 'Invalid promo code');
+      setPromoError(message);
     }
   };
 

@@ -12,6 +12,7 @@ export default function CheckoutScreen() {
   const webViewRef = useRef<WebView>(null);
   const hasCompleted = useRef(false);
   const [loading, setLoading] = useState(true);
+  const [webViewError, setWebViewError] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
   const totalItems = useCartStore((s) => s.totalItems);
 
@@ -52,6 +53,7 @@ export default function CheckoutScreen() {
           style={styles.webview}
           onLoadEnd={() => setLoading(false)}
           onNavigationStateChange={handleNavigationChange}
+          onError={() => setWebViewError(true)}
           sharedCookiesEnabled
           javaScriptEnabled
           domStorageEnabled
@@ -59,6 +61,19 @@ export default function CheckoutScreen() {
       ) : (
         <View style={styles.error}>
           <Text style={styles.errorText}>No checkout URL available.</Text>
+        </View>
+      )}
+
+      {webViewError && (
+        <View style={styles.errorOverlay}>
+          <Text style={styles.errorTitle}>Connection Issue</Text>
+          <Text style={styles.errorSubtitle}>Please check your internet and try again</Text>
+          <Pressable style={styles.retryButton} onPress={() => { setWebViewError(false); webViewRef.current?.reload(); }}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Back to Cart</Text>
+          </Pressable>
         </View>
       )}
     </SafeAreaView>
@@ -94,4 +109,52 @@ const styles = StyleSheet.create({
   webview: { flex: 1 },
   error: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText: { fontSize: typography.sizes.sm, color: colors.fg.muted },
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.bg.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    zIndex: 2,
+  },
+  errorTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.fg.primary,
+    marginBottom: spacing.xs,
+  },
+  errorSubtitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: colors.fg.primary,
+    borderRadius: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    width: '100%',
+    alignItems: 'center',
+  },
+  retryButtonText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    color: colors.bg.primary,
+  },
+  backButton: {
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    width: '100%',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    color: colors.fg.primary,
+  },
 });

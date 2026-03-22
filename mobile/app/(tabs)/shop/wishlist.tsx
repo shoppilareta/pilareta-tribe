@@ -38,12 +38,13 @@ export default function WishlistScreen() {
 
   const wishlistedProducts = useMemo(() => {
     if (!wishlistHandles.length || !allProducts.length) return [];
-    const handleSet = new Set(wishlistHandles);
     // Maintain wishlist order
     return wishlistHandles
       .map((h) => allProducts.find((p) => p.handle === h))
       .filter(Boolean) as typeof allProducts;
   }, [wishlistHandles, allProducts]);
+
+  const unmatchedCount = allProducts.length > 0 ? wishlistHandles.length - wishlistedProducts.length : 0;
 
   const toggleMutation = useMutation({
     mutationFn: async (handle: string) => {
@@ -161,6 +162,11 @@ export default function WishlistScreen() {
         <Text style={styles.headerTitle}>My Wishlist</Text>
         <View style={{ width: 36 }} />
       </View>
+      {unmatchedCount > 0 && (
+        <View style={styles.unavailableBanner}>
+          <Text style={styles.unavailableText}>Some wishlisted items are no longer available</Text>
+        </View>
+      )}
       <FlatList
         data={wishlistedProducts}
         numColumns={2}
@@ -231,6 +237,19 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold,
     color: colors.bg.primary,
+  },
+  unavailableBanner: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  unavailableText: {
+    fontSize: typography.sizes.xs,
+    color: colors.warning,
+    textAlign: 'center',
   },
   grid: { paddingBottom: 100 },
   row: {

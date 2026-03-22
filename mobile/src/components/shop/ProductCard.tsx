@@ -90,8 +90,14 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
     <Pressable onPress={() => router.push({ pathname: '/(tabs)/shop/[handle]', params: { handle: product.handle } })}>
       <Card style={styles.card}>
         <View style={styles.imageContainer}>
-          {image && (
+          {image ? (
             <Image source={{ uri: image.url }} style={styles.image} resizeMode="cover" />
+          ) : (
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
+                <Path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
           )}
           {hasSale && (
             <View style={styles.saleBadge}>
@@ -181,6 +187,7 @@ const styles = StyleSheet.create({
   card: { flex: 1, overflow: 'hidden', padding: 0 },
   imageContainer: { position: 'relative', width: '100%', aspectRatio: 1 },
   image: { width: '100%', height: '100%', backgroundColor: 'rgba(246,237,221,0.05)' },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg.card },
   saleBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(239, 68, 68, 0.9)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, zIndex: 1 },
   saleBadgeText: { fontSize: 10, fontWeight: typography.weights.bold, color: '#fff', letterSpacing: 0.5 },
   soldOutBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(32,34,25,0.85)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },

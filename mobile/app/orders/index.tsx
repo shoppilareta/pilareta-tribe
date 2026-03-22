@@ -25,7 +25,7 @@ function getStatusColor(status: string) {
 }
 
 function OrderCard({ order, onReorder }: { order: ShopifyOrder; onReorder: (order: ShopifyOrder) => void }) {
-  const displayStatus = order.cancelledAt ? 'Cancelled' : (order.fulfillmentStatus || order.financialStatus || '').replace(/_/g, ' ');
+  const displayStatus = order.cancelledAt ? 'Cancelled' : (order.fulfillmentStatus || order.financialStatus || 'Processing').replace(/_/g, ' ');
   const trackingInfo = order.fulfillments.flatMap(f => f.trackingInfo);
 
   return (
@@ -84,18 +84,24 @@ export default function OrdersScreen() {
 
   const handleReorder = async (order: ShopifyOrder) => {
     let added = 0;
+    let failed = 0;
     for (const item of order.lineItems.nodes) {
       if (item.variant?.id) {
         try {
           await addItem(item.variant.id, item.quantity);
           added++;
         } catch {
-          // Variant may be sold out, skip
+          failed++;
         }
+      } else {
+        failed++;
       }
     }
-    if (added > 0) {
+
+    if (added > 0 && failed === 0) {
       showToast(`${added} item${added > 1 ? 's' : ''} added to cart`);
+    } else if (added > 0 && failed > 0) {
+      showToast(`${added} item${added > 1 ? 's' : ''} added (${failed} unavailable)`, 'info');
     } else {
       showToast('Items are no longer available', 'error');
     }

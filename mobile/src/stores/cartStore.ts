@@ -125,8 +125,9 @@ export const useCartStore = create<CartState>((set, get) => ({
         discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
         loading: false,
       });
-    } catch {
+    } catch (error) {
       set({ loading: false });
+      throw error;
     }
   },
 
@@ -148,8 +149,9 @@ export const useCartStore = create<CartState>((set, get) => ({
         discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
         loading: false,
       });
-    } catch {
+    } catch (error) {
       set({ loading: false });
+      throw error;
     }
   },
 
