@@ -231,6 +231,15 @@ struct QuickLogView: View {
         workoutManager.logWorkout(type: selectedType, duration: duration, rpe: rpe) {
             isSaving = false
             showSuccess = true
+
+            // Save to local workout history
+            HistoryView.saveWorkout(
+                type: selectedType,
+                duration: duration,
+                rpe: rpe,
+                laps: 0,
+                avgHR: 0
+            )
         }
     }
 

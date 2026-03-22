@@ -11,33 +11,19 @@ struct ContentView: View {
             DashboardView(workoutManager: workoutManager)
                 .tag(0)
 
-            // Tab 2: Workout Timer (with pending sync badge)
-            ZStack(alignment: .topTrailing) {
-                WorkoutTimerView(workoutManager: workoutManager)
-
-                // Pending sync badge
-                if workoutManager.pendingSyncCount > 0 {
-                    HStack(spacing: 3) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 7, height: 7)
-                        Text("\(workoutManager.pendingSyncCount)")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.red)
-                    }
-                    .padding(.top, 4)
-                    .padding(.trailing, 8)
-                    .transition(.scale.combined(with: .opacity))
-                    .animation(.easeInOut(duration: 0.3), value: workoutManager.pendingSyncCount)
-                }
-            }
-            .tag(1)
+            // Tab 2: Workout Timer
+            WorkoutTimerView(workoutManager: workoutManager)
+                .tag(1)
 
             // Tab 3: Quick Log
             NavigationStack {
                 QuickLogView(workoutManager: workoutManager)
             }
             .tag(2)
+
+            // Tab 4: History
+            HistoryView()
+                .tag(3)
         }
         .tabViewStyle(.verticalPage)
         .onAppear {
@@ -113,21 +99,6 @@ struct DashboardView: View {
                         .foregroundColor(Color(hex: "f6eddd"))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
-                }
-
-                // Offline indicator
-                if workoutManager.isOffline {
-                    HStack(spacing: 4) {
-                        Image(systemName: "iphone.slash")
-                            .font(.system(size: 9))
-                        Text("Offline")
-                            .font(.system(size: 9, weight: .semibold))
-                    }
-                    .foregroundColor(.orange)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.orange.opacity(0.12))
-                    .cornerRadius(6)
                 }
 
                 // Three activity rings (Apple Fitness style)
@@ -213,13 +184,16 @@ struct DashboardView: View {
                     StreakDetailView(workoutManager: workoutManager)
                 }
 
-                // Ring legend
-                HStack(spacing: 10) {
-                    ringLegendItem(color: .green, label: "\(workoutManager.weeklyWorkouts)/7", caption: "week")
-                    ringLegendItem(color: .orange, label: "\(workoutManager.currentStreak)", caption: "streak")
-                    ringLegendItem(color: .red, label: workoutManager.todayCalories > 0 ? "\u{2713}" : "-", caption: "today")
+                // Today micro-card
+                if workoutManager.todayCalories > 0 {
+                    Text("\u{2713} Worked out today")
+                        .font(.system(size: 11))
+                        .foregroundColor(.green)
+                } else {
+                    Text("No workout yet today")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "f6eddd").opacity(0.4))
                 }
-                .padding(.vertical, 2)
 
                 // Stats row
                 HStack(spacing: 16) {
@@ -259,36 +233,6 @@ struct DashboardView: View {
                     }
                 }
                 .padding(.vertical, 4)
-
-                // Weekly trends bar
-                if workoutManager.weeklyWorkouts > 0 {
-                    VStack(spacing: 4) {
-                        HStack {
-                            Text("This week")
-                                .font(.system(size: 10))
-                                .foregroundColor(Color(hex: "f6eddd").opacity(0.5))
-                            Spacer()
-                            Text("\(workoutManager.weeklyWorkouts) workouts")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(Color(hex: "f6eddd"))
-                        }
-
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Rectangle()
-                                    .fill(Color(hex: "f6eddd").opacity(0.1))
-                                    .frame(height: 4)
-                                    .cornerRadius(2)
-                                Rectangle()
-                                    .fill(Color.green)
-                                    .frame(width: geo.size.width * CGFloat(min(workoutManager.weeklyWorkouts, 7)) / 7.0, height: 4)
-                                    .cornerRadius(2)
-                            }
-                        }
-                        .frame(height: 4)
-                    }
-                    .padding(.horizontal, 16)
-                }
 
                 // Refresh button
                 Button(action: refreshStats) {
@@ -331,43 +275,15 @@ struct DashboardView: View {
                     AchievementsView().environmentObject(workoutManager)
                 }
 
-                // Last synced indicator
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(workoutManager.isPhoneReachable ? Color.green : Color.orange)
-                        .frame(width: 5, height: 5)
-                    Text("Synced: \(workoutManager.timeSinceLastSync)")
-                        .font(.system(size: 9))
-                        .foregroundColor(Color(hex: "f6eddd").opacity(0.35))
+                // Offline indicator (only shown when offline)
+                if workoutManager.isOffline {
+                    Image(systemName: "icloud.slash")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "f6eddd").opacity(0.3))
+                        .padding(.top, 2)
                 }
-
-                // Swipe hint
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8))
-                    Text("Swipe down for timer")
-                        .font(.system(size: 9))
-                }
-                .foregroundColor(Color(hex: "f6eddd").opacity(0.2))
-                .padding(.top, 4)
             }
             .padding(.horizontal, 8)
-        }
-    }
-
-    private func ringLegendItem(color: Color, label: String, caption: String) -> some View {
-        HStack(spacing: 3) {
-            Circle()
-                .fill(color)
-                .frame(width: 5, height: 5)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(label)
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color(hex: "f6eddd"))
-                Text(caption)
-                    .font(.system(size: 7))
-                    .foregroundColor(Color(hex: "f6eddd").opacity(0.4))
-            }
         }
     }
 

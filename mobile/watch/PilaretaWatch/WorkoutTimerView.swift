@@ -9,6 +9,7 @@ struct WorkoutSummary {
     let avgHeartRate: Double
     let calories: Int
     let coolDownSeconds: Int
+    let laps: Int
 }
 
 // MARK: - Stat Badge Component
@@ -74,6 +75,15 @@ struct WorkoutTimerView: View {
     @State private var breathingEnabled = false
     @State private var breathingTimer: Timer? = nil
     @State private var isInhaling = true
+
+    // Lap Tracking
+    @State private var laps: [TimeInterval] = []
+
+    // Haptic Toggle
+    @State private var hapticsEnabled = true
+
+    // Options Disclosure
+    @State private var showOptions = false
 
     let workoutTypes = ["Reformer", "Mat", "Tower", "Yoga", "Running", "Strength"]
 
@@ -221,8 +231,8 @@ struct WorkoutTimerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "202219").opacity(0.95))
         .onAppear {
-            WKInterfaceDevice.current().play(.success)
-            WKInterfaceDevice.current().play(.notification)
+            playHaptic(.success)
+            playHaptic(.notification)
         }
     }
 
@@ -244,6 +254,7 @@ struct WorkoutTimerView: View {
                         Button(action: {
                             WKInterfaceDevice.current().play(.click)
                             workoutType = type
+                            breathingEnabled = type == "Yoga"
                         }) {
                             VStack(spacing: 4) {
                                 Image(systemName: iconForType(type))
@@ -299,23 +310,34 @@ struct WorkoutTimerView: View {
                     }
                 }
 
-                // Water Lock toggle
-                Toggle(isOn: $waterLockEnabled) {
-                    Label("Water Lock", systemImage: "drop.fill")
-                        .font(.caption)
-                        .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
-                }
-                .toggleStyle(.switch)
-                .tint(Color(hex: "f6eddd").opacity(0.5))
+                // Collapsible options
+                DisclosureGroup("Options", isExpanded: $showOptions) {
+                    Toggle(isOn: $waterLockEnabled) {
+                        Label("Water Lock", systemImage: "drop.fill")
+                            .font(.caption)
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
+                    }
+                    .toggleStyle(.switch)
+                    .tint(Color(hex: "f6eddd").opacity(0.5))
 
-                // Breathing cues toggle
-                Toggle(isOn: $breathingEnabled) {
-                    Label("Breathing Cues", systemImage: "wind")
-                        .font(.caption)
-                        .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
+                    Toggle(isOn: $breathingEnabled) {
+                        Label("Breathing", systemImage: "wind")
+                            .font(.caption)
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
+                    }
+                    .toggleStyle(.switch)
+                    .tint(Color(hex: "f6eddd").opacity(0.5))
+
+                    Toggle(isOn: $hapticsEnabled) {
+                        Label("Haptics", systemImage: "hand.point.up.braille")
+                            .font(.caption)
+                            .foregroundColor(Color(hex: "f6eddd").opacity(0.7))
+                    }
+                    .toggleStyle(.switch)
+                    .tint(Color(hex: "f6eddd").opacity(0.5))
                 }
-                .toggleStyle(.switch)
-                .tint(Color(hex: "f6eddd").opacity(0.5))
+                .font(.caption)
+                .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
 
                 Button(action: startWorkout) {
                     HStack {
@@ -348,6 +370,7 @@ struct WorkoutTimerView: View {
             let newType = workoutTypes[clampedIndex]
             if newType != workoutType {
                 workoutType = newType
+                breathingEnabled = newType == "Yoga"
                 WKInterfaceDevice.current().play(.click)
             }
         }
@@ -357,6 +380,8 @@ struct WorkoutTimerView: View {
             if let index = workoutTypes.firstIndex(of: workoutType) {
                 selectedTypeIndex = Double(index)
             }
+            // Default breathing cues: ON for yoga, OFF for others
+            breathingEnabled = workoutType == "Yoga"
         }
     }
 
@@ -393,12 +418,17 @@ struct WorkoutTimerView: View {
         VStack(spacing: 4) {
             Spacer()
 
-            // Workout type label
+            // Workout type label with lap count
             HStack(spacing: 4) {
                 Image(systemName: iconForType(workoutType))
                     .font(.caption2)
                 Text(workoutType.uppercased())
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
+                if !laps.isEmpty {
+                    Text("\u{00B7} \(laps.count) laps")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(Color(hex: "f6eddd").opacity(0.5))
+                }
             }
             .foregroundColor(Color(hex: "f6eddd").opacity(0.6))
 
@@ -529,6 +559,18 @@ struct WorkoutTimerView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            // Lap button
+            Button(action: recordLap) {
+                Text("LAP")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(Color(hex: "f6eddd").opacity(0.5))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Color(hex: "f6eddd").opacity(0.1))
+                    .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
             .padding(.bottom, 4)
         }
     }
@@ -673,6 +715,11 @@ struct WorkoutTimerView: View {
                     }
                 }
 
+                // Laps if any
+                if summary.laps > 0 {
+                    StatBadge(value: "\(summary.laps)", unit: "LAPS", icon: "repeat")
+                }
+
                 // Cool-down time if applicable
                 if summary.coolDownSeconds > 0 {
                     HStack(spacing: 4) {
@@ -741,6 +788,20 @@ struct WorkoutTimerView: View {
         return 5
     }
 
+    // MARK: - Lap Recording
+
+    func recordLap() {
+        laps.append(elapsedSeconds)
+        WKInterfaceDevice.current().play(.click)
+    }
+
+    // MARK: - Haptic Helper
+
+    func playHaptic(_ type: WKHapticType) {
+        guard hapticsEnabled else { return }
+        WKInterfaceDevice.current().play(type)
+    }
+
     // MARK: - Timer Controls
 
     func startWorkout() {
@@ -755,6 +816,12 @@ struct WorkoutTimerView: View {
         coolDownPhase = 0
         inCoolDown = false
         showCoolDownPrompt = false
+        laps = []
+
+        // Default breathing to ON for yoga, OFF for others
+        if workoutType == "Yoga" {
+            breathingEnabled = true
+        }
 
         // Start HealthKit workout session
         workoutManager.startHealthKitWorkout(type: apiType(for: workoutType))
@@ -828,7 +895,7 @@ struct WorkoutTimerView: View {
                 let newPhase = min(Int(self.coolDownSeconds) / 60, self.coolDownPrompts.count - 1)
                 if newPhase != self.coolDownPhase {
                     self.coolDownPhase = newPhase
-                    WKInterfaceDevice.current().play(.notification)
+                    self.playHaptic(.notification)
                 }
 
                 // Auto-end after 5 minutes
@@ -868,13 +935,24 @@ struct WorkoutTimerView: View {
         // End HealthKit workout and get summary data
         let capturedType = workoutType
         let capturedCoolDown = coolDownTime
+        let capturedLaps = laps.count
         workoutManager.endHealthKitWorkout { avgHR, calories in
             self.workoutSummary = WorkoutSummary(
                 type: capturedType,
                 duration: durationMinutes,
                 avgHeartRate: avgHR,
                 calories: Int(calories),
-                coolDownSeconds: capturedCoolDown
+                coolDownSeconds: capturedCoolDown,
+                laps: capturedLaps
+            )
+
+            // Save to local workout history
+            HistoryView.saveWorkout(
+                type: self.apiType(for: capturedType),
+                duration: durationMinutes,
+                rpe: 5,
+                laps: capturedLaps,
+                avgHR: Int(avgHR)
             )
         }
 
@@ -896,6 +974,7 @@ struct WorkoutTimerView: View {
         elapsedSeconds = 0
         motivationText = nil
         goalReached = false
+        laps = []
 
         // Dismiss celebration after 3 seconds, then check for badge unlock
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -936,9 +1015,9 @@ struct WorkoutTimerView: View {
             DispatchQueue.main.async {
                 self.isInhaling.toggle()
                 if self.isInhaling {
-                    WKInterfaceDevice.current().play(.directionUp) // inhale
+                    self.playHaptic(.directionUp) // inhale
                 } else {
-                    WKInterfaceDevice.current().play(.directionDown) // exhale
+                    self.playHaptic(.directionDown) // exhale
                 }
             }
         }
@@ -952,11 +1031,11 @@ struct WorkoutTimerView: View {
         let targetSeconds = Double(targetDuration * 60)
         if elapsedSeconds >= targetSeconds {
             goalReached = true
-            WKInterfaceDevice.current().play(.success)
+            playHaptic(.success)
 
             // Secondary haptic for emphasis
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                WKInterfaceDevice.current().play(.notification)
+                self.playHaptic(.notification)
             }
         }
     }
@@ -983,20 +1062,20 @@ struct WorkoutTimerView: View {
 
             // Haptic every 5 minutes
             if minutes % 5 == 0 {
-                WKInterfaceDevice.current().play(.notification)
+                playHaptic(.notification)
             }
         }
 
         // Subtle haptic every minute (for first 3 minutes, as a "warm-up" cue)
         if totalSeconds <= 180 && seconds == 0 && minutes > 0 {
-            WKInterfaceDevice.current().play(.directionUp)
+            playHaptic(.directionUp)
         }
 
         // HR zone change detection: warn when entering Zone 4+
         let currentZone = currentHRZoneIndex()
         if currentZone != previousHRZone {
             if currentZone >= 4 && previousHRZone < 4 {
-                WKInterfaceDevice.current().play(.retry)
+                playHaptic(.retry)
             }
             previousHRZone = currentZone
         }
