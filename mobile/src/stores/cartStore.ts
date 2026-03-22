@@ -40,6 +40,21 @@ interface CartState {
 
 const CART_ID_KEY = 'pilareta_cart_id';
 
+// Extract cart state from API response to avoid repeating 9 lines in every action
+function setCartFromResponse(cart: any) {
+  return {
+    cartId: cart.id,
+    lines: cart.lines,
+    checkoutUrl: cart.checkoutUrl,
+    totalAmount: cart.cost.totalAmount.amount,
+    subtotalAmount: cart.cost.subtotalAmount.amount,
+    taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
+    currencyCode: cart.cost.totalAmount.currencyCode,
+    discountCode: cart.discountCodes?.[0]?.code || null,
+    discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
+  };
+}
+
 export const useCartStore = create<CartState>((set, get) => ({
   cartId: null,
   lines: [],
@@ -60,18 +75,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ loading: true });
     try {
       const { cart } = await getCart(storedCartId);
-      set({
-        cartId: cart.id,
-        lines: cart.lines,
-        checkoutUrl: cart.checkoutUrl,
-        totalAmount: cart.cost.totalAmount.amount,
-        subtotalAmount: cart.cost.subtotalAmount.amount,
-        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
-        currencyCode: cart.cost.totalAmount.currencyCode,
-        discountCode: cart.discountCodes?.[0]?.code || null,
-        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
-        loading: false,
-      });
+      set({ ...setCartFromResponse(cart), loading: false });
     } catch {
       // Cart may have expired
       await SecureStore.deleteItemAsync(CART_ID_KEY);
@@ -85,18 +89,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const { cartId } = get();
       const { cart } = await addToCart(cartId || undefined, [{ merchandiseId, quantity }]);
       await SecureStore.setItemAsync(CART_ID_KEY, cart.id);
-      set({
-        cartId: cart.id,
-        lines: cart.lines,
-        checkoutUrl: cart.checkoutUrl,
-        totalAmount: cart.cost.totalAmount.amount,
-        subtotalAmount: cart.cost.subtotalAmount.amount,
-        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
-        currencyCode: cart.cost.totalAmount.currencyCode,
-        discountCode: cart.discountCodes?.[0]?.code || null,
-        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
-        loading: false,
-      });
+      set({ ...setCartFromResponse(cart), loading: false });
     } catch {
       set({ loading: false });
       throw new Error('Failed to add item to cart');
@@ -114,17 +107,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ loading: true });
     try {
       const { cart } = await updateCart(cartId, [{ id: lineId, quantity }]);
-      set({
-        lines: cart.lines,
-        checkoutUrl: cart.checkoutUrl,
-        totalAmount: cart.cost.totalAmount.amount,
-        subtotalAmount: cart.cost.subtotalAmount.amount,
-        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
-        currencyCode: cart.cost.totalAmount.currencyCode,
-        discountCode: cart.discountCodes?.[0]?.code || null,
-        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
-        loading: false,
-      });
+      set({ ...setCartFromResponse(cart), loading: false });
     } catch (error) {
       set({ loading: false });
       throw error;
@@ -138,17 +121,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ loading: true });
     try {
       const { cart } = await removeFromCart(cartId, [lineId]);
-      set({
-        lines: cart.lines,
-        checkoutUrl: cart.checkoutUrl,
-        totalAmount: cart.cost.totalAmount.amount,
-        subtotalAmount: cart.cost.subtotalAmount.amount,
-        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
-        currencyCode: cart.cost.totalAmount.currencyCode,
-        discountCode: cart.discountCodes?.[0]?.code || null,
-        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
-        loading: false,
-      });
+      set({ ...setCartFromResponse(cart), loading: false });
     } catch (error) {
       set({ loading: false });
       throw error;
@@ -174,15 +147,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ loading: true });
     try {
       const { cart } = await applyDiscountApi(cartId, code);
-      set({
-        lines: cart.lines,
-        totalAmount: cart.cost.totalAmount.amount,
-        subtotalAmount: cart.cost.subtotalAmount.amount,
-        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
-        discountCode: cart.discountCodes?.[0]?.code || null,
-        discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
-        loading: false,
-      });
+      set({ ...setCartFromResponse(cart), loading: false });
     } catch (error) {
       set({ loading: false });
       throw error;
@@ -195,15 +160,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ loading: true });
     try {
       const { cart } = await applyDiscountApi(cartId, '');
-      set({
-        lines: cart.lines,
-        totalAmount: cart.cost.totalAmount.amount,
-        subtotalAmount: cart.cost.subtotalAmount.amount,
-        taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
-        discountCode: null,
-        discountAmount: null,
-        loading: false,
-      });
+      set({ ...setCartFromResponse(cart), discountCode: null, discountAmount: null, loading: false });
     } catch {
       set({ loading: false });
     }

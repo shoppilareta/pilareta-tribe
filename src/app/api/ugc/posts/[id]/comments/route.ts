@@ -28,6 +28,7 @@ export async function GET(
       where: {
         postId,
         isHidden: false,
+        deletedAt: null,
       },
       take: limit + 1,
       ...(cursor && {

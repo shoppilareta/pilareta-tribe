@@ -3,6 +3,8 @@
  * No external dependencies — uses a simple Map keyed by IP + route.
  */
 
+import { RATE_LIMIT_CLEANUP_INTERVAL } from '@/lib/constants';
+
 interface RateLimitEntry {
   count: number;
   windowStart: number;
@@ -24,8 +26,8 @@ interface RateLimitResult {
 
 const store = new Map<string, RateLimitEntry>();
 
-// Auto-cleanup stale entries every 5 minutes
-const CLEANUP_INTERVAL = 5 * 60 * 1000;
+// Auto-cleanup stale entries
+const CLEANUP_INTERVAL = RATE_LIMIT_CLEANUP_INTERVAL;
 
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -62,17 +64,18 @@ function getClientIp(request: Request): string {
 
 export async function rateLimit(
   request: Request,
-  options: RateLimitOptions
+  options: RateLimitOptions & { userId?: string }
 ): Promise<RateLimitResult> {
   ensureCleanupTimer();
 
-  const { limit, window: windowSeconds } = options;
+  const { limit, window: windowSeconds, userId } = options;
   const windowMs = windowSeconds * 1000;
   const now = Date.now();
 
   const ip = getClientIp(request);
   const path = new URL(request.url).pathname;
-  const key = `${ip}:${path}`;
+  // Use userId if provided for more accurate per-user limiting, fall back to IP
+  const key = userId ? `user:${userId}:${path}` : `${ip}:${path}`;
 
   const entry = store.get(key);
 

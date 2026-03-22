@@ -144,18 +144,17 @@ export async function updateUserStats(userId: string): Promise<void> {
     _sum: { durationMinutes: true },
   });
 
-  // Focus area counts
-  const allLogs = await prisma.workoutLog.findMany({
-    where: { userId },
-    select: { focusAreas: true },
-  });
-
-  const focusAreaCounts: Record<string, number> = {};
-  allLogs.forEach(log => {
-    log.focusAreas.forEach(area => {
-      focusAreaCounts[area] = (focusAreaCounts[area] || 0) + 1;
-    });
-  });
+  // Focus area counts — aggregate in SQL instead of loading all logs into memory
+  const focusAreaResult = await prisma.$queryRaw<Array<{ area: string; count: bigint }>>`
+    SELECT unnest("focusAreas") as area, COUNT(*) as count
+    FROM "WorkoutLog"
+    WHERE "userId" = ${userId}
+    GROUP BY area
+    ORDER BY count DESC
+  `;
+  const focusAreaCounts: Record<string, number> = Object.fromEntries(
+    focusAreaResult.map(r => [r.area, Number(r.count)])
+  );
 
   // Upsert stats
   await prisma.userWorkoutStats.upsert({

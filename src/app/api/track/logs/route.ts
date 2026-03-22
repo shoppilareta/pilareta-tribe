@@ -7,6 +7,7 @@ import { estimateCalories, isValidRpe, isValidDuration, isValidWorkoutType } fro
 import { saveWorkoutImage } from '@/lib/track/upload';
 import { checkUserStorageLimit } from '@/lib/upload-limits';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 // GET /api/track/logs - List user's workout logs
 export async function GET(request: NextRequest) {
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
       hasMore,
     });
   } catch (error) {
-    console.error('Error fetching workout logs:', error);
+    logger.error('track/logs', 'Failed to fetch workout logs', error);
     return NextResponse.json({ error: 'Failed to fetch workout logs' }, { status: 500 });
   }
 }
@@ -93,11 +94,6 @@ export async function GET(request: NextRequest) {
 // POST /api/track/logs - Create workout log
 export async function POST(request: NextRequest) {
   try {
-    const limiter = await rateLimit(request, { limit: 10, window: 60 });
-    if (!limiter.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
-
     if (!validateCsrf(request)) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
@@ -105,6 +101,11 @@ export async function POST(request: NextRequest) {
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const limiter = await rateLimit(request, { limit: 10, window: 60, userId: session.userId });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
     // Check content type to determine how to parse
@@ -346,7 +347,7 @@ export async function POST(request: NextRequest) {
       message: 'Workout logged successfully',
     });
   } catch (error) {
-    console.error('Error creating workout log:', error);
+    logger.error('track/logs', 'Failed to create workout log', error);
     return NextResponse.json({ error: 'Failed to create workout log' }, { status: 500 });
   }
 }

@@ -249,29 +249,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    // Delete file
-    if (post.mediaUrl) {
-      const filePath = path.join(process.cwd(), 'public', post.mediaUrl);
-      try {
-        await unlink(filePath);
-      } catch {
-        // File may not exist, continue with deletion
-      }
-    }
-
-    // Delete thumbnail if exists
-    if (post.thumbnailUrl) {
-      const thumbPath = path.join(process.cwd(), 'public', post.thumbnailUrl);
-      try {
-        await unlink(thumbPath);
-      } catch {
-        // File may not exist
-      }
-    }
-
-    // Delete post (cascades to likes, comments, saves, tags)
-    await prisma.ugcPost.delete({
+    // Soft-delete: mark as deleted instead of removing from database.
+    // Files are kept so they can be recovered if needed.
+    await prisma.ugcPost.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
 
     return NextResponse.json({ success: true });

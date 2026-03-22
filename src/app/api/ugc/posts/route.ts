@@ -7,6 +7,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { moderateContent } from '@/lib/moderation';
 import { checkUserStorageLimit } from '@/lib/upload-limits';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 // Helper to get display name from user data
 function getDisplayName(user: { firstName: string | null; lastName: string | null; email: string }): string {
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {
       status: 'approved',
+      deletedAt: null,
     };
 
     // If feed=following, filter to posts from users the current user follows
@@ -199,7 +201,7 @@ export async function GET(request: NextRequest) {
       hasMore,
     });
   } catch (error) {
-    console.error('Error fetching posts:', error);
+    logger.error('ugc/posts', 'Failed to fetch posts', error);
     return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
   }
 }
@@ -397,7 +399,7 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
     await writeFile(filePath, buffer);
     return publicUrl;
   } catch (error) {
-    console.error('Error downloading Instagram thumbnail:', error);
+    logger.error('ugc/posts', 'Failed to download Instagram thumbnail', error);
     return thumbnailUrl; // Return CDN URL as fallback
   }
 }
@@ -405,11 +407,6 @@ async function fetchAndSaveInstagramThumbnail(postId: string, instagramUrl: stri
 // POST /api/ugc/posts - Create post (auth required)
 export async function POST(request: NextRequest) {
   try {
-    const limiter = await rateLimit(request, { limit: 5, window: 60 });
-    if (!limiter.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
-
     if (!validateCsrf(request)) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
@@ -417,6 +414,11 @@ export async function POST(request: NextRequest) {
     const session = await getSession(request);
     if (!session?.userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const limiter = await rateLimit(request, { limit: 5, window: 60, userId: session.userId });
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
     // Check upload rate limit (admins are exempt)
@@ -587,7 +589,7 @@ export async function POST(request: NextRequest) {
       message: 'Your post has been submitted for review',
     });
   } catch (error) {
-    console.error('Error creating post:', error);
+    logger.error('ugc/posts', 'Failed to create post', error);
     return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
   }
 }

@@ -7,6 +7,7 @@ import {
   isNewAccountsMode,
 } from '@/lib/shopify-auth';
 import { rateLimit } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(authUrl);
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('auth/login', 'Failed to initiate login', error);
     return NextResponse.json(
       { error: 'Failed to initiate login' },
       { status: 500 }

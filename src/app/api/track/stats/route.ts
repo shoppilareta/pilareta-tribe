@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { calculateStreak, getWeeklyProgress } from '@/lib/track/streak';
+import { getWeeklyProgress } from '@/lib/track/streak';
 
 // GET /api/track/stats - Get user's workout stats
 export async function GET(request: NextRequest) {
@@ -16,67 +16,21 @@ export async function GET(request: NextRequest) {
       where: { userId: session.userId },
     });
 
-    // If no stats exist, calculate them
+    // If no stats exist, create with zeros and return immediately.
+    // Stats are properly calculated when a workout is logged (via updateUserStats).
     if (!stats) {
-      const streak = await calculateStreak(session.userId);
-
-      const totals = await prisma.workoutLog.aggregate({
-        where: { userId: session.userId },
-        _count: { id: true },
-        _sum: { durationMinutes: true, calorieEstimate: true },
-      });
-
-      // Weekly minutes (last 7 days)
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      weekAgo.setHours(0, 0, 0, 0);
-
-      const weeklyStats = await prisma.workoutLog.aggregate({
-        where: {
-          userId: session.userId,
-          workoutDate: { gte: weekAgo },
-        },
-        _sum: { durationMinutes: true },
-      });
-
-      // Monthly minutes (last 30 days)
-      const monthAgo = new Date();
-      monthAgo.setDate(monthAgo.getDate() - 30);
-      monthAgo.setHours(0, 0, 0, 0);
-
-      const monthlyStats = await prisma.workoutLog.aggregate({
-        where: {
-          userId: session.userId,
-          workoutDate: { gte: monthAgo },
-        },
-        _sum: { durationMinutes: true },
-      });
-
-      // Focus area counts
-      const allLogs = await prisma.workoutLog.findMany({
-        where: { userId: session.userId },
-        select: { focusAreas: true },
-      });
-
-      const focusAreaCounts: Record<string, number> = {};
-      allLogs.forEach((log) => {
-        log.focusAreas.forEach((area) => {
-          focusAreaCounts[area] = (focusAreaCounts[area] || 0) + 1;
-        });
-      });
-
       stats = await prisma.userWorkoutStats.create({
         data: {
           userId: session.userId,
-          currentStreak: streak.currentStreak,
-          longestStreak: streak.longestStreak,
-          lastWorkoutDate: streak.lastWorkoutDate,
-          streakStartDate: streak.streakStartDate,
-          totalWorkouts: totals._count.id,
-          totalMinutes: totals._sum.durationMinutes || 0,
-          weeklyMinutes: weeklyStats._sum.durationMinutes || 0,
-          monthlyMinutes: monthlyStats._sum.durationMinutes || 0,
-          focusAreaCounts,
+          currentStreak: 0,
+          longestStreak: 0,
+          lastWorkoutDate: null,
+          streakStartDate: null,
+          totalWorkouts: 0,
+          totalMinutes: 0,
+          weeklyMinutes: 0,
+          monthlyMinutes: 0,
+          focusAreaCounts: {},
         },
       });
     }

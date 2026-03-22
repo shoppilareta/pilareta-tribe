@@ -106,6 +106,7 @@ model UgcPost {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  deletedAt       DateTime? // Soft-delete: null = active, set = deleted
 
   likes           UgcLike[]
   comments        UgcComment[]
@@ -120,6 +121,7 @@ model UgcPost {
   @@index([createdAt])
   @@index([postType])
   @@index([status, createdAt]) // Feed queries: filter by status + sort by date
+  @@index([deletedAt])         // Soft-delete filter
 }
 
 model UgcLike {
@@ -144,9 +146,11 @@ model UgcComment {
   content   String   @db.Text
   isHidden  Boolean  @default(false)
   createdAt DateTime @default(now())
+  deletedAt DateTime? // Soft-delete: null = active, set = deleted
 
   @@index([postId])
   @@index([userId])
+  @@index([deletedAt])
 }
 
 model UgcSave {

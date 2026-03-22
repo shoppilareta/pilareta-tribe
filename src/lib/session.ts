@@ -1,5 +1,6 @@
 import { getIronSession, SessionOptions, IronSession } from 'iron-session';
 import { cookies } from 'next/headers';
+import { SESSION_MAX_AGE_SECONDS } from '@/lib/constants';
 
 export interface SessionData {
   userId?: string;
@@ -21,7 +22,7 @@ const sessionOptions: SessionOptions = {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7, // 1 week
+    maxAge: SESSION_MAX_AGE_SECONDS, // 7 days
   },
 };
 
