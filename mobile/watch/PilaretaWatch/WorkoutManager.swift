@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 import WatchConnectivity
 import WatchKit
 
@@ -12,6 +13,23 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     @Published var lastSyncTime: Date? = nil
     @Published var isLoading: Bool = false
     @Published var isPhoneReachable: Bool = false
+    @Published var pendingSyncCount: Int = 0
+
+    // MARK: - HealthKit State
+
+    @Published var currentHeartRate: Double = 0
+    @Published var averageHeartRate: Double = 0
+    @Published var activeCalories: Double = 0
+
+    private let healthStore = HKHealthStore()
+    private var workoutSession: HKWorkoutSession?
+    private var workoutBuilder: HKLiveWorkoutBuilder?
+    private var heartRateQuery: HKAnchoredObjectQuery?
+    private var heartRateSamples: [Double] = []
+
+    // MARK: - Extended Runtime
+
+    private var extendedSession: WKExtendedRuntimeSession?
 
     // Offline cache keys
     private let cacheStreakKey = "cached_streak"
@@ -31,6 +49,174 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             session.delegate = self
             session.activate()
         }
+    }
+
+    // MARK: - HealthKit Authorization
+
+    func requestHealthKitPermission() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("[HealthKit] Health data not available on this device")
+            return
+        }
+
+        let typesToShare: Set<HKSampleType> = [HKObjectType.workoutType()]
+        let typesToRead: Set<HKObjectType> = [
+            HKObjectType.quantityType(forIdentifier: .heartRate)!,
+            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+        ]
+
+        healthStore.requestAuthorization(toShare: typesToShare, toRead: typesToRead) { success, error in
+            if success {
+                print("[HealthKit] Authorization granted")
+            } else if let error = error {
+                print("[HealthKit] Authorization failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // MARK: - HealthKit Workout Session
+
+    func startHealthKitWorkout(type: String) {
+        let config = HKWorkoutConfiguration()
+        config.activityType = mapToHKActivityType(type)
+        config.locationType = .indoor
+
+        do {
+            workoutSession = try HKWorkoutSession(healthStore: healthStore, configuration: config)
+            workoutBuilder = workoutSession?.associatedWorkoutBuilder()
+            workoutBuilder?.dataSource = HKLiveWorkoutDataSource(
+                healthStore: healthStore, workoutConfiguration: config
+            )
+
+            workoutSession?.startActivity(with: Date())
+            workoutBuilder?.beginCollection(withStart: Date()) { [weak self] success, error in
+                if success {
+                    print("[HealthKit] Workout collection started")
+                    DispatchQueue.main.async {
+                        self?.heartRateSamples = []
+                        self?.currentHeartRate = 0
+                        self?.averageHeartRate = 0
+                        self?.activeCalories = 0
+                    }
+                    self?.startHeartRateQuery()
+                } else if let error = error {
+                    print("[HealthKit] Failed to begin collection: \(error.localizedDescription)")
+                }
+            }
+        } catch {
+            print("[HealthKit] Failed to start workout session: \(error.localizedDescription)")
+        }
+    }
+
+    func endHealthKitWorkout(completion: ((Double, Double) -> Void)? = nil) {
+        stopHeartRateQuery()
+
+        workoutSession?.end()
+        workoutBuilder?.endCollection(withEnd: Date()) { [weak self] success, error in
+            guard let self = self else { return }
+            if success {
+                self.workoutBuilder?.finishWorkout { workout, error in
+                    if let workout = workout {
+                        print("[HealthKit] Workout saved: \(workout)")
+                    }
+                    let avgHR = self.heartRateSamples.isEmpty
+                        ? 0
+                        : self.heartRateSamples.reduce(0, +) / Double(self.heartRateSamples.count)
+                    let cals = self.activeCalories
+                    DispatchQueue.main.async {
+                        self.averageHeartRate = avgHR
+                        completion?(avgHR, cals)
+                    }
+                }
+            } else {
+                let avgHR = self.heartRateSamples.isEmpty
+                    ? 0
+                    : self.heartRateSamples.reduce(0, +) / Double(self.heartRateSamples.count)
+                let cals = self.activeCalories
+                DispatchQueue.main.async {
+                    self.averageHeartRate = avgHR
+                    completion?(avgHR, cals)
+                }
+            }
+        }
+
+        workoutSession = nil
+        workoutBuilder = nil
+    }
+
+    // MARK: - Heart Rate Monitoring
+
+    func startHeartRateQuery() {
+        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return }
+
+        let query = HKAnchoredObjectQuery(
+            type: heartRateType,
+            predicate: nil,
+            anchor: nil,
+            limit: HKObjectQueryNoLimit
+        ) { [weak self] _, samples, _, _, _ in
+            self?.processHeartRateSamples(samples)
+        }
+
+        query.updateHandler = { [weak self] _, samples, _, _, _ in
+            self?.processHeartRateSamples(samples)
+        }
+
+        heartRateQuery = query
+        healthStore.execute(query)
+    }
+
+    func stopHeartRateQuery() {
+        if let query = heartRateQuery {
+            healthStore.stop(query)
+            heartRateQuery = nil
+        }
+    }
+
+    private func processHeartRateSamples(_ samples: [HKSample]?) {
+        guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty else { return }
+        let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+
+        for sample in quantitySamples {
+            let hr = sample.quantity.doubleValue(for: bpmUnit)
+            heartRateSamples.append(hr)
+        }
+
+        if let lastSample = quantitySamples.last {
+            let latestHR = lastSample.quantity.doubleValue(for: bpmUnit)
+            DispatchQueue.main.async {
+                self.currentHeartRate = latestHR
+                if !self.heartRateSamples.isEmpty {
+                    self.averageHeartRate = self.heartRateSamples.reduce(0, +)
+                        / Double(self.heartRateSamples.count)
+                }
+            }
+        }
+    }
+
+    private func mapToHKActivityType(_ type: String) -> HKWorkoutActivityType {
+        switch type.lowercased() {
+        case "reformer", "mat", "tower": return .pilates
+        case "yoga": return .yoga
+        case "running": return .running
+        case "strength", "strength_training": return .traditionalStrengthTraining
+        default: return .other
+        }
+    }
+
+    // MARK: - Extended Runtime Session
+
+    func startExtendedSession() {
+        guard extendedSession == nil else { return }
+        extendedSession = WKExtendedRuntimeSession()
+        extendedSession?.start()
+        print("[ExtendedRuntime] Session started")
+    }
+
+    func endExtendedSession() {
+        extendedSession?.invalidate()
+        extendedSession = nil
+        print("[ExtendedRuntime] Session ended")
     }
 
     // MARK: - Fetch Stats
@@ -92,12 +278,12 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     // MARK: - Log Workout
 
     /// Log a workout from the timer or quick-log. Sends to phone, falls back to transferUserInfo.
-    func logWorkout(type: String, duration: Int, completion: (() -> Void)? = nil) {
+    func logWorkout(type: String, duration: Int, rpe: Int = 5, completion: (() -> Void)? = nil) {
         let payload: [String: Any] = [
             "action": "logWorkout",
             "workoutType": type,
             "durationMinutes": duration,
-            "rpe": 5,
+            "rpe": rpe,
             "workoutDate": ISO8601DateFormatter().string(from: Date()),
         ]
 
@@ -106,6 +292,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             WCSession.default.transferUserInfo(payload)
             DispatchQueue.main.async {
                 self.lastSyncStatus = "Queued (offline)"
+                self.updatePendingSyncCount()
                 WKInterfaceDevice.current().play(.failure)
                 completion?()
             }
@@ -120,6 +307,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 WCSession.default.transferUserInfo(payload)
                 DispatchQueue.main.async {
                     self.lastSyncStatus = "Queued (timeout)"
+                    self.updatePendingSyncCount()
                     WKInterfaceDevice.current().play(.retry)
                     completion?()
                 }
@@ -144,6 +332,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                     self.lastSyncTime = Date()
                     self.lastSyncStatus = "Logged"
                     self.cacheStats()
+                    self.updatePendingSyncCount()
                     WKInterfaceDevice.current().play(.success)
                     completion?()
                 }
@@ -156,6 +345,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 WCSession.default.transferUserInfo(payload)
                 DispatchQueue.main.async {
                     self.lastSyncStatus = "Queued"
+                    self.updatePendingSyncCount()
                     print("WC logWorkout error: \(error.localizedDescription)")
                     WKInterfaceDevice.current().play(.retry)
                     completion?()
@@ -166,6 +356,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             WCSession.default.transferUserInfo(payload)
             DispatchQueue.main.async {
                 self.lastSyncStatus = "Queued (offline)"
+                self.updatePendingSyncCount()
                 WKInterfaceDevice.current().play(.retry)
                 completion?()
             }
@@ -218,6 +409,15 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     var isOffline: Bool {
         return !WCSession.default.isReachable
+    }
+
+    /// Update count of workouts queued but not yet delivered to iPhone
+    func updatePendingSyncCount() {
+        DispatchQueue.main.async {
+            if WCSession.default.activationState == .activated {
+                self.pendingSyncCount = WCSession.default.outstandingUserInfoTransfers.count
+            }
+        }
     }
 
     // MARK: - WCSessionDelegate
