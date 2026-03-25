@@ -20,20 +20,50 @@ import type { ShopifyProduct } from '@shared/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-/** Parse descriptionHtml into bullet points and plain text segments */
-function parseDescriptionHtml(html: string): { bullets: string[]; plainText: string } {
+/** Parse an HTML table into rows of cell text */
+function parseHtmlTable(tableHtml: string): string[][] {
+  const rows: string[][] = [];
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let trMatch;
+  while ((trMatch = trRegex.exec(tableHtml)) !== null) {
+    const cells: string[] = [];
+    const cellRegex = /<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi;
+    let cellMatch;
+    while ((cellMatch = cellRegex.exec(trMatch[1])) !== null) {
+      cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
+    }
+    if (cells.length > 0) rows.push(cells);
+  }
+  return rows;
+}
+
+/** Parse descriptionHtml into bullet points, plain text, and tables */
+function parseDescriptionHtml(html: string): { bullets: string[]; plainText: string; tables: string[][][] } {
   const bullets: string[] = [];
+  const tables: string[][][] = [];
+
+  // Extract tables first
+  const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+  let tableMatch;
+  while ((tableMatch = tableRegex.exec(html)) !== null) {
+    const rows = parseHtmlTable(tableMatch[1]);
+    if (rows.length > 0) tables.push(rows);
+  }
+
+  // Remove tables from html before further parsing
+  const withoutTables = html.replace(/<table[^>]*>[\s\S]*?<\/table>/gi, '');
+
   // Extract list items
   const liRegex = /<li[^>]*>(.*?)<\/li>/gi;
   let match;
-  while ((match = liRegex.exec(html)) !== null) {
+  while ((match = liRegex.exec(withoutTables)) !== null) {
     const text = match[1].replace(/<[^>]+>/g, '').trim();
     if (text) bullets.push(text);
   }
   // Get text outside of lists
-  const withoutLists = html.replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '').replace(/<ol[^>]*>[\s\S]*?<\/ol>/gi, '');
+  const withoutLists = withoutTables.replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '').replace(/<ol[^>]*>[\s\S]*?<\/ol>/gi, '');
   const plainText = withoutLists.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  return { bullets, plainText };
+  return { bullets, plainText, tables };
 }
 
 const normalizeUrl = (url: string) => url.split('?')[0];
@@ -484,7 +514,7 @@ export default function ProductDetailScreen() {
           <View style={styles.descriptionSection}>
             <Text style={styles.descriptionLabel}>Product Details</Text>
             {(() => {
-              const { bullets, plainText } = parseDescriptionHtml(product.descriptionHtml || '');
+              const { bullets, plainText, tables } = parseDescriptionHtml(product.descriptionHtml || '');
               return (
                 <>
                   {plainText ? <Text style={styles.descriptionText}>{plainText}</Text> : null}
@@ -494,7 +524,20 @@ export default function ProductDetailScreen() {
                       <Text style={styles.bulletText}>{bullet}</Text>
                     </View>
                   ))}
-                  {bullets.length === 0 && !plainText && product.description ? (
+                  {tables.map((table, tIdx) => (
+                    <View key={`table-${tIdx}`} style={styles.tableContainer}>
+                      {table.map((row, rIdx) => (
+                        <View key={`row-${rIdx}`} style={[styles.tableRow, rIdx === 0 && styles.tableHeaderRow, rIdx % 2 === 1 && styles.tableRowAlt]}>
+                          {row.map((cell, cIdx) => (
+                            <Text key={`cell-${cIdx}`} style={[styles.tableCell, rIdx === 0 && styles.tableHeaderCell]} numberOfLines={2}>
+                              {cell}
+                            </Text>
+                          ))}
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                  {bullets.length === 0 && !plainText && tables.length === 0 && product.description ? (
                     <Text style={styles.descriptionText}>{product.description}</Text>
                   ) : null}
                 </>
@@ -651,6 +694,12 @@ const styles = StyleSheet.create({
   bulletRow: { flexDirection: 'row', paddingRight: spacing.md, marginBottom: 6 },
   bulletDot: { fontSize: typography.sizes.sm, color: colors.fg.secondary, marginRight: 8, lineHeight: 22 },
   bulletText: { flex: 1, fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 22 },
+  tableContainer: { marginTop: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border.default, overflow: 'hidden' as const },
+  tableRow: { flexDirection: 'row' as const, borderBottomWidth: 1, borderBottomColor: colors.border.default },
+  tableHeaderRow: { backgroundColor: 'rgba(246, 237, 221, 0.08)' },
+  tableRowAlt: { backgroundColor: 'rgba(246, 237, 221, 0.03)' },
+  tableCell: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, fontSize: typography.sizes.xs, color: colors.fg.secondary },
+  tableHeaderCell: { fontWeight: '600' as const, color: colors.fg.primary, fontSize: typography.sizes.xs },
   footer: {
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     borderTopWidth: 1, borderTopColor: colors.border.default,
