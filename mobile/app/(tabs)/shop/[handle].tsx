@@ -37,33 +37,116 @@ function parseHtmlTable(tableHtml: string): string[][] {
   return rows;
 }
 
-/** Parse descriptionHtml into bullet points, plain text, and tables */
-function parseDescriptionHtml(html: string): { bullets: string[]; plainText: string; tables: string[][][] } {
-  const bullets: string[] = [];
-  const tables: string[][][] = [];
+/** A block of parsed description content */
+type DescriptionBlock =
+  | { type: 'heading'; text: string }
+  | { type: 'paragraph'; text: string }
+  | { type: 'bullet'; text: string }
+  | { type: 'table'; rows: string[][] };
 
-  // Extract tables first
+/** Parse descriptionHtml into structured blocks preserving formatting */
+function parseDescriptionHtml(html: string): { blocks: DescriptionBlock[] } {
+  const blocks: DescriptionBlock[] = [];
+  if (!html) return { blocks };
+
+  // Work through the HTML sequentially, extracting blocks in order
+  let remaining = html;
+
+  // Helper: strip tags from a fragment, preserving inner text
+  const stripTags = (s: string) => s.replace(/<[^>]+>/g, '').trim();
+
+  // Process the HTML by splitting on block-level elements
+  // First, normalize <br> and <br/> to newlines so they create line breaks
+  remaining = remaining.replace(/<br\s*\/?>/gi, '\n');
+
+  // Extract tables
   const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi;
   let tableMatch;
-  while ((tableMatch = tableRegex.exec(html)) !== null) {
+  while ((tableMatch = tableRegex.exec(remaining)) !== null) {
+    // Add any text before this table
+    const before = remaining.substring(0, tableMatch.index);
+    parseTextBlocks(before, blocks);
+    // Add the table
     const rows = parseHtmlTable(tableMatch[1]);
-    if (rows.length > 0) tables.push(rows);
+    if (rows.length > 0) blocks.push({ type: 'table', rows });
+    remaining = remaining.substring(tableMatch.index + tableMatch[0].length);
+    tableRegex.lastIndex = 0; // Reset since we modified remaining
+  }
+  // Process any remaining text after last table
+  if (remaining.trim()) {
+    parseTextBlocks(remaining, blocks);
   }
 
-  // Remove tables from html before further parsing
-  const withoutTables = html.replace(/<table[^>]*>[\s\S]*?<\/table>/gi, '');
+  return { blocks };
+}
 
+/** Parse non-table HTML into heading, paragraph, and bullet blocks */
+function parseTextBlocks(html: string, blocks: DescriptionBlock[]) {
+  const stripTags = (s: string) => s.replace(/<[^>]+>/g, '').trim();
+
+  // Extract headings
+  const headingRegex = /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
   // Extract list items
-  const liRegex = /<li[^>]*>(.*?)<\/li>/gi;
-  let match;
-  while ((match = liRegex.exec(withoutTables)) !== null) {
-    const text = match[1].replace(/<[^>]+>/g, '').trim();
-    if (text) bullets.push(text);
+  const listRegex = /<(?:ul|ol)[^>]*>([\s\S]*?)<\/(?:ul|ol)>/gi;
+  // Extract paragraphs (including divs as paragraphs)
+  const paraRegex = /<(?:p|div)[^>]*>([\s\S]*?)<\/(?:p|div)>/gi;
+
+  // If HTML has block-level elements, parse them
+  const hasBlockElements = /<(?:p|div|h[1-6]|ul|ol|li)[^>]*>/i.test(html);
+
+  if (hasBlockElements) {
+    // Process in document order by finding all block elements
+    const blockRegex = /<(h[1-6]|p|div|ul|ol)[^>]*>([\s\S]*?)<\/\1>/gi;
+    let blockMatch;
+    let lastIndex = 0;
+
+    while ((blockMatch = blockRegex.exec(html)) !== null) {
+      // Any plain text between blocks
+      const gap = html.substring(lastIndex, blockMatch.index);
+      const gapText = stripTags(gap);
+      if (gapText) blocks.push({ type: 'paragraph', text: gapText });
+
+      const tag = blockMatch[1].toLowerCase();
+      const content = blockMatch[2];
+
+      if (tag.startsWith('h')) {
+        const text = stripTags(content);
+        if (text) blocks.push({ type: 'heading', text });
+      } else if (tag === 'ul' || tag === 'ol') {
+        const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+        let liMatch;
+        while ((liMatch = liRegex.exec(content)) !== null) {
+          const text = stripTags(liMatch[1]);
+          if (text) blocks.push({ type: 'bullet', text });
+        }
+      } else {
+        // p or div — treat as paragraph, split on \n for <br> breaks
+        const text = stripTags(content);
+        if (text) {
+          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+          for (const line of lines) {
+            blocks.push({ type: 'paragraph', text: line });
+          }
+        }
+      }
+
+      lastIndex = blockMatch.index + blockMatch[0].length;
+    }
+
+    // Trailing text after last block
+    const trailing = html.substring(lastIndex);
+    const trailingText = stripTags(trailing);
+    if (trailingText) blocks.push({ type: 'paragraph', text: trailingText });
+  } else {
+    // No block elements — treat as plain text with line breaks
+    const text = stripTags(html);
+    if (text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        blocks.push({ type: 'paragraph', text: line });
+      }
+    }
   }
-  // Get text outside of lists
-  const withoutLists = withoutTables.replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '').replace(/<ol[^>]*>[\s\S]*?<\/ol>/gi, '');
-  const plainText = withoutLists.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  return { bullets, plainText, tables };
 }
 
 const normalizeUrl = (url: string) => url.split('?')[0];
@@ -514,32 +597,43 @@ export default function ProductDetailScreen() {
           <View style={styles.descriptionSection}>
             <Text style={styles.descriptionLabel}>Product Details</Text>
             {(() => {
-              const { bullets, plainText, tables } = parseDescriptionHtml(product.descriptionHtml || '');
+              const { blocks } = parseDescriptionHtml(product.descriptionHtml || '');
+              if (blocks.length === 0 && product.description) {
+                return <Text style={styles.descriptionText}>{product.description}</Text>;
+              }
               return (
                 <>
-                  {plainText ? <Text style={styles.descriptionText}>{plainText}</Text> : null}
-                  {bullets.map((bullet, idx) => (
-                    <View key={idx} style={styles.bulletRow}>
-                      <Text style={styles.bulletDot}>{'\u2022'}</Text>
-                      <Text style={styles.bulletText}>{bullet}</Text>
-                    </View>
-                  ))}
-                  {tables.map((table, tIdx) => (
-                    <View key={`table-${tIdx}`} style={styles.tableContainer}>
-                      {table.map((row, rIdx) => (
-                        <View key={`row-${rIdx}`} style={[styles.tableRow, rIdx === 0 && styles.tableHeaderRow, rIdx % 2 === 1 && styles.tableRowAlt]}>
-                          {row.map((cell, cIdx) => (
-                            <Text key={`cell-${cIdx}`} style={[styles.tableCell, rIdx === 0 && styles.tableHeaderCell]} numberOfLines={2}>
-                              {cell}
-                            </Text>
-                          ))}
-                        </View>
-                      ))}
-                    </View>
-                  ))}
-                  {bullets.length === 0 && !plainText && tables.length === 0 && product.description ? (
-                    <Text style={styles.descriptionText}>{product.description}</Text>
-                  ) : null}
+                  {blocks.map((block, idx) => {
+                    switch (block.type) {
+                      case 'heading':
+                        return <Text key={idx} style={styles.descriptionHeading}>{block.text}</Text>;
+                      case 'paragraph':
+                        return <Text key={idx} style={styles.descriptionText}>{block.text}</Text>;
+                      case 'bullet':
+                        return (
+                          <View key={idx} style={styles.bulletRow}>
+                            <Text style={styles.bulletDot}>{'\u2022'}</Text>
+                            <Text style={styles.bulletText}>{block.text}</Text>
+                          </View>
+                        );
+                      case 'table':
+                        return (
+                          <View key={idx} style={styles.tableContainer}>
+                            {block.rows.map((row, rIdx) => (
+                              <View key={`row-${rIdx}`} style={[styles.tableRow, rIdx === 0 && styles.tableHeaderRow, rIdx % 2 === 1 && styles.tableRowAlt]}>
+                                {row.map((cell, cIdx) => (
+                                  <Text key={`cell-${cIdx}`} style={[styles.tableCell, rIdx === 0 && styles.tableHeaderCell]} numberOfLines={2}>
+                                    {cell}
+                                  </Text>
+                                ))}
+                              </View>
+                            ))}
+                          </View>
+                        );
+                      default:
+                        return null;
+                    }
+                  })}
                 </>
               );
             })()}
@@ -694,6 +788,7 @@ const styles = StyleSheet.create({
   bulletRow: { flexDirection: 'row', paddingRight: spacing.md, marginBottom: 6 },
   bulletDot: { fontSize: typography.sizes.sm, color: colors.fg.secondary, marginRight: 8, lineHeight: 22 },
   bulletText: { flex: 1, fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 22 },
+  descriptionHeading: { fontSize: typography.sizes.md, fontWeight: '600' as const, color: colors.fg.primary, marginTop: spacing.md, marginBottom: spacing.xs },
   tableContainer: { marginTop: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border.default, overflow: 'hidden' as const },
   tableRow: { flexDirection: 'row' as const, borderBottomWidth: 1, borderBottomColor: colors.border.default },
   tableHeaderRow: { backgroundColor: 'rgba(246, 237, 221, 0.08)' },
