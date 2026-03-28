@@ -13,7 +13,22 @@ export async function GET(request: NextRequest) {
     const orders = await getCustomerOrders(session.userId);
     return NextResponse.json({ orders });
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error fetching orders:', message);
+
+    // Return a specific code so the client can show a friendly message
+    // instead of a generic error for expected failure cases
+    if (message === 'Shop configuration error') {
+      return NextResponse.json({ error: 'orders_not_configured', orders: [] }, { status: 200 });
+    }
+    if (message === 'No active session found') {
+      return NextResponse.json({ error: 'no_shopify_account', orders: [] }, { status: 200 });
+    }
+    // Shopify Customer API rejected the token (user logged in via Facebook/Apple, not Shopify)
+    if (message.startsWith('Customer API error:')) {
+      return NextResponse.json({ error: 'no_shopify_account', orders: [] }, { status: 200 });
+    }
+
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
 }

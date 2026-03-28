@@ -54,7 +54,7 @@ function OrderCard({ order, onReorder }: { order: ShopifyOrder; onReorder: (orde
         </View>
       ))}
 
-      {trackingInfo.length > 0 && (
+      {trackingInfo.length > 0 && trackingInfo[0].url && (
         <Pressable onPress={() => Linking.openURL(trackingInfo[0].url)} style={styles.trackButton}>
           <Text style={styles.trackButtonText}>Track shipment</Text>
           <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth={2}>
@@ -81,6 +81,7 @@ export default function OrdersScreen() {
   });
 
   const orders = data?.orders ?? [];
+  const apiError = data?.error;
 
   const handleReorder = async (order: ShopifyOrder) => {
     let added = 0;
@@ -141,8 +142,23 @@ export default function OrdersScreen() {
         </View>
       ) : orders.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>No orders yet</Text>
-          <Text style={styles.emptyText}>Your order history will appear here.</Text>
+          <Text style={styles.emptyTitle}>
+            {apiError === 'no_shopify_account'
+              ? 'No Pilareta account linked'
+              : 'No orders yet'}
+          </Text>
+          <Text style={styles.emptyText}>
+            {apiError === 'no_shopify_account'
+              ? 'Sign in with your Pilareta account to view your order history.'
+              : apiError === 'orders_not_configured'
+              ? 'Order tracking is not available yet. Check back soon!'
+              : 'Your order history will appear here after your first purchase.'}
+          </Text>
+          {apiError === 'no_shopify_account' && (
+            <Pressable onPress={() => router.push('/(tabs)/shop')} style={styles.retryButton}>
+              <Text style={styles.retryText}>Browse Shop</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <FlatList

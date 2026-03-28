@@ -62,7 +62,9 @@ const GOOGLE_MAPS_KEY = Constants.expoConfig?.ios?.config?.googleMapsApiKey
 
 function getStudioPhotoUrl(studio: Studio): string | null {
   if (!studio.photos || !Array.isArray(studio.photos) || studio.photos.length === 0) return null;
-  const ref = (studio.photos[0] as { photo_reference?: string })?.photo_reference;
+  const p = studio.photos[0] as { reference?: string; photo_reference?: string };
+  // DB stores as "reference", Google API returns "photo_reference" — handle both
+  const ref = p?.reference || p?.photo_reference;
   if (!ref) return null;
   return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=120&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`;
 }

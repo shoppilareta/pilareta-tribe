@@ -22,6 +22,6 @@ export interface ShopifyOrder {
   statusPageUrl: string;
 }
 
-export async function getOrders(): Promise<{ orders: ShopifyOrder[] }> {
+export async function getOrders(): Promise<{ orders: ShopifyOrder[]; error?: string }> {
   return apiFetch('/api/orders');
 }

@@ -211,8 +211,11 @@ function getPhotoUrl(photos: unknown): string | null {
   if (first && typeof first === 'object') {
     const p = first as Record<string, unknown>;
     if (typeof p.url === 'string') return p.url;
-    if (typeof p.photo_reference === 'string') {
-      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${p.photo_reference}&key=${GOOGLE_MAPS_KEY}`;
+    // DB stores as "reference", Google API returns "photo_reference" — handle both
+    const ref = (typeof p.reference === 'string' ? p.reference : null)
+      || (typeof p.photo_reference === 'string' ? p.photo_reference : null);
+    if (ref) {
+      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`;
     }
   }
   return null;
@@ -228,8 +231,13 @@ function getPhotoUrls(photos: unknown, maxCount = 5): string[] {
       const p = item as Record<string, unknown>;
       if (typeof p.url === 'string') {
         urls.push(p.url);
-      } else if (typeof p.photo_reference === 'string') {
-        urls.push(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${p.photo_reference}&key=${GOOGLE_MAPS_KEY}`);
+      } else {
+        // DB stores as "reference", Google API returns "photo_reference" — handle both
+        const ref = (typeof p.reference === 'string' ? p.reference : null)
+          || (typeof p.photo_reference === 'string' ? p.photo_reference : null);
+        if (ref) {
+          urls.push(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`);
+        }
       }
     }
   }
