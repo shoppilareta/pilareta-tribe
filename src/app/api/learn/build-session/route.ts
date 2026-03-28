@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface BuildSessionRequest {
   goal: string;
@@ -8,6 +9,10 @@ interface BuildSessionRequest {
   level: string;
   constraints: string[];
 }
+
+const VALID_GOALS = ['core_stability', 'glutes', 'legs', 'posture', 'mobility', 'full_body'];
+const VALID_LEVELS = ['beginner', 'intermediate', 'advanced'];
+const VALID_DURATIONS = [15, 20, 30, 45, 60];
 
 // Define focus areas for each goal
 const GOAL_FOCUS_AREAS: Record<string, string[]> = {
@@ -30,8 +35,55 @@ const SESSION_STRUCTURE: Record<number, { warmup: number; activation: number; ma
 
 export async function POST(request: NextRequest) {
   try {
-    const body: BuildSessionRequest = await request.json();
+    let body: BuildSessionRequest;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
     const { goal, duration, level, constraints } = body;
+
+    // Validate required fields
+    if (!goal || typeof goal !== 'string') {
+      return NextResponse.json({ error: 'Goal is required' }, { status: 400 });
+    }
+    if (!VALID_GOALS.includes(goal)) {
+      return NextResponse.json(
+        { error: `Invalid goal. Must be one of: ${VALID_GOALS.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    if (!duration || typeof duration !== 'number') {
+      return NextResponse.json({ error: 'Duration is required and must be a number' }, { status: 400 });
+    }
+    if (!VALID_DURATIONS.includes(duration)) {
+      return NextResponse.json(
+        { error: `Invalid duration. Must be one of: ${VALID_DURATIONS.join(', ')} minutes` },
+        { status: 400 }
+      );
+    }
+
+    if (!level || typeof level !== 'string') {
+      return NextResponse.json({ error: 'Level is required' }, { status: 400 });
+    }
+    if (!VALID_LEVELS.includes(level)) {
+      return NextResponse.json(
+        { error: `Invalid level. Must be one of: ${VALID_LEVELS.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    if (constraints !== undefined && !Array.isArray(constraints)) {
+      return NextResponse.json({ error: 'Constraints must be an array' }, { status: 400 });
+    }
+
+    if (constraints && constraints.length > 20) {
+      return NextResponse.json({ error: 'Too many constraints (max 20)' }, { status: 400 });
+    }
+
+    // Sanitize constraints to be strings only
+    const safeConstraints = (constraints || []).filter((c): c is string => typeof c === 'string');
 
     // Get user session (optional - can build sessions without login)
     const session = await getSession(request);
@@ -58,8 +110,8 @@ export async function POST(request: NextRequest) {
       if (exerciseLevelIndex > userLevelIndex) return false;
 
       // Check constraints (contraindications)
-      if (constraints.length > 0) {
-        const hasConflict = constraints.some(c =>
+      if (safeConstraints.length > 0) {
+        const hasConflict = safeConstraints.some(c =>
           exercise.contraindications.includes(c)
         );
         if (hasConflict) return false;
@@ -159,7 +211,15 @@ export async function POST(request: NextRequest) {
 
     if (allSelected.length === 0) {
       return NextResponse.json(
-        { error: 'No exercises match the selected criteria' },
+        { error: 'No exercises match the selected criteria. Try adjusting your goal, level, or constraints.' },
+        { status: 400 }
+      );
+    }
+
+    // Ensure the session has enough substance
+    if (mainExercises.length === 0) {
+      return NextResponse.json(
+        { error: 'Not enough main exercises available for this combination. Try a different goal or fewer constraints.' },
         { status: 400 }
       );
     }
@@ -182,8 +242,8 @@ export async function POST(request: NextRequest) {
     const rationale = [
       `Designed for ${levelLabel.toLowerCase()} practitioners focusing on ${goalLabel.toLowerCase()}.`,
       `Session includes ${warmupExercises.length} warmup, ${activationExercises.length} activation, ${mainExercises.length} main, and ${cooldownExercises.length} cooldown exercises.`,
-      constraints.length > 0
-        ? `Modified to accommodate ${constraints.map(c => c.replace('_', ' ')).join(', ')}.`
+      safeConstraints.length > 0
+        ? `Modified to accommodate ${safeConstraints.map(c => c.replace('_', ' ')).join(', ')}.`
         : 'No physical constraints applied.',
       `Target RPE: ${avgRpe}/10 - ${avgRpe <= 5 ? 'moderate effort' : avgRpe <= 7 ? 'challenging' : 'high intensity'}.`,
     ];
@@ -199,7 +259,7 @@ export async function POST(request: NextRequest) {
         level,
         durationMinutes: duration,
         focusAreas,
-        constraints,
+        constraints: safeConstraints,
         totalSets,
         totalReps,
         totalDuration,
@@ -247,7 +307,7 @@ export async function POST(request: NextRequest) {
       session: pilatesSession,
     });
   } catch (error) {
-    console.error('Error building session:', error);
+    logger.error('learn/build-session', 'Failed to build session', error);
     return NextResponse.json(
       { error: 'Failed to build session' },
       { status: 500 }

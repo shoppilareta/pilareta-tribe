@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { updateUserStats } from '@/lib/track/streak';
 import { estimateCalories, isValidRpe, isValidDuration, isValidWorkoutType } from '@/lib/track/calories';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ log });
   } catch (error) {
-    console.error('Error fetching workout log:', error);
+    logger.error('track/logs/[id]', 'Failed to fetch workout log', error);
     return NextResponse.json({ error: 'Failed to fetch workout log' }, { status: 500 });
   }
 }
@@ -113,6 +114,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (workoutDate !== undefined) {
       const parsedDate = new Date(workoutDate);
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid workout date' },
+          { status: 400 }
+        );
+      }
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const sevenDaysAgo = new Date(today);
@@ -243,7 +250,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       log: updatedLog,
     });
   } catch (error) {
-    console.error('Error updating workout log:', error);
+    logger.error('track/logs/[id]', 'Failed to update workout log', error);
     return NextResponse.json({ error: 'Failed to update workout log' }, { status: 500 });
   }
 }
@@ -299,7 +306,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Workout log deleted',
     });
   } catch (error) {
-    console.error('Error deleting workout log:', error);
+    logger.error('track/logs/[id]', 'Failed to delete workout log', error);
     return NextResponse.json({ error: 'Failed to delete workout log' }, { status: 500 });
   }
 }

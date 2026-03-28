@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
 // POST /api/push/register — Register or update a push token for the authenticated user
 export async function POST(request: NextRequest) {
@@ -20,6 +21,15 @@ export async function POST(request: NextRequest) {
 
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ error: 'Push token is required' }, { status: 400 });
+    }
+
+    // Validate token looks like an Expo push token
+    if (!token.startsWith('ExponentPushToken[') && !token.startsWith('ExpoPushToken[')) {
+      return NextResponse.json({ error: 'Invalid push token format' }, { status: 400 });
+    }
+
+    if (token.length > 200) {
+      return NextResponse.json({ error: 'Push token too long' }, { status: 400 });
     }
 
     if (!platform || !['ios', 'android'].includes(platform)) {
@@ -50,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ pushToken }, { status: 200 });
   } catch (error) {
-    console.error('Error registering push token:', error);
+    logger.error('push/register', 'Failed to register push token', error);
     return NextResponse.json({ error: 'Failed to register push token' }, { status: 500 });
   }
 }

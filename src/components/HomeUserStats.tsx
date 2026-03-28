@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
 interface WorkoutStats {
@@ -12,14 +12,19 @@ interface WorkoutStats {
 export function HomeUserStats() {
   const [stats, setStats] = useState<WorkoutStats | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
+    setLoading(true);
+    setError(null);
     fetch('/api/track/stats')
       .then((res) => {
         if (res.status === 401) {
           setIsLoggedIn(false);
           return null;
         }
+        if (!res.ok) throw new Error('Failed to load stats');
         setIsLoggedIn(true);
         return res.json();
       })
@@ -28,12 +33,43 @@ export function HomeUserStats() {
           setStats(data.stats);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.message === 'Failed to load stats') {
+          setError('Could not load your workout stats.');
+        }
         setIsLoggedIn(false);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
   const streak = stats?.currentStreak || 0;
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <section className="card">
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+            <div className="skeleton" style={{ width: '40px', height: '40px', borderRadius: '8px' }} />
+            <div className="skeleton" style={{ width: '10rem', height: '1.25rem' }} />
+          </div>
+          <div className="skeleton" style={{ width: '75%', height: '0.875rem', marginTop: '0.5rem' }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="skeleton" style={{ height: '3.5rem', borderRadius: '4px' }} />
+          ))}
+        </div>
+        <div className="skeleton" style={{ height: '2.75rem', borderRadius: '9999px' }} />
+      </section>
+    );
+  }
 
   return (
     <>
@@ -54,7 +90,7 @@ export function HomeUserStats() {
               }}
             >
               {streak ? (
-                <span style={{ fontSize: '1.25rem' }}>🔥</span>
+                <span style={{ fontSize: '1.25rem' }}>&#x1F525;</span>
               ) : (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f6eddd" strokeWidth="1.5">
                   <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -68,6 +104,14 @@ export function HomeUserStats() {
             Log workouts, build streaks, and track your progress
           </p>
         </div>
+
+        {/* Error state with retry */}
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '1rem' }}>
+            <span>{error}</span>
+            <button onClick={fetchStats}>Retry</button>
+          </div>
+        )}
 
         <div
           style={{

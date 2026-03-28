@@ -5,6 +5,7 @@ import {
   upsertStudioFromPlace,
 } from '@/lib/studios/google-places';
 import { getBoundingBox, sortByDistance } from '@/lib/studios/geo-utils';
+import { logger } from '@/lib/logger';
 
 const MIN_DB_RESULTS = 5;
 
@@ -13,12 +14,29 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const lat = parseFloat(searchParams.get('lat') || '');
     const lng = parseFloat(searchParams.get('lng') || '');
-    const radius = parseInt(searchParams.get('radius') || '10000', 10); // Default 10km
+    const radiusParsed = parseInt(searchParams.get('radius') || '10000', 10);
+    const radius = isNaN(radiusParsed) ? 10000 : Math.min(Math.max(radiusParsed, 100), 50000); // Clamp: 100m - 50km
     const keyword = searchParams.get('keyword') || 'Pilates studio';
 
     if (isNaN(lat) || isNaN(lng)) {
       return NextResponse.json(
         { error: 'Invalid latitude or longitude' },
+        { status: 400 }
+      );
+    }
+
+    // Validate coordinate ranges
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return NextResponse.json(
+        { error: 'Coordinates out of range' },
+        { status: 400 }
+      );
+    }
+
+    // Limit keyword length to prevent abuse
+    if (keyword.length > 100) {
+      return NextResponse.json(
+        { error: 'Keyword too long' },
         { status: 400 }
       );
     }
@@ -72,7 +90,7 @@ export async function GET(request: Request) {
       total: sortedStudios.length,
     });
   } catch (error) {
-    console.error('Error searching nearby studios:', error);
+    logger.error('studios/nearby', 'Failed to search nearby studios', error);
 
     // If rate limited, still try to return cached results
     if (error instanceof Error && error.message.includes('rate limit')) {

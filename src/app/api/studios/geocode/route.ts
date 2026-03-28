@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { geocodeLocation } from '@/lib/studios/google-places';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
@@ -9,6 +10,13 @@ export async function GET(request: Request) {
     if (!query) {
       return NextResponse.json(
         { error: 'Query parameter "q" is required' },
+        { status: 400 }
+      );
+    }
+
+    if (query.length > 500) {
+      return NextResponse.json(
+        { error: 'Query too long' },
         { status: 400 }
       );
     }
@@ -32,7 +40,7 @@ export async function GET(request: Request) {
       formattedName: result.formattedName,
     });
   } catch (error) {
-    console.error('Error geocoding location:', error);
+    logger.error('studios/geocode', 'Failed to geocode location', error);
 
     if (error instanceof Error && error.message.includes('rate limit')) {
       return NextResponse.json(

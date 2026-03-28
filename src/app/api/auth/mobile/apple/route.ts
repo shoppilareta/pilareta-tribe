@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 // POST /api/auth/mobile/apple — Sign in with Apple
 export async function POST(request: NextRequest) {
   try {
-    const { identityToken, email, firstName, lastName } = await request.json();
+    let body: { identityToken?: string; email?: string; firstName?: string; lastName?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    const { identityToken, email, firstName, lastName } = body;
 
     if (!identityToken || !email) {
       return NextResponse.json({ error: 'Identity token and email are required' }, { status: 400 });
@@ -65,7 +72,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Apple auth error:', error);
+    logger.error('auth/mobile/apple', 'Apple auth failed', error);
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
 }

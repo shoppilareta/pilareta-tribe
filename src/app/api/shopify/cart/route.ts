@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCart, addToCart, updateCartLines, removeFromCart, getCart, applyDiscountCode } from '@/lib/shopify/mutations';
 import { isShopifyConfigured } from '@/lib/shopify/client';
+import { logger } from '@/lib/logger';
 
 // GET - Fetch existing cart
 export async function GET(request: NextRequest) {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ cart });
   } catch (error) {
-    console.error('Error fetching cart:', error);
+    logger.error('shopify/cart', 'Failed to fetch cart', error);
     return NextResponse.json(
       { error: 'Failed to fetch cart' },
       { status: 500 }
@@ -63,9 +64,15 @@ export async function POST(request: NextRequest) {
 
     // Validate lines
     for (const line of lines) {
-      if (!line.merchandiseId || typeof line.quantity !== 'number') {
+      if (!line.merchandiseId || typeof line.merchandiseId !== 'string') {
         return NextResponse.json(
-          { error: 'Each line must have merchandiseId and quantity' },
+          { error: 'Each line must have a valid merchandiseId' },
+          { status: 400 }
+        );
+      }
+      if (typeof line.quantity !== 'number' || !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 100) {
+        return NextResponse.json(
+          { error: 'Each line must have a quantity between 1 and 100' },
           { status: 400 }
         );
       }
@@ -83,9 +90,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ cart });
   } catch (error) {
-    console.error('Error with cart operation:', error);
+    logger.error('shopify/cart', 'Failed to update cart', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update cart' },
+      { error: 'Failed to update cart' },
       { status: 500 }
     );
   }
@@ -122,9 +129,9 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ cart });
   } catch (error) {
-    console.error('Error updating cart:', error);
+    logger.error('shopify/cart', 'Failed to update cart lines', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update cart' },
+      { error: 'Failed to update cart' },
       { status: 500 }
     );
   }
@@ -133,15 +140,28 @@ export async function PUT(request: NextRequest) {
 // PATCH - Apply discount code
 export async function PATCH(request: NextRequest) {
   try {
+    if (!isShopifyConfigured()) {
+      return NextResponse.json(
+        { error: 'Shopify is not configured' },
+        { status: 503 }
+      );
+    }
+
     const { cartId, discountCodes } = await request.json();
-    if (!cartId || !discountCodes) {
-      return NextResponse.json({ error: 'cartId and discountCodes required' }, { status: 400 });
+    if (!cartId || typeof cartId !== 'string') {
+      return NextResponse.json({ error: 'cartId is required' }, { status: 400 });
+    }
+    if (!discountCodes || !Array.isArray(discountCodes) || discountCodes.length === 0) {
+      return NextResponse.json({ error: 'discountCodes must be a non-empty array' }, { status: 400 });
+    }
+    if (discountCodes.length > 5) {
+      return NextResponse.json({ error: 'Maximum 5 discount codes allowed' }, { status: 400 });
     }
     const cart = await applyDiscountCode(cartId, discountCodes);
     return NextResponse.json({ cart });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to apply discount';
-    return NextResponse.json({ error: message }, { status: 400 });
+    logger.error('shopify/cart', 'Failed to apply discount code', error);
+    return NextResponse.json({ error: 'Failed to apply discount code' }, { status: 400 });
   }
 }
 
@@ -176,9 +196,9 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ cart });
   } catch (error) {
-    console.error('Error removing from cart:', error);
+    logger.error('shopify/cart', 'Failed to remove from cart', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to remove from cart' },
+      { error: 'Failed to remove from cart' },
       { status: 500 }
     );
   }

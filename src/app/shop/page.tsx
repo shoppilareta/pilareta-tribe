@@ -1,6 +1,7 @@
 import { getProducts } from '@/lib/shopify/queries';
 import { isShopifyConfigured } from '@/lib/shopify/client';
 import { BannerCarousel, ShopPageClient } from '@/components/shop';
+import { Footer } from '@/components/Footer';
 import Link from 'next/link';
 import type { ShopifyProduct } from '@/lib/shopify/types';
 
@@ -56,10 +57,17 @@ export default async function ShopPage() {
       {/* Error State */}
       {error && (
         <div className="text-center py-12">
-          <p className="text-red-400 mb-4">{error}</p>
-          <Link href="/" className="btn-outline">
-            Back to Home
-          </Link>
+          <div className="error-banner" style={{ justifyContent: 'center', maxWidth: '32rem', margin: '0 auto 1rem' }}>
+            <span>{error}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <Link href="/shop" className="btn btn-primary" style={{ fontSize: '0.875rem', padding: '0.625rem 1.5rem' }}>
+              Retry
+            </Link>
+            <Link href="/" className="btn btn-outline" style={{ fontSize: '0.875rem', padding: '0.625rem 1.5rem' }}>
+              Back to Home
+            </Link>
+          </div>
         </div>
       )}
 
@@ -85,6 +93,8 @@ export default async function ShopPage() {
           </a>
         </div>
       )}
+
+      <Footer />
     </div>
   );
 }

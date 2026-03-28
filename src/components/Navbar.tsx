@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthButton } from './AuthButton';
 
 interface NavLink {
@@ -12,9 +12,42 @@ interface NavLink {
   external?: boolean;
 }
 
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(href + '/');
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [mobileMenuOpen]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
 
   const navLinks: NavLink[] = [
     { href: '/', label: 'Home' },
@@ -26,7 +59,7 @@ export function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-[#202219]">
+    <header className="sticky top-0 z-50 bg-[#202219]" ref={menuRef}>
       <nav className="container">
         {/* Main Navigation Bar */}
         <div className="flex items-center justify-between h-[72px]">
@@ -43,13 +76,17 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-10">
-            {navLinks.map((link) => (
-              link.external ? (
+          <div className="hidden md:flex items-center gap-8">
+            {navLinks.map((link) => {
+              const active = !link.external && isActive(pathname, link.href);
+              return link.external ? (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-sm tracking-wide transition-opacity hover:opacity-100 opacity-70"
+                  className="text-sm tracking-wide transition-all hover:opacity-100 opacity-60"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ paddingBottom: '2px', borderBottom: '2px solid transparent' }}
                 >
                   {link.label}
                 </a>
@@ -57,16 +94,18 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`text-sm tracking-wide transition-opacity hover:opacity-100 ${
-                    pathname === link.href
-                      ? 'opacity-100'
-                      : 'opacity-70'
+                  className={`text-sm tracking-wide transition-all hover:opacity-100 ${
+                    active ? 'opacity-100 font-medium' : 'opacity-60'
                   }`}
+                  style={{
+                    paddingBottom: '2px',
+                    borderBottom: active ? '2px solid #f6eddd' : '2px solid transparent',
+                  }}
                 >
                   {link.label}
                 </Link>
-              )
-            ))}
+              );
+            })}
           </div>
 
           {/* Right Section - Auth & Mobile Menu */}
@@ -82,6 +121,7 @@ export function Navbar() {
               className="md:hidden p-2 -mr-2"
               aria-label="Toggle menu"
               aria-expanded={mobileMenuOpen}
+              style={{ transition: 'transform 0.2s' }}
             >
               {mobileMenuOpen ? (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,18 +136,31 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu - styled to match pilareta.com */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-[rgba(246,237,221,0.1)] py-6">
+        {/* Mobile Navigation Menu */}
+        <div
+          className="md:hidden"
+          style={{
+            maxHeight: mobileMenuOpen ? '100vh' : '0',
+            opacity: mobileMenuOpen ? 1 : 0,
+            overflow: 'hidden',
+            transition: 'max-height 0.3s ease, opacity 0.2s ease',
+          }}
+        >
+          <div
+            className="border-t border-[rgba(246,237,221,0.1)] py-6"
+          >
             <div className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                link.external ? (
+              {navLinks.map((link) => {
+                const active = !link.external && isActive(pathname, link.href);
+                return link.external ? (
                   <a
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-lg tracking-normal py-3 transition-opacity hover:opacity-100 opacity-70"
+                    className="text-lg tracking-normal py-3 transition-all hover:opacity-100 opacity-60"
                     style={{ fontFamily: '"Instrument Sans", sans-serif' }}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
                     {link.label}
                   </a>
@@ -116,23 +169,25 @@ export function Navbar() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`text-lg tracking-normal py-3 transition-opacity hover:opacity-100 ${
-                      pathname === link.href
-                        ? 'opacity-100 font-medium'
-                        : 'opacity-70'
+                    className={`text-lg tracking-normal py-3 transition-all hover:opacity-100 ${
+                      active ? 'opacity-100 font-medium' : 'opacity-60'
                     }`}
-                    style={{ fontFamily: '"Instrument Sans", sans-serif' }}
+                    style={{
+                      fontFamily: '"Instrument Sans", sans-serif',
+                      borderLeft: active ? '3px solid #f6eddd' : '3px solid transparent',
+                      paddingLeft: '0.75rem',
+                    }}
                   >
                     {link.label}
                   </Link>
-                )
-              ))}
+                );
+              })}
               <div className="pt-4 mt-2 border-t border-[rgba(246,237,221,0.1)]">
                 <AuthButton />
               </div>
             </div>
           </div>
-        )}
+        </div>
       </nav>
 
       {/* Bottom border */}

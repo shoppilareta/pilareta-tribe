@@ -94,6 +94,16 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
     }
   }, [selectedPostId]);
 
+  // Close login prompt on Escape key
+  useEffect(() => {
+    if (!showLoginPrompt) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowLoginPrompt(false);
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [showLoginPrompt]);
+
   const handlePostClick = useCallback((post: UgcPost) => {
     setSelectedPostId(post.id);
   }, []);
@@ -230,6 +240,7 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
             style={{
               width: '100%',
               padding: '10px 12px 10px 36px',
+              paddingRight: searchQuery ? '36px' : '12px',
               background: 'rgba(246, 237, 221, 0.05)',
               border: '1px solid rgba(246, 237, 221, 0.1)',
               borderRadius: '2px',
@@ -238,6 +249,32 @@ export function CommunityClient({ isLoggedIn, initialPostId }: CommunityClientPr
               outline: 'none',
             }}
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '1.4rem',
+                height: '1.4rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                background: 'rgba(246, 237, 221, 0.15)',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#f6eddd',
+              }}
+              aria-label="Clear search"
+            >
+              <svg style={{ width: '0.7rem', height: '0.7rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 

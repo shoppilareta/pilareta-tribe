@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -58,6 +59,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const { caption } = body;
 
+    if (caption && typeof caption === 'string' && caption.length > 2000) {
+      return NextResponse.json(
+        { error: 'Caption too long (max 2000 characters)' },
+        { status: 400 }
+      );
+    }
+
     // Generate default caption if not provided
     let finalCaption = caption;
     if (!finalCaption) {
@@ -113,7 +121,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       message: 'Workout shared to Community!',
     });
   } catch (error) {
-    console.error('Error sharing workout:', error);
+    logger.error('track/logs/[id]/share', 'Failed to share workout', error);
     return NextResponse.json({ error: 'Failed to share workout' }, { status: 500 });
   }
 }
@@ -170,7 +178,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Workout unshared from Community',
     });
   } catch (error) {
-    console.error('Error unsharing workout:', error);
+    logger.error('track/logs/[id]/share', 'Failed to unshare workout', error);
     return NextResponse.json({ error: 'Failed to unshare workout' }, { status: 500 });
   }
 }

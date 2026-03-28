@@ -73,18 +73,25 @@ export default function ExerciseDetailPage() {
   const slug = params.slug as string;
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<ExerciseStats | null>(null);
 
   useEffect(() => {
     async function fetchExercise() {
+      setError(null);
       try {
         const response = await fetch(`/api/learn/exercises/${slug}`);
-        if (response.ok) {
-          const data = await response.json();
-          setExercise(data.exercise);
+        if (response.status === 404) {
+          setExercise(null);
+          setLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error('Error loading exercise:', error);
+        if (!response.ok) throw new Error('Failed to load exercise');
+        const data = await response.json();
+        setExercise(data.exercise);
+      } catch (err) {
+        console.error('Error loading exercise:', err);
+        setError('Could not load this exercise. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -106,9 +113,53 @@ export default function ExerciseDetailPage() {
 
   if (loading) {
     return (
-      <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
         <div style={{ maxWidth: '42rem', margin: '0 auto' }}>
-          <div style={{ animation: 'pulse 2s infinite' }}>Loading exercise...</div>
+          <div className="skeleton" style={{ width: '8rem', height: '0.875rem', marginBottom: '1.5rem' }} />
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <div className="skeleton" style={{ width: '5rem', height: '1.5rem', borderRadius: '9999px' }} />
+            <div className="skeleton" style={{ width: '5rem', height: '1.5rem', borderRadius: '9999px' }} />
+          </div>
+          <div className="skeleton" style={{ width: '70%', height: '1.75rem', marginBottom: '0.75rem' }} />
+          <div className="skeleton" style={{ width: '100%', height: '0.875rem', marginBottom: '0.5rem' }} />
+          <div className="skeleton" style={{ width: '85%', height: '0.875rem', marginBottom: '2rem' }} />
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i}>
+                  <div className="skeleton" style={{ width: '3rem', height: '0.75rem', marginBottom: '0.25rem' }} />
+                  <div className="skeleton" style={{ width: '2rem', height: '1rem' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="card" style={{ marginBottom: '1.5rem' }}>
+              <div className="skeleton" style={{ width: '6rem', height: '1rem', marginBottom: '1rem' }} />
+              <div className="skeleton" style={{ width: '100%', height: '0.875rem', marginBottom: '0.5rem' }} />
+              <div className="skeleton" style={{ width: '90%', height: '0.875rem', marginBottom: '0.5rem' }} />
+              <div className="skeleton" style={{ width: '80%', height: '0.875rem' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
+        <div style={{ maxWidth: '42rem', margin: '0 auto', textAlign: 'center' }}>
+          <div className="error-banner" style={{ justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <span>{error}</span>
+            <button onClick={() => window.location.reload()}>Retry</button>
+          </div>
+          <Link href="/learn/exercises" className="back-link">
+            <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Exercises
+          </Link>
         </div>
       </div>
     );
@@ -134,18 +185,7 @@ export default function ExerciseDetailPage() {
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
       <div style={{ maxWidth: '42rem', margin: '0 auto' }}>
         {/* Back Link */}
-        <Link
-          href="/learn/exercises"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            color: 'rgba(246, 237, 221, 0.6)',
-            fontSize: '0.875rem',
-            marginBottom: '1.5rem',
-            textDecoration: 'none'
-          }}
-        >
+        <Link href="/learn/exercises" className="back-link" style={{ marginBottom: '1.5rem' }}>
           <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>

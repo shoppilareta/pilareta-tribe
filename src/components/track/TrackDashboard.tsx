@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Footer } from '@/components/Footer';
 import { StatsOverview } from './StatsOverview';
 import { StreakDisplay } from './StreakDisplay';
 import { WeeklyProgress } from './WeeklyProgress';
@@ -49,19 +50,21 @@ export function TrackDashboard({ firstName, onLogWorkout, refreshKey, onRefresh 
   const [stats, setStats] = useState<WorkoutStats | null>(null);
   const [weeklyProgress, setWeeklyProgress] = useState<boolean[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview');
 
   useEffect(() => {
     async function fetchStats() {
+      setError(null);
       try {
         const response = await fetch('/api/track/stats');
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data.stats);
-          setWeeklyProgress(data.weeklyProgress);
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
+        if (!response.ok) throw new Error('Failed to load stats');
+        const data = await response.json();
+        setStats(data.stats);
+        setWeeklyProgress(data.weeklyProgress);
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+        setError('Could not load your workout data. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -104,9 +107,18 @@ export function TrackDashboard({ firstName, onLogWorkout, refreshKey, onRefresh 
           </div>
         </div>
 
+        {/* Error state with retry */}
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
+            <span>{error}</span>
+            <button onClick={() => onRefresh?.()}>Retry</button>
+          </div>
+        )}
+
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.6 }}>
-            Loading your stats...
+          <div className="loading-center" style={{ padding: '4rem 1rem' }}>
+            <div className="spinner spinner-lg" />
+            <span>Loading your stats...</span>
           </div>
         ) : stats ? (
           <>
@@ -139,36 +151,16 @@ export function TrackDashboard({ firstName, onLogWorkout, refreshKey, onRefresh 
             />
 
             {/* Tab Navigation */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '2rem', marginBottom: '1rem', borderBottom: '1px solid rgba(246, 237, 221, 0.1)', paddingBottom: '0.5rem' }}>
+            <div className="tab-nav" style={{ marginTop: '2rem' }}>
               <button
                 onClick={() => setActiveTab('overview')}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: activeTab === 'overview' ? 'rgba(246, 237, 221, 0.1)' : 'transparent',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  color: activeTab === 'overview' ? '#f6eddd' : 'rgba(246, 237, 221, 0.6)',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  transition: 'all 0.2s ease'
-                }}
+                className={`tab-btn ${activeTab === 'overview' ? 'tab-btn-active' : ''}`}
               >
                 Overview
               </button>
               <button
                 onClick={() => setActiveTab('calendar')}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: activeTab === 'calendar' ? 'rgba(246, 237, 221, 0.1)' : 'transparent',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  color: activeTab === 'calendar' ? '#f6eddd' : 'rgba(246, 237, 221, 0.6)',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  transition: 'all 0.2s ease'
-                }}
+                className={`tab-btn ${activeTab === 'calendar' ? 'tab-btn-active' : ''}`}
               >
                 Calendar
               </button>
@@ -232,6 +224,8 @@ export function TrackDashboard({ firstName, onLogWorkout, refreshKey, onRefresh 
             Back to Home
           </Link>
         </div>
+
+        <Footer />
       </div>
     </div>
   );

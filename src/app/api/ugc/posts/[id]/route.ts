@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { unlink } from 'fs/promises';
 import path from 'path';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 // Helper to get display name from user data
 function getDisplayName(user: { firstName: string | null; lastName: string | null; email: string }): string {
@@ -152,7 +153,7 @@ export async function GET(
       } : null,
     });
   } catch (error) {
-    console.error('Error fetching post:', error);
+    logger.error('ugc/posts/[id]', 'Failed to fetch post', error);
     return NextResponse.json({ error: 'Failed to fetch post' }, { status: 500 });
   }
 }
@@ -178,6 +179,10 @@ export async function PATCH(
 
     if (typeof caption !== 'string') {
       return NextResponse.json({ error: 'Caption must be a string' }, { status: 400 });
+    }
+
+    if (caption.length > 2000) {
+      return NextResponse.json({ error: 'Caption too long (max 2000 characters)' }, { status: 400 });
     }
 
     const post = await prisma.ugcPost.findUnique({
@@ -214,7 +219,7 @@ export async function PATCH(
       post: updatedPost,
     });
   } catch (error) {
-    console.error('Error updating post:', error);
+    logger.error('ugc/posts/[id]', 'Failed to update post', error);
     return NextResponse.json({ error: 'Failed to update post' }, { status: 500 });
   }
 }
@@ -258,7 +263,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting post:', error);
+    logger.error('ugc/posts/[id]', 'Failed to delete post', error);
     return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
   }
 }

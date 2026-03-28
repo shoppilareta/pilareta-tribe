@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 const VALID_FITNESS_GOALS = [
   'weight_loss',
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ profile });
   } catch (error) {
-    console.error('Get user profile error:', error);
+    logger.error('user/profile', 'Failed to get profile', error);
     return NextResponse.json(
       { error: 'Failed to get profile' },
       { status: 500 }
@@ -127,7 +128,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ profile });
   } catch (error) {
-    console.error('Update user profile error:', error);
+    logger.error('user/profile', 'Failed to update profile', error);
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }

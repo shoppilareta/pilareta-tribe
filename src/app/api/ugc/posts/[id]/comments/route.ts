@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { moderateContent } from '@/lib/moderation';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 // GET /api/ugc/posts/[id]/comments - Get comments
 export async function GET(
@@ -57,7 +58,7 @@ export async function GET(
       hasMore,
     });
   } catch (error) {
-    console.error('Error fetching comments:', error);
+    logger.error('ugc/posts/[id]/comments', 'Failed to fetch comments', error);
     return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 });
   }
 }
@@ -130,7 +131,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, comment });
   } catch (error) {
-    console.error('Error creating comment:', error);
+    logger.error('ugc/posts/[id]/comments', 'Failed to create comment', error);
     return NextResponse.json({ error: 'Failed to create comment' }, { status: 500 });
   }
 }

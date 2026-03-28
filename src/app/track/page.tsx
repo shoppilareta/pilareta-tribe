@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Footer } from '@/components/Footer';
 import { TrackDashboard } from '@/components/track/TrackDashboard';
 import { QuickLogModal } from '@/components/track/QuickLogModal';
 
@@ -212,10 +213,15 @@ function TrackTeaser() {
 
         {/* Back */}
         <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-          <Link href="/" style={{ color: 'rgba(246, 237, 221, 0.6)', fontSize: '0.875rem', textDecoration: 'none' }}>
-            ← Back to Home
+          <Link href="/" className="back-link" style={{ justifyContent: 'center' }}>
+            <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Home
           </Link>
         </div>
+
+        <Footer />
       </div>
     </div>
   );
@@ -254,8 +260,38 @@ export default function TrackPage() {
   if (loading) {
     return (
       <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
-        <div style={{ maxWidth: '64rem', margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ opacity: 0.6 }}>Loading...</div>
+        <div style={{ maxWidth: '64rem', margin: '0 auto' }}>
+          {/* Skeleton header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <div>
+              <div className="skeleton" style={{ width: '16rem', height: '2rem', marginBottom: '0.5rem' }} />
+              <div className="skeleton" style={{ width: '20rem', height: '0.875rem' }} />
+            </div>
+            <div className="skeleton" style={{ width: '8rem', height: '2.75rem', borderRadius: '9999px' }} />
+          </div>
+          {/* Skeleton stat cards */}
+          <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginBottom: '1.5rem' }}>
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <div className="skeleton" style={{ width: '50%', height: '2rem', marginBottom: '0.5rem' }} />
+              <div className="skeleton" style={{ width: '75%', height: '0.875rem' }} />
+            </div>
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                  <div key={i} className="skeleton" style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%' }} />
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Skeleton stats row */}
+          <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', marginBottom: '1.5rem' }}>
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="card" style={{ padding: '1rem', textAlign: 'center' }}>
+                <div className="skeleton" style={{ width: '3rem', height: '1.5rem', margin: '0 auto 0.375rem' }} />
+                <div className="skeleton" style={{ width: '4rem', height: '0.75rem', margin: '0 auto' }} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

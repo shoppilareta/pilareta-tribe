@@ -439,6 +439,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Caption too long (max 2000 characters)' }, { status: 400 });
     }
 
+    // Validate tags early (before any DB writes)
+    if (tagIds) {
+      let parsedTagIds: unknown;
+      try {
+        parsedTagIds = JSON.parse(tagIds);
+      } catch {
+        return NextResponse.json({ error: 'Invalid JSON in tagIds' }, { status: 400 });
+      }
+      if (!Array.isArray(parsedTagIds)) {
+        return NextResponse.json({ error: 'tagIds must be an array' }, { status: 400 });
+      }
+      if (parsedTagIds.length > 10) {
+        return NextResponse.json({ error: 'Too many tags (max 10)' }, { status: 400 });
+      }
+      if (parsedTagIds.some((id: unknown) => typeof id !== 'string' || id.length === 0)) {
+        return NextResponse.json({ error: 'Each tag ID must be a non-empty string' }, { status: 400 });
+      }
+      // Verify all tag IDs exist
+      const existingTags = await prisma.ugcTag.findMany({
+        where: { id: { in: parsedTagIds as string[] } },
+        select: { id: true },
+      });
+      if (existingTags.length !== (parsedTagIds as string[]).length) {
+        return NextResponse.json({ error: 'One or more tag IDs are invalid' }, { status: 400 });
+      }
+    }
+
+    // Validate studio exists if provided
+    if (studioId) {
+      const studioExists = await prisma.studio.findUnique({
+        where: { id: studioId },
+        select: { id: true },
+      });
+      if (!studioExists) {
+        return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
+      }
+    }
+
     // Must have either file or Instagram URL
     if (!file && !instagramUrl) {
       return NextResponse.json({ error: 'File or Instagram URL is required' }, { status: 400 });
@@ -491,14 +529,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Add tags if provided
+      // Add tags if provided (already validated above)
       if (tagIds) {
-        let tagIdArray: string[];
-        try {
-          tagIdArray = JSON.parse(tagIds) as string[];
-        } catch {
-          return NextResponse.json({ error: 'Invalid JSON in tagIds' }, { status: 400 });
-        }
+        const tagIdArray = JSON.parse(tagIds) as string[];
         if (tagIdArray.length > 0) {
           await prisma.ugcPostTag.createMany({
             data: tagIdArray.map((tagId) => ({
@@ -565,14 +598,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Add tags if provided
+    // Add tags if provided (already validated above)
     if (tagIds) {
-      let tagIdArray: string[];
-      try {
-        tagIdArray = JSON.parse(tagIds) as string[];
-      } catch {
-        return NextResponse.json({ error: 'Invalid JSON in tagIds' }, { status: 400 });
-      }
+      const tagIdArray = JSON.parse(tagIds) as string[];
       if (tagIdArray.length > 0) {
         await prisma.ugcPostTag.createMany({
           data: tagIdArray.map((tagId) => ({

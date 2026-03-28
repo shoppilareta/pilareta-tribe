@@ -74,20 +74,65 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const userJson = await SecureStore.getItemAsync(TOKEN_KEYS.user);
 
       if (accessToken && refreshToken) {
-        const user = userJson ? JSON.parse(userJson) : null;
+        // Parse and validate user data, handling corrupted JSON gracefully
+        let user: User | null = null;
+        if (userJson) {
+          try {
+            const parsed = JSON.parse(userJson);
+            // Validate the parsed data has required shape
+            if (
+              parsed &&
+              typeof parsed === 'object' &&
+              typeof parsed.id === 'string' &&
+              typeof parsed.email === 'string' &&
+              typeof parsed.isAdmin === 'boolean'
+            ) {
+              user = {
+                id: parsed.id,
+                email: parsed.email,
+                firstName: typeof parsed.firstName === 'string' ? parsed.firstName : null,
+                lastName: typeof parsed.lastName === 'string' ? parsed.lastName : null,
+                isAdmin: parsed.isAdmin,
+              };
+            }
+          } catch {
+            // Corrupted user JSON - clear it but keep tokens (user data will
+            // be refreshed from the server on next API call)
+            await SecureStore.deleteItemAsync(TOKEN_KEYS.user);
+          }
+        }
+
+        // Validate expiresAt is a valid date string
+        const validExpiresAt = expiresAt && !isNaN(new Date(expiresAt).getTime()) ? expiresAt : null;
+
         set({
           accessToken,
           refreshToken,
-          expiresAt,
+          expiresAt: validExpiresAt,
           user,
           isAuthenticated: true,
           isLoading: false,
         });
       } else {
+        // Partial state (one token present but not the other) - clean up
+        if (accessToken || refreshToken) {
+          await SecureStore.deleteItemAsync(TOKEN_KEYS.accessToken);
+          await SecureStore.deleteItemAsync(TOKEN_KEYS.refreshToken);
+          await SecureStore.deleteItemAsync(TOKEN_KEYS.expiresAt);
+          await SecureStore.deleteItemAsync(TOKEN_KEYS.user);
+        }
         set({ isLoading: false });
       }
     } catch {
-      set({ isLoading: false });
+      // SecureStore itself failed (e.g. device security compromised) - reset state
+      set({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        expiresAt: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     }
   },
 

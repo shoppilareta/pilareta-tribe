@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 // POST /api/ugc/posts/[id]/like - Like a post
 export async function POST(
@@ -59,7 +60,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, liked: true });
   } catch (error) {
-    console.error('Error liking post:', error);
+    logger.error('ugc/posts/[id]/like', 'Failed to like post', error);
     return NextResponse.json({ error: 'Failed to like post' }, { status: 500 });
   }
 }
@@ -113,7 +114,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, liked: false });
   } catch (error) {
-    console.error('Error unliking post:', error);
+    logger.error('ugc/posts/[id]/like', 'Failed to unlike post', error);
     return NextResponse.json({ error: 'Failed to unlike post' }, { status: 500 });
   }
 }

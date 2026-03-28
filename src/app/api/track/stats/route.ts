@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { getWeeklyProgress } from '@/lib/track/streak';
+import { logger } from '@/lib/logger';
 
 // GET /api/track/stats - Get user's workout stats
 export async function GET(request: NextRequest) {
@@ -167,7 +168,7 @@ export async function GET(request: NextRequest) {
       weeklyProgress,
     });
   } catch (error) {
-    console.error('Error fetching workout stats:', error);
+    logger.error('track/stats', 'Failed to fetch workout stats', error);
     return NextResponse.json({ error: 'Failed to fetch workout stats' }, { status: 500 });
   }
 }
@@ -209,7 +210,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating workout goals:', error);
+    logger.error('track/stats', 'Failed to update workout goals', error);
     return NextResponse.json({ error: 'Failed to update goals' }, { status: 500 });
   }
 }

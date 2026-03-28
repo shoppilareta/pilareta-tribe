@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { Footer } from '@/components/Footer';
 
 interface Stats {
   exercises: number;
@@ -12,21 +13,24 @@ interface Stats {
 
 export default function LearnPage() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch('/api/learn/stats');
+      if (!response.ok) throw new Error('Failed to load');
+      const data = await response.json();
+      setStats(data);
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+      setError('Could not load stats. Please try again.');
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchStats() {
-      try {
-        const response = await fetch('/api/learn/stats');
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      }
-    }
     fetchStats();
-  }, []);
+  }, [fetchStats]);
 
   return (
     <div className="container" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
@@ -40,29 +44,19 @@ export default function LearnPage() {
           </p>
         </div>
 
+        {/* Error state */}
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '2rem' }}>
+            <span>{error}</span>
+            <button onClick={fetchStats}>Retry</button>
+          </div>
+        )}
+
         {/* Main Action Cards */}
         <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginBottom: '3rem' }}>
           {/* Build a Session */}
           <Link href="/learn/builder" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div
-              className="card"
-              style={{
-                height: '100%',
-                cursor: 'pointer',
-                transition: 'transform 0.2s ease, border-color 0.2s ease',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: 'rgba(246, 237, 221, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.1)';
-              }}
-            >
+            <div className="card interactive-card" style={{ height: '100%' }}>
               <div style={{
                 width: '3rem',
                 height: '3rem',
@@ -110,25 +104,7 @@ export default function LearnPage() {
 
           {/* Start a Program */}
           <Link href="/learn/programs" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div
-              className="card"
-              style={{
-                height: '100%',
-                cursor: 'pointer',
-                transition: 'transform 0.2s ease, border-color 0.2s ease',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: 'rgba(246, 237, 221, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.1)';
-              }}
-            >
+            <div className="card interactive-card" style={{ height: '100%' }}>
               <div style={{
                 width: '3rem',
                 height: '3rem',
@@ -176,25 +152,7 @@ export default function LearnPage() {
 
           {/* Browse Exercises */}
           <Link href="/learn/exercises" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div
-              className="card"
-              style={{
-                height: '100%',
-                cursor: 'pointer',
-                transition: 'transform 0.2s ease, border-color 0.2s ease',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: 'rgba(246, 237, 221, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.1)';
-              }}
-            >
+            <div className="card interactive-card" style={{ height: '100%' }}>
               <div style={{
                 width: '3rem',
                 height: '3rem',
@@ -342,6 +300,8 @@ export default function LearnPage() {
             Back to Home
           </Link>
         </div>
+
+        <Footer />
       </div>
     </div>
   );

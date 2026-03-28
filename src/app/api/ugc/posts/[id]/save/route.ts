@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 // POST /api/ugc/posts/[id]/save - Save a post
 export async function POST(
@@ -59,7 +60,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, saved: true });
   } catch (error) {
-    console.error('Error saving post:', error);
+    logger.error('ugc/posts/[id]/save', 'Failed to save post', error);
     return NextResponse.json({ error: 'Failed to save post' }, { status: 500 });
   }
 }
@@ -113,7 +114,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, saved: false });
   } catch (error) {
-    console.error('Error unsaving post:', error);
+    logger.error('ugc/posts/[id]/save', 'Failed to unsave post', error);
     return NextResponse.json({ error: 'Failed to unsave post' }, { status: 500 });
   }
 }

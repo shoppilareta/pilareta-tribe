@@ -190,6 +190,43 @@ export async function POST(request: NextRequest) {
       weightKg = body.weightKg;
     }
 
+    // Validate parsed numeric fields for NaN (especially from formData strings)
+    if (isNaN(durationMinutes)) {
+      return NextResponse.json(
+        { error: 'Duration must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (isNaN(rpe)) {
+      return NextResponse.json(
+        { error: 'RPE must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    if (calorieEstimate !== undefined && isNaN(calorieEstimate)) {
+      calorieEstimate = undefined;
+    }
+    if (distanceKm !== undefined && isNaN(distanceKm)) {
+      distanceKm = undefined;
+    }
+    if (incline !== undefined && isNaN(incline)) {
+      incline = undefined;
+    }
+    if (laps !== undefined && isNaN(laps)) {
+      laps = undefined;
+    }
+    if (totalSets !== undefined && isNaN(totalSets)) {
+      totalSets = undefined;
+    }
+    if (totalReps !== undefined && isNaN(totalReps)) {
+      totalReps = undefined;
+    }
+    if (weightKg !== undefined && isNaN(weightKg)) {
+      weightKg = undefined;
+    }
+
     // Validation
     if (!durationMinutes || !workoutType || !rpe) {
       return NextResponse.json(
@@ -219,10 +256,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate optional text fields
+    if (notes && typeof notes === 'string' && notes.length > 2000) {
+      return NextResponse.json(
+        { error: 'Notes too long (max 2000 characters)' },
+        { status: 400 }
+      );
+    }
+
+    if (focusAreas && (!Array.isArray(focusAreas) || focusAreas.length > 20)) {
+      return NextResponse.json(
+        { error: 'Focus areas must be an array of at most 20 items' },
+        { status: 400 }
+      );
+    }
+
+    if (customStudioName && typeof customStudioName === 'string' && customStudioName.length > 200) {
+      return NextResponse.json(
+        { error: 'Custom studio name too long (max 200 characters)' },
+        { status: 400 }
+      );
+    }
+
     // Parse workout date (allow backfilling up to 7 days)
     let parsedDate: Date;
     if (workoutDate) {
       parsedDate = new Date(workoutDate);
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid workout date' },
+          { status: 400 }
+        );
+      }
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const sevenDaysAgo = new Date(today);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // POST /api/ugc/admin/moderate/[id] - Approve or reject a post
 export async function POST(
@@ -30,6 +31,22 @@ export async function POST(
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
 
+    // Validate status transitions - only pending or previously moderated posts can be moderated
+    if (post.deletedAt) {
+      return NextResponse.json({ error: 'Cannot moderate a deleted post' }, { status: 400 });
+    }
+
+    // Warn (but allow) re-moderation of already approved/rejected posts
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    if (post.status === newStatus) {
+      return NextResponse.json({ error: `Post is already ${newStatus}` }, { status: 400 });
+    }
+
+    // Validate note length if provided
+    if (note && typeof note === 'string' && note.length > 2000) {
+      return NextResponse.json({ error: 'Note too long (max 2000 characters)' }, { status: 400 });
+    }
+
     // Update post
     const updatedPost = await prisma.ugcPost.update({
       where: { id },
@@ -54,7 +71,7 @@ export async function POST(
       },
     });
 
-    console.log(`[ADMIN] ${session.userId} ${action}d post ${id}`);
+    logger.info('ugc/admin/moderate', `${action}d post ${id}`, { adminUserId: session.userId, postId: id });
 
     return NextResponse.json({
       success: true,
@@ -62,7 +79,7 @@ export async function POST(
       message: action === 'approve' ? 'Post approved' : 'Post rejected',
     });
   } catch (error) {
-    console.error('Error moderating post:', error);
+    logger.error('ugc/admin/moderate', 'Failed to moderate post', error);
     return NextResponse.json({ error: 'Failed to moderate post' }, { status: 500 });
   }
 }
@@ -108,7 +125,7 @@ export async function PATCH(
       },
     });
 
-    console.log(`[ADMIN] ${session.userId} ${isFeatured ? 'featured' : 'unfeatured'} post ${id}`);
+    logger.info('ugc/admin/moderate', `${isFeatured ? 'featured' : 'unfeatured'} post ${id}`, { adminUserId: session.userId, postId: id });
 
     return NextResponse.json({
       success: true,
@@ -116,7 +133,7 @@ export async function PATCH(
       message: isFeatured ? 'Post featured' : 'Post unfeatured',
     });
   } catch (error) {
-    console.error('Error updating feature status:', error);
+    logger.error('ugc/admin/moderate', 'Failed to update feature status', error);
     return NextResponse.json({ error: 'Failed to update feature status' }, { status: 500 });
   }
 }

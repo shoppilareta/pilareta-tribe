@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
 interface Program {
@@ -26,41 +26,34 @@ const LEVEL_LABELS: Record<string, { label: string; color: string }> = {
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPrograms = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/learn/programs');
+      if (!response.ok) throw new Error('Failed to load programs');
+      const data = await response.json();
+      setPrograms(data.programs);
+    } catch (err) {
+      console.error('Error loading programs:', err);
+      setError('Could not load programs. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchPrograms() {
-      try {
-        const response = await fetch('/api/learn/programs');
-        if (response.ok) {
-          const data = await response.json();
-          setPrograms(data.programs);
-        }
-      } catch (error) {
-        console.error('Error loading programs:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchPrograms();
-  }, []);
+  }, [fetchPrograms]);
 
   return (
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
       <div style={{ maxWidth: '56rem', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
-          <Link
-            href="/learn"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: 'rgba(246, 237, 221, 0.6)',
-              fontSize: '0.875rem',
-              marginBottom: '1rem',
-              textDecoration: 'none'
-            }}
-          >
+          <Link href="/learn" className="back-link" style={{ marginBottom: '1rem' }}>
             <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -72,14 +65,34 @@ export default function ProgramsPage() {
           </p>
         </div>
 
+        {/* Error state */}
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
+            <span>{error}</span>
+            <button onClick={fetchPrograms}>Retry</button>
+          </div>
+        )}
+
         {/* Program Cards */}
         {loading ? (
           <div style={{ display: 'grid', gap: '1.5rem' }}>
             {[1, 2].map((i) => (
-              <div key={i} className="card" style={{ opacity: 0.5, animation: 'pulse 2s infinite' }}>
-                <div style={{ height: '1.5rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', marginBottom: '0.75rem', width: '40%' }} />
-                <div style={{ height: '1rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', marginBottom: '0.5rem', width: '100%' }} />
-                <div style={{ height: '1rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', width: '80%' }} />
+              <div key={i} className="card">
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <div className="skeleton" style={{ width: '5rem', height: '1.5rem', borderRadius: '9999px' }} />
+                  <div className="skeleton" style={{ width: '5rem', height: '1.5rem', borderRadius: '9999px' }} />
+                </div>
+                <div className="skeleton" style={{ width: '40%', height: '1.25rem', marginBottom: '1rem' }} />
+                <div className="skeleton" style={{ width: '100%', height: '0.875rem', marginBottom: '0.5rem' }} />
+                <div className="skeleton" style={{ width: '80%', height: '0.875rem', marginBottom: '1rem' }} />
+                <div style={{ display: 'flex', gap: '2rem', paddingTop: '1rem', borderTop: '1px solid rgba(246, 237, 221, 0.1)' }}>
+                  {[1, 2, 3].map(j => (
+                    <div key={j}>
+                      <div className="skeleton" style={{ width: '2rem', height: '1.25rem', marginBottom: '0.25rem' }} />
+                      <div className="skeleton" style={{ width: '4rem', height: '0.75rem' }} />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -100,24 +113,7 @@ export default function ProgramsPage() {
                 href={`/learn/programs/${program.slug}`}
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
-                <div
-                  className="card"
-                  style={{
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s ease, border-color 0.2s ease',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: 'rgba(246, 237, 221, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.1)';
-                  }}
-                >
+                <div className="card interactive-card">
                   {/* Header Row */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                     <div>

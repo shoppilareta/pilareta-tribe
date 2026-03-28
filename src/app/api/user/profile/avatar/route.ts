@@ -5,6 +5,7 @@ import path from 'path';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getUploadsBasePath } from '@/lib/uploads';
+import { logger } from '@/lib/logger';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ profile });
   } catch (error) {
-    console.error('Avatar upload error:', error);
+    logger.error('user/profile/avatar', 'Failed to upload avatar', error);
     return NextResponse.json(
       { error: 'Failed to upload avatar' },
       { status: 500 }

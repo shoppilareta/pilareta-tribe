@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { sendPushNotifications } from '@/lib/push';
+import { logger } from '@/lib/logger';
 import type { Prisma } from '@prisma/client';
 
 // GET /api/admin/notifications — List past notifications (admin only)
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ notifications });
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+    logger.error('admin/notifications', 'Failed to fetch notifications', error);
     return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
   }
 }
@@ -45,8 +46,14 @@ export async function POST(request: NextRequest) {
     if (!title || typeof title !== 'string' || !title.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
+    if (title.length > 200) {
+      return NextResponse.json({ error: 'Title too long (max 200 characters)' }, { status: 400 });
+    }
     if (!body || typeof body !== 'string' || !body.trim()) {
       return NextResponse.json({ error: 'Body is required' }, { status: 400 });
+    }
+    if (body.length > 2000) {
+      return NextResponse.json({ error: 'Body too long (max 2000 characters)' }, { status: 400 });
     }
 
     const validSegments = ['all', 'active'];
@@ -93,6 +100,14 @@ export async function POST(request: NextRequest) {
 
     const tokens = pushTokens.map((pt) => pt.token);
 
+    if (tokens.length === 0) {
+      return NextResponse.json({
+        notification: null,
+        result: { totalSent: 0, successCount: 0, failureCount: 0 },
+        message: 'No push tokens found for the selected segment',
+      }, { status: 200 });
+    }
+
     // Send via Expo Push API
     const result = await sendPushNotifications(
       tokens,
@@ -122,7 +137,7 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 201 });
   } catch (error) {
-    console.error('Error sending notification:', error);
+    logger.error('admin/notifications', 'Failed to send notification', error);
     return NextResponse.json({ error: 'Failed to send notification' }, { status: 500 });
   }
 }

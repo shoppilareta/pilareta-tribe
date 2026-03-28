@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 
 interface Exercise {
@@ -36,26 +36,30 @@ const FOCUS_AREAS = [
 export default function ExercisesPage() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('');
   const [focusFilter, setFocusFilter] = useState<string>('');
 
-  useEffect(() => {
-    async function fetchExercises() {
-      try {
-        const response = await fetch('/api/learn/exercises');
-        if (response.ok) {
-          const data = await response.json();
-          setExercises(data.exercises);
-        }
-      } catch (error) {
-        console.error('Error loading exercises:', error);
-      } finally {
-        setLoading(false);
-      }
+  const fetchExercises = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/learn/exercises');
+      if (!response.ok) throw new Error('Failed to load exercises');
+      const data = await response.json();
+      setExercises(data.exercises);
+    } catch (err) {
+      console.error('Error loading exercises:', err);
+      setError('Could not load exercises. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    fetchExercises();
   }, []);
+
+  useEffect(() => {
+    fetchExercises();
+  }, [fetchExercises]);
 
   const filteredExercises = useMemo(() => {
     return exercises.filter(exercise => {
@@ -84,18 +88,7 @@ export default function ExercisesPage() {
       <div style={{ maxWidth: '56rem', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
-          <Link
-            href="/learn"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: 'rgba(246, 237, 221, 0.6)',
-              fontSize: '0.875rem',
-              marginBottom: '1rem',
-              textDecoration: 'none'
-            }}
-          >
+          <Link href="/learn" className="back-link" style={{ marginBottom: '1rem' }}>
             <svg style={{ width: '1rem', height: '1rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -106,6 +99,14 @@ export default function ExercisesPage() {
             Explore our comprehensive collection of reformer Pilates exercises.
           </p>
         </div>
+
+        {/* Error state */}
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
+            <span>{error}</span>
+            <button onClick={fetchExercises}>Retry</button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -143,59 +144,58 @@ export default function ExercisesPage() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  style={{
+                    position: 'absolute',
+                    right: '0.75rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '1.4rem',
+                    height: '1.4rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    background: 'rgba(246, 237, 221, 0.15)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#f6eddd',
+                  }}
+                  aria-label="Clear search"
+                >
+                  <svg style={{ width: '0.7rem', height: '0.7rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
             </div>
 
-            {/* Filter Buttons */}
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {/* Difficulty Filter */}
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Difficulty Filter */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setDifficultyFilter('')}
+                className={`filter-pill ${!difficultyFilter ? 'filter-pill-active' : ''}`}
+              >
+                All Levels
+              </button>
+              {Object.entries(DIFFICULTY_LABELS).map(([key, { label }]) => (
                 <button
-                  onClick={() => setDifficultyFilter('')}
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    borderRadius: '9999px',
-                    border: `1px solid ${!difficultyFilter ? 'rgba(246, 237, 221, 0.5)' : 'rgba(246, 237, 221, 0.1)'}`,
-                    background: !difficultyFilter ? 'rgba(246, 237, 221, 0.1)' : 'transparent',
-                    color: 'inherit',
-                    fontSize: '0.8125rem',
-                    cursor: 'pointer'
-                  }}
+                  key={key}
+                  onClick={() => setDifficultyFilter(key)}
+                  className={`filter-pill ${difficultyFilter === key ? 'filter-pill-active' : ''}`}
                 >
-                  All Levels
+                  {label}
                 </button>
-                {Object.entries(DIFFICULTY_LABELS).map(([key, { label }]) => (
-                  <button
-                    key={key}
-                    onClick={() => setDifficultyFilter(key)}
-                    style={{
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '9999px',
-                      border: `1px solid ${difficultyFilter === key ? 'rgba(246, 237, 221, 0.5)' : 'rgba(246, 237, 221, 0.1)'}`,
-                      background: difficultyFilter === key ? 'rgba(246, 237, 221, 0.1)' : 'transparent',
-                      color: 'inherit',
-                      fontSize: '0.8125rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
 
             {/* Focus Area Pills */}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setFocusFilter('')}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: '9999px',
-                  border: `1px solid ${!focusFilter ? 'rgba(246, 237, 221, 0.5)' : 'rgba(246, 237, 221, 0.1)'}`,
-                  background: !focusFilter ? 'rgba(246, 237, 221, 0.1)' : 'transparent',
-                  color: 'inherit',
-                  fontSize: '0.8125rem',
-                  cursor: 'pointer'
-                }}
+                className={`filter-pill ${!focusFilter ? 'filter-pill-active' : ''}`}
               >
                 All Areas
               </button>
@@ -203,15 +203,7 @@ export default function ExercisesPage() {
                 <button
                   key={area.value}
                   onClick={() => setFocusFilter(area.value)}
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    borderRadius: '9999px',
-                    border: `1px solid ${focusFilter === area.value ? 'rgba(246, 237, 221, 0.5)' : 'rgba(246, 237, 221, 0.1)'}`,
-                    background: focusFilter === area.value ? 'rgba(246, 237, 221, 0.1)' : 'transparent',
-                    color: 'inherit',
-                    fontSize: '0.8125rem',
-                    cursor: 'pointer'
-                  }}
+                  className={`filter-pill ${focusFilter === area.value ? 'filter-pill-active' : ''}`}
                 >
                   {area.label}
                 </button>
@@ -229,10 +221,15 @@ export default function ExercisesPage() {
         {loading ? (
           <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="card" style={{ opacity: 0.5, animation: 'pulse 2s infinite' }}>
-                <div style={{ height: '1.25rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', marginBottom: '0.75rem', width: '60%' }} />
-                <div style={{ height: '0.875rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', marginBottom: '0.5rem', width: '100%' }} />
-                <div style={{ height: '0.875rem', background: 'rgba(246, 237, 221, 0.1)', borderRadius: '0.25rem', width: '80%' }} />
+              <div key={i} className="card">
+                <div className="skeleton" style={{ width: '4rem', height: '1.25rem', borderRadius: '9999px', marginBottom: '0.75rem' }} />
+                <div className="skeleton" style={{ width: '60%', height: '1.0625rem', marginBottom: '0.75rem' }} />
+                <div className="skeleton" style={{ width: '100%', height: '0.8125rem', marginBottom: '0.375rem' }} />
+                <div className="skeleton" style={{ width: '80%', height: '0.8125rem', marginBottom: '0.75rem' }} />
+                <div style={{ display: 'flex', gap: '0.375rem' }}>
+                  <div className="skeleton" style={{ width: '3rem', height: '1.125rem', borderRadius: '9999px' }} />
+                  <div className="skeleton" style={{ width: '3rem', height: '1.125rem', borderRadius: '9999px' }} />
+                </div>
               </div>
             ))}
           </div>
@@ -262,25 +259,7 @@ export default function ExercisesPage() {
                 href={`/learn/exercises/${exercise.slug}`}
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
-                <div
-                  className="card"
-                  style={{
-                    height: '100%',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s ease, border-color 0.2s ease',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: 'rgba(246, 237, 221, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = 'rgba(246, 237, 221, 0.1)';
-                  }}
-                >
+                <div className="card interactive-card" style={{ height: '100%' }}>
                   {/* Difficulty Badge */}
                   <div style={{
                     display: 'inline-block',
