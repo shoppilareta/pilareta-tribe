@@ -87,7 +87,7 @@ export async function GET(
       },
     });
 
-    if (!post) {
+    if (!post || post.deletedAt) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
 

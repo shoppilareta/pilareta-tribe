@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { discoverEndpoints } from '@/lib/shopify-auth';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/auth/mobile/logout
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       logoutUrl,
     });
   } catch (error) {
-    console.error('Mobile logout error:', error);
+    logger.error('auth/mobile/logout', 'Mobile logout failed', error);
     return NextResponse.json(
       { error: 'Logout failed' },
       { status: 500 }

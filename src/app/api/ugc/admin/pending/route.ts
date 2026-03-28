@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/ugc/admin/pending - Get pending posts (admin only)
 export async function GET(request: NextRequest) {
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     const posts = await prisma.ugcPost.findMany({
       where: {
         status: 'pending',
+        deletedAt: null,
       },
       take: limit + 1,
       ...(cursor && {
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     // Get total pending count
     const totalPending = await prisma.ugcPost.count({
-      where: { status: 'pending' },
+      where: { status: 'pending', deletedAt: null },
     });
 
     // Helper to transform /uploads/... paths to /api/uploads/...
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
       totalPending,
     });
   } catch (error) {
-    console.error('Error fetching pending posts:', error);
+    logger.error('ugc/admin/pending', 'Failed to fetch pending posts', error);
     return NextResponse.json({ error: 'Failed to fetch pending posts' }, { status: 500 });
   }
 }

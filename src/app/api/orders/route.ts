@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getCustomerOrders } from '@/lib/shopify/customer-api';
+import { logger } from '@/lib/logger';
 
 // GET /api/orders — Get customer orders from Shopify
 export async function GET(request: NextRequest) {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ orders });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error fetching orders:', message);
+    logger.error('orders', 'Failed to fetch orders', error);
 
     // Return a specific code so the client can show a friendly message
     // instead of a generic error for expected failure cases

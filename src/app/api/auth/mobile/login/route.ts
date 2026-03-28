@@ -5,6 +5,7 @@ import {
   buildAuthorizationUrl,
 } from '@/lib/shopify-auth';
 import { rateLimit } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tribe.pilareta.com';
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
       codeVerifier,
     });
   } catch (error) {
-    console.error('Mobile login error:', error);
+    logger.error('auth/mobile/login', 'Failed to initiate mobile login', error);
     return NextResponse.json(
       { error: 'Failed to initiate login' },
       { status: 500 }

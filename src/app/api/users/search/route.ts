@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/users/search?q=query - Search users by name or email
 export async function GET(request: NextRequest) {
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('Error searching users:', error);
+    logger.error('users/search', 'Failed to search users', error);
     return NextResponse.json({ error: 'Failed to search users' }, { status: 500 });
   }
 }

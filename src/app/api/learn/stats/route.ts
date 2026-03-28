@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -29,7 +30,7 @@ export async function GET() {
       sessions: totalSessions,
     });
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    logger.error('learn/stats', 'Failed to fetch stats', error);
     return NextResponse.json(
       { error: 'Failed to fetch stats' },
       { status: 500 }

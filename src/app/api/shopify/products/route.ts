@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getProducts } from '@/lib/shopify/queries';
 import { isShopifyConfigured } from '@/lib/shopify/client';
+import { logger } from '@/lib/logger';
 
 // Cache products for 1 minute so new products/descriptions show quickly
 export const revalidate = 60;
@@ -18,7 +19,7 @@ export async function GET() {
 
     return NextResponse.json({ products });
   } catch (error) {
-    console.error('Error fetching products:', error);
+    logger.error('shopify/products', 'Failed to fetch products', error);
     return NextResponse.json(
       { error: 'Failed to fetch products' },
       { status: 500 }

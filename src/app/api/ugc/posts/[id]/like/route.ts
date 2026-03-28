@@ -26,7 +26,7 @@ export async function POST(
       where: { id: postId },
     });
 
-    if (!post || post.status !== 'approved') {
+    if (!post || post.status !== 'approved' || post.deletedAt) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
 

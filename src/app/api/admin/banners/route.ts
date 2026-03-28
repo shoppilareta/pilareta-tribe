@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/admin/banners — List all banners (admin only)
 export async function GET(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const banners = await prisma.shopBanner.findMany({ orderBy: { position: 'asc' } });
     return NextResponse.json({ banners });
   } catch (error) {
-    console.error('Error fetching banners:', error);
+    logger.error('admin/banners', 'Failed to fetch banners', error);
     return NextResponse.json({ error: 'Failed to fetch banners' }, { status: 500 });
   }
 }
@@ -54,11 +55,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log(`[ADMIN] ${session.userId} created banner ${banner.id}`);
+    logger.info('admin/banners', `Created banner ${banner.id}`, { adminUserId: session.userId });
 
     return NextResponse.json({ banner }, { status: 201 });
   } catch (error) {
-    console.error('Error creating banner:', error);
+    logger.error('admin/banners', 'Failed to create banner', error);
     return NextResponse.json({ error: 'Failed to create banner' }, { status: 500 });
   }
 }

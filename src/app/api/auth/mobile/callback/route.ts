@@ -6,6 +6,7 @@ import {
   decodeIdToken,
   fetchCustomerFromAccountApi,
 } from '@/lib/shopify-auth';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/auth/mobile/callback
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
       expiresAt: session.expiresAt.toISOString(),
     });
   } catch (error) {
-    console.error('Mobile callback error:', error);
+    logger.error('auth/mobile/callback', 'Mobile callback failed', error);
     return NextResponse.json(
       { error: 'Authentication failed' },
       { status: 500 }

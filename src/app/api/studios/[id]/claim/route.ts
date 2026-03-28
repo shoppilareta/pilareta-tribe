@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 interface ClaimRequestBody {
   claimantName: string;
@@ -92,7 +93,7 @@ export async function POST(
       message: 'Claim submitted successfully. We will review your request.',
     }, { status: 201 });
   } catch (error) {
-    console.error('Error creating studio claim:', error);
+    logger.error('studios/claim', 'Failed to submit claim', error);
     return NextResponse.json(
       { error: 'Failed to submit claim' },
       { status: 500 }
@@ -128,7 +129,7 @@ export async function GET(
 
     return NextResponse.json({ claims });
   } catch (error) {
-    console.error('Error fetching studio claims:', error);
+    logger.error('studios/claim', 'Failed to fetch claims', error);
     return NextResponse.json(
       { error: 'Failed to fetch claims' },
       { status: 500 }

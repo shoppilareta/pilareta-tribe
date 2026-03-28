@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/ugc/admin/posts - Get all posts with filters (admin only)
 export async function GET(request: NextRequest) {
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status'); // 'approved', 'pending', 'rejected', or null for all
     const featured = searchParams.get('featured'); // 'true', 'false', or null for all
 
-    // Build where clause
-    const where: Record<string, unknown> = {};
+    // Build where clause — exclude soft-deleted posts
+    const where: Record<string, unknown> = { deletedAt: null };
     if (status && ['approved', 'pending', 'rejected'].includes(status)) {
       where.status = status;
     }
@@ -71,11 +72,11 @@ export async function GET(request: NextRequest) {
 
     // Get counts for each status
     const [totalAll, totalApproved, totalPending, totalRejected, totalFeatured] = await Promise.all([
-      prisma.ugcPost.count(),
-      prisma.ugcPost.count({ where: { status: 'approved' } }),
-      prisma.ugcPost.count({ where: { status: 'pending' } }),
-      prisma.ugcPost.count({ where: { status: 'rejected' } }),
-      prisma.ugcPost.count({ where: { isFeatured: true } }),
+      prisma.ugcPost.count({ where: { deletedAt: null } }),
+      prisma.ugcPost.count({ where: { status: 'approved', deletedAt: null } }),
+      prisma.ugcPost.count({ where: { status: 'pending', deletedAt: null } }),
+      prisma.ugcPost.count({ where: { status: 'rejected', deletedAt: null } }),
+      prisma.ugcPost.count({ where: { isFeatured: true, deletedAt: null } }),
     ]);
 
     // Helper to transform /uploads/... paths to /api/uploads/...
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching posts:', error);
+    logger.error('ugc/admin/posts', 'Failed to fetch posts', error);
     return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
   }
 }

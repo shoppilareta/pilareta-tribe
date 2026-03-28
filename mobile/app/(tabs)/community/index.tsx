@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   emptyButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
   retryButton: { marginTop: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.fg.primary },
   retryButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },
-  feedList: { padding: spacing.md },
+  feedList: { padding: spacing.md, paddingBottom: 100 },
   footerLoader: { padding: spacing.lg },
   signInButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.fg.primary },
   signInButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.bg.primary },

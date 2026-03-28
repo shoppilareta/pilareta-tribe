@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     color: colors.button.primaryText,
   },
-  list: { padding: spacing.md },
+  list: { padding: spacing.md, paddingBottom: 100 },
   loadingItem: {
     padding: spacing.lg,
     alignItems: 'center',

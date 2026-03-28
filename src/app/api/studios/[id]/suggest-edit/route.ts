@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { rateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 interface EditSuggestionBody {
   submitterEmail?: string;
@@ -82,7 +83,7 @@ export async function POST(
       message: 'Edit suggestion submitted successfully. We will review your changes.',
     }, { status: 201 });
   } catch (error) {
-    console.error('Error creating edit suggestion:', error);
+    logger.error('studios/suggest-edit', 'Failed to submit edit suggestion', error);
     return NextResponse.json(
       { error: 'Failed to submit edit suggestion' },
       { status: 500 }
@@ -104,7 +105,7 @@ export async function GET(
 
     return NextResponse.json({ suggestions });
   } catch (error) {
-    console.error('Error fetching edit suggestions:', error);
+    logger.error('studios/suggest-edit', 'Failed to fetch edit suggestions', error);
     return NextResponse.json(
       { error: 'Failed to fetch suggestions' },
       { status: 500 }

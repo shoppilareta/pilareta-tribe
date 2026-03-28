@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'crypto';
 import { getSession } from '@/lib/session';
 import { exchangeCodeForTokens, decodeIdToken, fetchCustomerFromAccountApi } from '@/lib/shopify-auth';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   // Handle OAuth errors
   if (error) {
-    console.error('OAuth error:', error, errorDescription);
+    logger.error('auth/callback', 'OAuth error', undefined, { oauthError: error, errorDescription });
     // Mobile flow: redirect error to deep link via HTML (NextResponse.redirect doesn't work with custom URL schemes)
     if (state?.startsWith('mobile:')) {
       const redirectUrl = `pilareta://auth/callback?error=${encodeURIComponent(errorDescription || error)}`;
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     const stateMatch = session.state && state && session.state.length === state.length &&
       timingSafeEqual(Buffer.from(session.state), Buffer.from(state));
     if (!stateMatch) {
-      console.error('State mismatch:', { expected: session.state, received: state });
+      logger.warn('auth/callback', 'State mismatch during OAuth callback');
       return NextResponse.redirect(`${appUrl}/?error=Invalid+state`);
     }
 
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
     // Redirect to the original page or account
     return NextResponse.redirect(`${appUrl}${redirectTo}`);
   } catch (error) {
-    console.error('Callback error:', error);
+    logger.error('auth/callback', 'OAuth callback failed', error);
     return NextResponse.redirect(
       `${appUrl}/?error=${encodeURIComponent('Authentication failed')}`
     );

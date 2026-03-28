@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
   },
   retryButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.fg.primary },
-  list: { padding: spacing.md },
+  list: { padding: spacing.md, paddingBottom: 100 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerIconButton: { padding: spacing.xs },
   filterButton: { position: 'relative', padding: spacing.sm, backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default },

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
+import { logger } from '@/lib/logger';
 
 // POST /api/users/[id]/follow - Follow a user
 export async function POST(
@@ -65,7 +66,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, following: true });
   } catch (error) {
-    console.error('Error following user:', error);
+    logger.error('users/follow', 'Failed to follow user', error);
     return NextResponse.json({ error: 'Failed to follow user' }, { status: 500 });
   }
 }
@@ -107,7 +108,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, following: false });
   } catch (error) {
-    console.error('Error unfollowing user:', error);
+    logger.error('users/follow', 'Failed to unfollow user', error);
     return NextResponse.json({ error: 'Failed to unfollow user' }, { status: 500 });
   }
 }

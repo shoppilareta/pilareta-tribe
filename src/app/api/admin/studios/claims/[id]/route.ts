@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,7 +41,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ claim });
   } catch (error) {
-    console.error('Error updating claim:', error);
+    logger.error('admin/studios/claims', 'Failed to update claim', error);
     return NextResponse.json({ error: 'Failed to update claim' }, { status: 500 });
   }
 }

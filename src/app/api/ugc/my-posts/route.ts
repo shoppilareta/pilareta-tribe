@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/ugc/my-posts - Get current user's posts
 export async function GET(request: NextRequest) {
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {
       userId: session.userId,
+      deletedAt: null,
     };
 
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
@@ -77,7 +79,7 @@ export async function GET(request: NextRequest) {
       hasMore,
     });
   } catch (error) {
-    console.error('Error fetching user posts:', error);
+    logger.error('ugc/my-posts', 'Failed to fetch user posts', error);
     return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
   }
 }

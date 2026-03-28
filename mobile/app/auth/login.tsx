@@ -92,7 +92,6 @@ export default function LoginScreen() {
       await setUser(user);
       navigateAfterLogin();
     } catch (error) {
-      console.error('Login error:', error);
       if (isNetworkError(error)) {
         setErrorMessage('No internet connection. Please check your network and try again.');
       } else {
@@ -148,7 +147,6 @@ export default function LoginScreen() {
       } else if (isNetworkError(error)) {
         setErrorMessage('No internet connection. Please check your network and try again.');
       } else {
-        console.error('Apple login error:', error);
         setErrorMessage('Apple sign in failed. Please try again.');
       }
     } finally {
@@ -207,7 +205,6 @@ export default function LoginScreen() {
       await setUser(user);
       navigateAfterLogin();
     } catch (error) {
-      console.error('Facebook login error:', error);
       if (isNetworkError(error)) {
         setErrorMessage('No internet connection. Please check your network and try again.');
       } else {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/admin/exercises - List all exercises
 export async function GET(request: NextRequest) {
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ exercises });
   } catch (error) {
-    console.error('Error fetching exercises:', error);
+    logger.error('admin/exercises', 'Failed to fetch exercises', error);
     return NextResponse.json({ error: 'Failed to fetch exercises' }, { status: 500 });
   }
 }

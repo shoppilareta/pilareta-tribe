@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // GET /api/ugc/tags - Get all tags
 export async function GET() {
@@ -30,7 +31,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error('Error fetching tags:', error);
+    logger.error('ugc/tags', 'Failed to fetch tags', error);
     return NextResponse.json({ error: 'Failed to fetch tags' }, { status: 500 });
   }
 }

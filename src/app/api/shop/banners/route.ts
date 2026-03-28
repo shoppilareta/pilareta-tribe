@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // GET /api/shop/banners — Get active banners (public, no auth)
 export async function GET() {
@@ -19,7 +20,7 @@ export async function GET() {
     });
     return NextResponse.json({ banners });
   } catch (error) {
-    console.error('Error fetching banners:', error);
+    logger.error('shop/banners', 'Failed to fetch banners', error);
     return NextResponse.json({ error: 'Failed to fetch banners' }, { status: 500 });
   }
 }

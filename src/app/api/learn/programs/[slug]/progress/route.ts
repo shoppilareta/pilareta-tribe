@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +39,7 @@ export async function GET(
 
     return NextResponse.json({ progress: progress ?? null });
   } catch (error) {
-    console.error('Error fetching program progress:', error);
+    logger.error('learn/programs/progress', 'Failed to fetch program progress', error);
     return NextResponse.json({ progress: null });
   }
 }

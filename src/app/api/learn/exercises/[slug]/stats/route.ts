@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -41,7 +42,7 @@ export async function GET(
       lastCompletedAt: completions[0]?.completedAt?.toISOString() ?? null,
     });
   } catch (error) {
-    console.error('Error fetching exercise completion stats:', error);
+    logger.error('learn/exercises/stats', 'Failed to fetch exercise completion stats', error);
     return NextResponse.json({ completionCount: 0, lastCompletedAt: null });
   }
 }

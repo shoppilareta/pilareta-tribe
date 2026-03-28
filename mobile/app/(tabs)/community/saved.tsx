@@ -105,6 +105,6 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyTitle: { fontSize: typography.sizes.lg, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.sm },
   emptyText: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, textAlign: 'center' },
-  list: { padding: spacing.md },
+  list: { padding: spacing.md, paddingBottom: 100 },
   footerLoader: { padding: spacing.lg },
 });

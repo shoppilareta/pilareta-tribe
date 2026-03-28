@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -12,7 +13,7 @@ export async function GET() {
 
     return NextResponse.json({ exercises });
   } catch (error) {
-    console.error('Error fetching exercises:', error);
+    logger.error('learn/exercises', 'Failed to fetch exercises', error);
     return NextResponse.json(
       { error: 'Failed to fetch exercises' },
       { status: 500 }

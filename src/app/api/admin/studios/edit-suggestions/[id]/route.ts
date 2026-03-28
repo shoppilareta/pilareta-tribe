@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -55,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ suggestion: updated });
   } catch (error) {
-    console.error('Error updating suggestion:', error);
+    logger.error('admin/studios/edit-suggestions', 'Failed to update suggestion', error);
     return NextResponse.json({ error: 'Failed to update suggestion' }, { status: 500 });
   }
 }

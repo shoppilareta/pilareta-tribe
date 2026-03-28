@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,11 +37,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    console.log(`[ADMIN] ${session.userId} updated banner ${id}`);
+    logger.info('admin/banners', `Updated banner ${id}`, { adminUserId: session.userId });
 
     return NextResponse.json({ banner });
   } catch (error) {
-    console.error('Error updating banner:', error);
+    logger.error('admin/banners', 'Failed to update banner', error);
     return NextResponse.json({ error: 'Failed to update banner' }, { status: 500 });
   }
 }
@@ -59,10 +60,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     await prisma.shopBanner.delete({ where: { id } });
-    console.log(`[ADMIN] ${session.userId} deleted banner ${id}`);
+    logger.info('admin/banners', `Deleted banner ${id}`, { adminUserId: session.userId });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting banner:', error);
+    logger.error('admin/banners', 'Failed to delete banner', error);
     return NextResponse.json({ error: 'Failed to delete banner' }, { status: 500 });
   }
 }

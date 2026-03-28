@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,7 +37,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ studio });
   } catch (error) {
-    console.error('Error updating studio:', error);
+    logger.error('admin/studios', 'Failed to update studio', error);
     return NextResponse.json({ error: 'Failed to update studio' }, { status: 500 });
   }
 }

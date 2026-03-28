@@ -5,6 +5,7 @@ import {
   updateStudioWithDetails,
   isStudioDataStale,
 } from '@/lib/studios/google-places';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: Request,
@@ -42,7 +43,7 @@ export async function GET(
           });
         }
       } catch (error) {
-        console.error('Failed to refresh studio data:', error);
+        logger.warn('studios', 'Failed to refresh studio data from Google', { studioId: studio.id });
         // Return stale data if refresh fails
       }
     }
@@ -52,7 +53,7 @@ export async function GET(
       refreshed: false,
     });
   } catch (error) {
-    console.error('Error fetching studio:', error);
+    logger.error('studios', 'Failed to fetch studio', error);
     return NextResponse.json(
       { error: 'Failed to fetch studio' },
       { status: 500 }

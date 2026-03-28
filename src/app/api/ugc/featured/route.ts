@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/ugc/featured - Get featured posts
 export async function GET(request: NextRequest) {
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
       where: {
         status: 'approved',
         isFeatured: true,
+        deletedAt: null,
       },
       take: limit,
       orderBy: { featuredAt: 'desc' },
@@ -102,7 +104,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('Error fetching featured posts:', error);
+    logger.error('ugc/featured', 'Failed to fetch featured posts', error);
     return NextResponse.json({ error: 'Failed to fetch featured posts' }, { status: 500 });
   }
 }

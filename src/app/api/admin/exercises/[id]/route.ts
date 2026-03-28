@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ exercise });
   } catch (error) {
-    console.error('Error fetching exercise:', error);
+    logger.error('admin/exercises', 'Failed to fetch exercise', error);
     return NextResponse.json({ error: 'Failed to fetch exercise' }, { status: 500 });
   }
 }
@@ -65,11 +66,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: updateData,
     });
 
-    console.log(`[ADMIN] ${session.userId} updated exercise ${id}`);
+    logger.info('admin/exercises', `Updated exercise ${id}`, { adminUserId: session.userId });
 
     return NextResponse.json({ success: true, exercise: updated });
   } catch (error) {
-    console.error('Error updating exercise:', error);
+    logger.error('admin/exercises', 'Failed to update exercise', error);
     return NextResponse.json({ error: 'Failed to update exercise' }, { status: 500 });
   }
 }

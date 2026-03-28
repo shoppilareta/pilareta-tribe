@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/ugc/saved - Get current user's saved posts
 export async function GET(request: NextRequest) {
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
         userId: session.userId,
         post: {
           status: 'approved',
+          deletedAt: null,
         },
       },
       take: limit + 1,
@@ -98,7 +100,7 @@ export async function GET(request: NextRequest) {
       hasMore,
     });
   } catch (error) {
-    console.error('Error fetching saved posts:', error);
+    logger.error('ugc/saved', 'Failed to fetch saved posts', error);
     return NextResponse.json({ error: 'Failed to fetch saved posts' }, { status: 500 });
   }
 }

@@ -5,6 +5,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { getUgcUploadsPath } from '@/lib/uploads';
+import { logger } from '@/lib/logger';
 
 // Helper to decode HTML entities in URLs
 function decodeHtmlEntities(str: string): string {
@@ -102,7 +103,7 @@ async function downloadAndSaveImage(postId: string, imageUrl: string): Promise<s
     await writeFile(filePath, buffer);
     return publicUrl;
   } catch (error) {
-    console.error(`Error downloading thumbnail for post ${postId}:`, error);
+    logger.error('ugc/admin/refresh-thumbnails', `Failed to download thumbnail for post ${postId}`, error);
     return null;
   }
 }
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error('Error refreshing thumbnails:', error);
+    logger.error('ugc/admin/refresh-thumbnails', 'Failed to refresh thumbnails', error);
     return NextResponse.json({ error: 'Failed to refresh thumbnails' }, { status: 500 });
   }
 }

@@ -159,9 +159,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Delete the shared post
-    await prisma.ugcPost.delete({
+    // Soft-delete the shared post
+    await prisma.ugcPost.update({
       where: { id: log.sharedPostId },
+      data: { deletedAt: new Date() },
     });
 
     // Update the workout log

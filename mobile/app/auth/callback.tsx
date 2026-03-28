@@ -10,8 +10,8 @@ export default function AuthCallback() {
   const hasParams = !!(params.code || params.state);
 
   useEffect(() => {
-    // OAuth callback handling will be implemented in Task #5
-    // For now, just redirect to track
+    // The main OAuth flow is handled inline by useAuth.ts via openAuthSessionAsync.
+    // This screen is a fallback for deep-link callbacks — redirect after a brief pause.
     const timer = setTimeout(() => {
       router.replace('/(tabs)/track');
     }, 2000);

@@ -15,8 +15,14 @@ export interface SessionData {
   redirectTo?: string;
 }
 
+if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET environment variable must be set and at least 32 characters in production');
+  }
+}
+
 const sessionOptions: SessionOptions = {
-  password: process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long',
+  password: process.env.SESSION_SECRET || 'dev_only_session_secret_not_for_production_use_32chars',
   cookieName: 'pilareta-tribe-session',
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production',

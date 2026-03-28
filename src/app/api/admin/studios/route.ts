@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/admin/studios — List studios with optional search (admin only)
 export async function GET(request: NextRequest) {
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ studios });
   } catch (error) {
-    console.error('Error fetching studios:', error);
+    logger.error('admin/studios', 'Failed to fetch studios', error);
     return NextResponse.json({ error: 'Failed to fetch studios' }, { status: 500 });
   }
 }

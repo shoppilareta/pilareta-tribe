@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/db';
 import { discoverEndpoints } from '@/lib/shopify-auth';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tribe.pilareta.com';
@@ -38,7 +39,7 @@ export async function GET() {
 
     return NextResponse.redirect(appUrl);
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.error('auth/logout', 'Logout failed', error);
     return NextResponse.redirect(appUrl);
   }
 }

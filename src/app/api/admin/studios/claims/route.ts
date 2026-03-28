@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/admin/studios/claims — List studio claims (admin only)
 export async function GET(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ claims });
   } catch (error) {
-    console.error('Error fetching claims:', error);
+    logger.error('admin/studios/claims', 'Failed to fetch claims', error);
     return NextResponse.json({ error: 'Failed to fetch claims' }, { status: 500 });
   }
 }
