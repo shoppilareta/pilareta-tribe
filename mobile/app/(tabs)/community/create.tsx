@@ -33,11 +33,29 @@ async function loadDraft(): Promise<Draft | null> {
   }
 }
 
-async function saveDraft(draft: Draft): Promise<void> {
+async function saveDraft(draft: Draft): Promise<boolean> {
   try {
-    await SecureStore.setItemAsync(DRAFT_KEY, JSON.stringify(draft));
+    const data = JSON.stringify(draft);
+    // SecureStore has a 2048-byte limit per item; if the draft is too large,
+    // strip the imageUri (the least critical field) and retry
+    if (data.length > 2048) {
+      const trimmed = JSON.stringify({ ...draft, imageUri: undefined });
+      await SecureStore.setItemAsync(DRAFT_KEY, trimmed);
+    } else {
+      await SecureStore.setItemAsync(DRAFT_KEY, data);
+    }
+    return true;
   } catch {
-    // ignore
+    // SecureStore might be full or unavailable -- silently fail
+    // but try to clear and retry once
+    try {
+      await SecureStore.deleteItemAsync(DRAFT_KEY);
+      const fallback = JSON.stringify({ ...draft, imageUri: undefined });
+      await SecureStore.setItemAsync(DRAFT_KEY, fallback);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -58,8 +76,11 @@ export default function CreatePost() {
   const [submitting, setSubmitting] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const MAX_IMAGE_SIZE_MB = 10;
 
   const { data: tagsData } = useQuery({
     queryKey: ['community-tags'],
@@ -127,12 +148,18 @@ export default function CreatePost() {
 
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
+      // Validate image size (fix #6)
+      if (asset.fileSize && asset.fileSize > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        Alert.alert('Image Too Large', `Please choose an image under ${MAX_IMAGE_SIZE_MB}MB. Your image is ${(asset.fileSize / (1024 * 1024)).toFixed(1)}MB.`);
+        return;
+      }
       const ext = asset.uri.split('.').pop() || 'jpg';
       setImage({
         uri: asset.uri,
         type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
         name: `photo.${ext}`,
       });
+      setValidationError(null);
     }
   };
 
@@ -150,12 +177,18 @@ export default function CreatePost() {
 
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
+      // Validate image size (fix #6)
+      if (asset.fileSize && asset.fileSize > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        Alert.alert('Image Too Large', `Please choose an image under ${MAX_IMAGE_SIZE_MB}MB. Your image is ${(asset.fileSize / (1024 * 1024)).toFixed(1)}MB.`);
+        return;
+      }
       const ext = asset.uri.split('.').pop() || 'jpg';
       setImage({
         uri: asset.uri,
         type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
         name: `photo.${ext}`,
       });
+      setValidationError(null);
     }
   };
 
@@ -188,8 +221,36 @@ export default function CreatePost() {
     !submitting &&
     ((mode === 'photo' && image) || (mode === 'instagram' && instagramUrl.trim()));
 
+  const validateForm = (): string | null => {
+    if (mode === 'photo' && !image) {
+      return 'Please add a photo before submitting.';
+    }
+    if (mode === 'instagram') {
+      const url = instagramUrl.trim();
+      if (!url) {
+        return 'Please enter an Instagram URL.';
+      }
+      // Basic Instagram URL validation
+      if (!/^https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//i.test(url)) {
+        return 'Please enter a valid Instagram post or reel URL.';
+      }
+    }
+    if (caption.trim().length > 1000) {
+      return 'Caption is too long. Maximum 1000 characters.';
+    }
+    return null;
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
+
+    // Run validation (fix #6)
+    const error = validateForm();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+    setValidationError(null);
     setSubmitting(true);
 
     try {
@@ -211,7 +272,13 @@ export default function CreatePost() {
       ]);
     } catch (error: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const message = error instanceof Error ? error.message : 'Failed to create post. Please try again.';
+      let message = 'Failed to create post. Please try again.';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (error && typeof error === 'object' && 'data' in error) {
+        const apiErr = error as { data: { error?: string } };
+        message = apiErr.data?.error || message;
+      }
       Alert.alert('Error', message);
     } finally {
       setSubmitting(false);
@@ -360,6 +427,9 @@ export default function CreatePost() {
 
       {/* Submit */}
       <View style={styles.footer}>
+        {validationError && (
+          <Text style={styles.validationError}>{validationError}</Text>
+        )}
         <Button
           title={submitting ? 'Submitting...' : 'Submit Post'}
           onPress={handleSubmit}
@@ -406,5 +476,6 @@ const styles = StyleSheet.create({
   tagChipTextSelected: { color: colors.bg.primary },
   guidelines: { padding: spacing.md, backgroundColor: colors.cream05, borderRadius: radius.md },
   guidelinesText: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, lineHeight: 18, textAlign: 'center' },
+  validationError: { fontSize: typography.sizes.sm, color: 'rgba(239, 68, 68, 0.9)', textAlign: 'center', marginBottom: spacing.sm },
   footer: { padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default },
 });

@@ -28,7 +28,7 @@ function ProgressRing({
 }) {
   const r = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * r;
-  const progress = Math.min(current / goal, 1);
+  const progress = goal > 0 ? Math.min(current / goal, 1) : 0;
   const strokeDashoffset = circumference * (1 - progress);
   const center = size / 2;
 

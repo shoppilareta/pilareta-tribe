@@ -75,6 +75,7 @@ export async function applyDiscountApi(
 ): Promise<ShopCartResponse> {
   return apiFetch('/api/shopify/cart', {
     method: 'PATCH',
-    body: JSON.stringify({ cartId, discountCodes: [code] }),
+    body: JSON.stringify({ cartId, discountCodes: code ? [code] : [] }),
+    skipAuth: true,
   });
 }

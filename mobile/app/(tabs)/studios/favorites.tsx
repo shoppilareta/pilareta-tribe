@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { router, useFocusEffect } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
@@ -14,6 +14,16 @@ import { useAuthStore } from '@/stores/authStore';
 export default function FavoritesScreen() {
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
   const { favoriteIds, isFavorited, toggleFavorite } = useStudioFavorites();
+  const queryClient = useQueryClient();
+
+  // Refresh favorites list when screen comes into focus (e.g., after toggling from detail screen)
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) {
+        queryClient.invalidateQueries({ queryKey: ['studioFavorites'] });
+      }
+    }, [isAuthenticated, queryClient])
+  );
 
   const handleToggleFavorite = useCallback((studioId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -36,16 +36,17 @@ export const useLiveWorkoutStore = create<LiveWorkoutState>((set, get) => ({
     }),
 
   pause: () => {
-    const { pausedAt } = get();
-    if (!pausedAt) set({ pausedAt: Date.now() });
+    const { pausedAt, isActive } = get();
+    if (isActive && !pausedAt) set({ pausedAt: Date.now() });
   },
 
   resume: () => {
-    const { pausedAt, totalPausedMs } = get();
-    if (pausedAt) {
+    const { pausedAt, totalPausedMs, isActive } = get();
+    if (isActive && pausedAt) {
+      const pauseDuration = Math.max(0, Date.now() - pausedAt);
       set({
         pausedAt: null,
-        totalPausedMs: totalPausedMs + (Date.now() - pausedAt),
+        totalPausedMs: totalPausedMs + pauseDuration,
       });
     }
   },
@@ -54,8 +55,25 @@ export const useLiveWorkoutStore = create<LiveWorkoutState>((set, get) => ({
 
   end: () => {
     const { startTime, totalPausedMs, pausedAt, workoutType, distanceKm } = get();
-    let elapsed = Date.now() - (startTime || Date.now()) - totalPausedMs;
-    if (pausedAt) elapsed -= Date.now() - pausedAt;
+    const now = Date.now();
+
+    if (!startTime) {
+      // Safety: no start time means nothing to calculate
+      set({
+        isActive: false,
+        startTime: null,
+        pausedAt: null,
+        totalPausedMs: 0,
+      });
+      return { durationMinutes: 1, workoutType, distanceKm };
+    }
+
+    let elapsed = now - startTime - totalPausedMs;
+    if (pausedAt) {
+      // Account for current pause duration
+      elapsed -= Math.max(0, now - pausedAt);
+    }
+    elapsed = Math.max(0, elapsed);
     const durationMinutes = Math.max(1, Math.round(elapsed / 60000));
 
     set({
@@ -81,8 +99,11 @@ export const useLiveWorkoutStore = create<LiveWorkoutState>((set, get) => ({
   getElapsedMs: () => {
     const { startTime, totalPausedMs, pausedAt } = get();
     if (!startTime) return 0;
-    let elapsed = Date.now() - startTime - totalPausedMs;
-    if (pausedAt) elapsed -= Date.now() - pausedAt;
+    const now = Date.now();
+    let elapsed = now - startTime - totalPausedMs;
+    if (pausedAt) {
+      elapsed -= Math.max(0, now - pausedAt);
+    }
     return Math.max(0, elapsed);
   },
 }));

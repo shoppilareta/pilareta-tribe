@@ -48,13 +48,23 @@ export default function LearnScreen() {
   const exercises = exerciseData?.exercises ?? [];
   const programs = programData?.programs ?? [];
 
+  // Normalize search: lowercase and strip special characters so names like
+  // "Roll-Up" or "Teaser (Single Leg)" can be found with plain queries.
   const searchLower = search.toLowerCase();
+  const searchNormalized = searchLower.replace(/[^a-z0-9\s]/g, '');
+
+  const matchesSearch = (text: string): boolean => {
+    if (!search) return true;
+    const lower = text.toLowerCase();
+    // Try exact substring first, then normalized (no special chars) match
+    return lower.includes(searchLower) || lower.replace(/[^a-z0-9\s]/g, '').includes(searchNormalized);
+  };
 
   const filteredExercises = exercises.filter((ex) => {
     if (difficultyFilter && ex.difficulty !== difficultyFilter) return false;
     if (focusFilter && !ex.focusAreas.includes(focusFilter)) return false;
     if (search) {
-      return ex.name.toLowerCase().includes(searchLower) || ex.description.toLowerCase().includes(searchLower);
+      return matchesSearch(ex.name) || matchesSearch(ex.description);
     }
     return true;
   });
@@ -62,9 +72,9 @@ export default function LearnScreen() {
   // 2C: Search also filters programs
   const filteredPrograms = search
     ? programs.filter((p) =>
-        p.name.toLowerCase().includes(searchLower) ||
-        p.description.toLowerCase().includes(searchLower) ||
-        p.focusAreas.some((a) => a.toLowerCase().includes(searchLower))
+        matchesSearch(p.name) ||
+        matchesSearch(p.description) ||
+        p.focusAreas.some((a) => matchesSearch(a))
       )
     : programs;
 

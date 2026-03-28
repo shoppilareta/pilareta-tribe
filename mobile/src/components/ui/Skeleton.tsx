@@ -319,6 +319,59 @@ export function LearnSkeleton() {
   );
 }
 
+/** ─── Track tab skeleton loader ─── */
+
+export function TrackSkeleton() {
+  return (
+    <View style={{ padding: spacing.md }}>
+      {/* Greeting / header row */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+        <View>
+          <Skeleton width={140} height={14} />
+          <Skeleton width={80} height={12} style={{ marginTop: 6 }} />
+        </View>
+        <Skeleton width={40} height={40} borderRadius={20} />
+      </View>
+      {/* Stats cards row */}
+      <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+        {[1, 2, 3].map((i) => (
+          <View key={i} style={{ flex: 1, backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, padding: spacing.md, alignItems: 'center' }}>
+            <Skeleton width={32} height={32} borderRadius={16} />
+            <Skeleton width={36} height={20} style={{ marginTop: 8 }} />
+            <Skeleton width={50} height={10} style={{ marginTop: 4 }} />
+          </View>
+        ))}
+      </View>
+      {/* Recent workouts */}
+      <Skeleton width={120} height={14} style={{ marginBottom: spacing.sm }} />
+      {[1, 2, 3].map((i) => (
+        <WorkoutCardSkeleton key={i} />
+      ))}
+    </View>
+  );
+}
+
+/** ─── Settings / Profile skeleton loader ─── */
+
+export function ProfileSkeleton() {
+  return (
+    <View style={{ padding: spacing.md }}>
+      {/* Avatar */}
+      <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
+        <Skeleton width={80} height={80} borderRadius={40} />
+        <Skeleton width={100} height={12} style={{ marginTop: spacing.sm }} />
+      </View>
+      {/* Fields */}
+      {[1, 2, 3, 4].map((i) => (
+        <View key={i} style={{ marginBottom: spacing.md }}>
+          <Skeleton width={80} height={10} style={{ marginBottom: spacing.xs }} />
+          <Skeleton height={44} borderRadius={radius.sm} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   base: {
     backgroundColor: colors.cream10,

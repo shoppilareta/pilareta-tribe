@@ -103,8 +103,11 @@ export default function CommunityFeed() {
     if (activeFeed === 'following') {
       return (
         <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>No posts here yet</Text>
-          <Text style={styles.emptyText}>Follow some creators to see their posts</Text>
+          <Text style={styles.emptyTitle}>Your feed is empty</Text>
+          <Text style={styles.emptyText}>Follow creators to see their posts here</Text>
+          <Pressable onPress={() => setActiveFeed('discover')} style={styles.emptyButton}>
+            <Text style={styles.emptyButtonText}>Discover People</Text>
+          </Pressable>
         </View>
       );
     }
@@ -313,7 +316,13 @@ export default function CommunityFeed() {
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           refreshControl={
-            <RefreshControl refreshing={feedQuery.isRefetching} onRefresh={feedQuery.refetch} tintColor={colors.fg.primary} />
+            <RefreshControl
+              refreshing={feedQuery.isRefetching}
+              onRefresh={feedQuery.refetch}
+              tintColor={colors.fg.primary}
+              title={feedQuery.isRefetching ? 'Refreshing...' : 'Pull to refresh'}
+              titleColor={colors.fg.tertiary}
+            />
           }
           ListHeaderComponent={ListHeader}
           ListFooterComponent={

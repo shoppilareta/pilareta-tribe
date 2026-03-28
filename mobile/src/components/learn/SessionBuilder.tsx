@@ -52,14 +52,29 @@ export function SessionBuilder() {
     setLoading(true);
     try {
       const result = await buildSession({ goal, duration, level, constraints });
+      if (!result?.sessionId) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(
+          'No Matches',
+          'No exercises matched your criteria. Try a different goal or level, or remove sensitivities.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(`/(tabs)/learn/session/${result.sessionId}`);
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (err instanceof ApiError && err.status === 400) {
-        Alert.alert('No Matches', 'No exercises match your criteria. Try different settings.');
+        Alert.alert(
+          'No Matches',
+          'No exercises matched your criteria. Try a different goal or level, or remove sensitivities.',
+          [{ text: 'OK' }]
+        );
+      } else if (err instanceof ApiError && err.status === 404) {
+        Alert.alert('Not Available', 'Session building is temporarily unavailable. Please try again later.');
       } else {
-        Alert.alert('Error', 'Failed to build session. Please try again.');
+        Alert.alert('Error', 'Failed to build session. Please check your connection and try again.');
       }
     } finally {
       setLoading(false);

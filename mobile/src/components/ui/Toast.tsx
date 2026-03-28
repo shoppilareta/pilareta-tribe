@@ -1,6 +1,5 @@
-'use client';
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Keyboard, Platform } from 'react-native';
 import { colors, typography, spacing, radius } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,11 +25,30 @@ export function useToast(): ToastContextValue {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const translateY = useRef(new Animated.Value(100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const idRef = useRef(0);
   const insets = useSafeAreaInsets();
+
+  // Track keyboard height to position toast above keyboard
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const showToast = useCallback((text: string, type: ToastType = 'success') => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -51,7 +69,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         Animated.timing(translateY, { toValue: 100, duration: 300, useNativeDriver: true }),
         Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]).start(() => setToast(null));
-    }, 2000);
+    }, 2500);
   }, [translateY, opacity]);
 
   useEffect(() => {
@@ -74,6 +92,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Position above keyboard when visible, otherwise above bottom safe area
+  const bottomOffset = keyboardHeight > 0
+    ? keyboardHeight + 16
+    : insets.bottom + 16;
+
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
@@ -81,7 +104,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <Animated.View
           style={[
             styles.toastContainer,
-            { bottom: insets.bottom + 16, transform: [{ translateY }], opacity },
+            { bottom: bottomOffset, transform: [{ translateY }], opacity },
           ]}
           pointerEvents="none"
         >

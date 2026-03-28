@@ -192,6 +192,7 @@ export default function ProductDetailScreen() {
   const [isAdding, setIsAdding] = useState(false);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const imageScrollRef = useRef<ScrollView>(null);
+  const mainScrollRef = useRef<ScrollView>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shop-products'],
@@ -205,7 +206,7 @@ export default function ProductDetailScreen() {
   // Build images list (product-level images)
   const images = useMemo(() => {
     if (!product) return [];
-    if (product.images.length > 0) return product.images;
+    if (product.images?.length > 0) return product.images;
     if (product.featuredImage) return [product.featuredImage];
     return [];
   }, [product]);
@@ -214,7 +215,7 @@ export default function ProductDetailScreen() {
   const options = useMemo(() => {
     if (!product) return [];
     const optionMap: Record<string, Set<string>> = {};
-    product.variants.forEach((variant) => {
+    (product.variants ?? []).forEach((variant) => {
       (variant.selectedOptions ?? []).forEach((opt) => {
         if (!optionMap[opt.name]) optionMap[opt.name] = new Set();
         optionMap[opt.name].add(opt.value);
@@ -230,7 +231,7 @@ export default function ProductDetailScreen() {
   const colorImageMap = useMemo(() => {
     if (!product) return new Map<string, string>();
     const map = new Map<string, string>();
-    for (const v of product.variants) {
+    for (const v of product.variants ?? []) {
       for (const opt of v.selectedOptions ?? []) {
         const isColor = opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour';
         if (isColor && !map.has(opt.value) && v.image?.url) {
@@ -257,7 +258,15 @@ export default function ProductDetailScreen() {
       .slice(0, 8);
   }, [product, allProducts]);
 
-  // Set default options on mount
+  // Scroll to top and reset state when navigating to a new product
+  useEffect(() => {
+    mainScrollRef.current?.scrollTo({ y: 0, animated: false });
+    imageScrollRef.current?.scrollTo({ x: 0, animated: false });
+    setSelectedImage(0);
+    setSelectedOptions({});
+  }, [handle]);
+
+  // Set default options on mount or product change
   useEffect(() => {
     if (options.length > 0 && Object.keys(selectedOptions).length === 0) {
       const defaults: Record<string, string> = {};
@@ -287,7 +296,7 @@ export default function ProductDetailScreen() {
   // Find matching variant based on selected options
   const selectedVariant = useMemo(() => {
     if (!product) return null;
-    return product.variants.find((variant) =>
+    return (product.variants ?? []).find((variant) =>
       (variant.selectedOptions ?? []).every((opt) => selectedOptions[opt.name] === opt.value)
     ) ?? null;
   }, [product, selectedOptions]);
@@ -297,7 +306,7 @@ export default function ProductDetailScreen() {
     if (!product) return;
     const urls = new Set<string>();
     images.forEach((img) => urls.add(img.url));
-    product.variants.forEach((v) => {
+    (product.variants ?? []).forEach((v) => {
       if (v.image?.url) urls.add(v.image.url);
     });
     urls.forEach((url) => Image.prefetch(url));
@@ -317,7 +326,7 @@ export default function ProductDetailScreen() {
   // Check if a specific option value is available given other selections
   const isOptionAvailable = (optionName: string, optionValue: string) => {
     if (!product) return false;
-    return product.variants.some((variant) => {
+    return (product.variants ?? []).some((variant) => {
       const opts = variant.selectedOptions ?? [];
       const hasOption = opts.some((o) => o.name === optionName && o.value === optionValue);
       if (!hasOption) return false;
@@ -419,23 +428,23 @@ export default function ProductDetailScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header bar */}
       <View style={styles.headerBar}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8} accessibilityLabel="Go back" accessibilityRole="button">
           <BackArrow />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{product.title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Pressable onPress={handleToggleWishlist} style={styles.backButton} hitSlop={8}>
+          <Pressable onPress={handleToggleWishlist} style={styles.backButton} hitSlop={8} accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'} accessibilityRole="button">
             <Svg width={20} height={20} viewBox="0 0 24 24" fill={isWishlisted ? colors.error : 'none'} stroke={isWishlisted ? colors.error : colors.fg.primary} strokeWidth={2}>
               <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
             </Svg>
           </Pressable>
-          <Pressable onPress={handleShare} style={styles.backButton} hitSlop={8}>
+          <Pressable onPress={handleShare} style={styles.backButton} hitSlop={8} accessibilityLabel="Share product" accessibilityRole="button">
             <ShareIcon />
           </Pressable>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView ref={mainScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Image gallery */}
         {images.length > 0 && (
           <View>
@@ -673,10 +682,10 @@ export default function ProductDetailScreen() {
               keyExtractor={item => item.handle}
               contentContainerStyle={{ paddingHorizontal: spacing.md }}
               renderItem={({ item }) => (
-                <Pressable style={styles.recCard} onPress={() => router.push({ pathname: '/(tabs)/shop/[handle]', params: { handle: item.handle } })}>
-                  {item.images[0] && <Image source={{ uri: item.images[0].url }} style={styles.recImage} resizeMode="cover" />}
+                <Pressable style={styles.recCard} onPress={() => router.push({ pathname: '/(tabs)/shop/[handle]', params: { handle: item.handle } })} accessibilityLabel={`${item.title}, ${formatPrice(item.priceRange?.minVariantPrice?.amount ?? '0', item.priceRange?.minVariantPrice?.currencyCode ?? 'INR')}`} accessibilityRole="button">
+                  {item.images?.[0] ? <Image source={{ uri: item.images[0].url }} style={styles.recImage} resizeMode="cover" /> : <View style={[styles.recImage, { backgroundColor: 'rgba(70,74,60,0.3)' }]} />}
                   <Text style={styles.recName} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.recPrice}>{'\u20B9'}{parseFloat(item.priceRange.minVariantPrice.amount).toFixed(0)}</Text>
+                  <Text style={styles.recPrice}>{formatPrice(item.priceRange?.minVariantPrice?.amount ?? '0', item.priceRange?.minVariantPrice?.currencyCode ?? 'INR')}</Text>
                 </Pressable>
               )}
               ItemSeparatorComponent={() => <View style={{ width: spacing.sm }} />}
@@ -701,27 +710,42 @@ export default function ProductDetailScreen() {
       {/* Sticky add to cart footer */}
       <View style={styles.footer}>
         {selectedVariant && !selectedVariant.availableForSale ? (
-          <Pressable style={styles.notifyMeButton} onPress={handleNotifyMe}>
+          <Pressable style={styles.notifyMeButton} onPress={handleNotifyMe} accessibilityLabel="Notify me when available" accessibilityRole="button">
             <Text style={styles.notifyMeText}>Notify Me When Available</Text>
           </Pressable>
         ) : (
           <Pressable
             style={[
               styles.addToCartButton,
-              (isAdding || cartLoading) && styles.addToCartDisabled,
+              (isAdding || cartLoading || !selectedVariant?.availableForSale) && styles.addToCartDisabled,
             ]}
             onPress={handleAddToCart}
             disabled={!selectedVariant?.availableForSale || isAdding || cartLoading}
+            accessibilityLabel="Add to cart"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !selectedVariant?.availableForSale || isAdding || cartLoading }}
           >
             {isAdding ? (
               <ActivityIndicator color={colors.bg.primary} size="small" />
             ) : (
-              <Text style={styles.addToCartText}>Add to Cart</Text>
+              <Text style={styles.addToCartText}>
+                {!selectedVariant?.availableForSale ? 'Unavailable' : 'Add to Cart'}
+              </Text>
             )}
           </Pressable>
         )}
         <Text style={styles.shippingHint}>Free shipping across India</Text>
       </View>
+
+      {/* Loading overlay when adding to cart */}
+      {isAdding && (
+        <View style={styles.addToCartOverlay}>
+          <View style={styles.addToCartOverlayContent}>
+            <ActivityIndicator color={colors.fg.primary} size="small" />
+            <Text style={styles.addToCartOverlayText}>Adding to cart...</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -825,4 +849,27 @@ const styles = StyleSheet.create({
   recImage: { width: 130, aspectRatio: 1, borderRadius: radius.sm, backgroundColor: 'rgba(246,237,221,0.05)' },
   recName: { fontSize: typography.sizes.xs, color: colors.fg.primary, marginTop: spacing.xs },
   recPrice: { fontSize: typography.sizes.xs, color: colors.fg.secondary },
+  addToCartOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  addToCartOverlayContent: {
+    backgroundColor: colors.bg.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  addToCartOverlayText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.primary,
+    fontWeight: typography.weights.medium,
+  },
 });

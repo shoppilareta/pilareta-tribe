@@ -22,6 +22,7 @@ interface AuthState {
   setUser: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
+  isTokenExpired: () => boolean;
 }
 
 const TOKEN_KEYS = {
@@ -88,5 +89,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       set({ isLoading: false });
     }
+  },
+
+  isTokenExpired: () => {
+    const { expiresAt } = get();
+    if (!expiresAt) return true;
+    return new Date(expiresAt).getTime() < Date.now();
   },
 }));

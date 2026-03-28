@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, ActivityIndicator, Linking, Platform, TextInput, Alert, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, ActivityIndicator, Linking, Platform, TextInput, Alert, Image, Dimensions, Share as RNShare } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -31,9 +31,16 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 function getOpenClosedStatus(openingHours: unknown): { isOpen: boolean; timeLabel: string } | null {
   if (!openingHours || typeof openingHours !== 'object') return null;
   const oh = openingHours as {
+    open_now?: boolean;
     periods?: { open?: { day: number; time: string }; close?: { day: number; time: string } }[];
   };
-  if (!Array.isArray(oh.periods) || oh.periods.length === 0) return null;
+  if (!Array.isArray(oh.periods) || oh.periods.length === 0) {
+    // Fallback: some responses only have open_now without periods
+    if (typeof oh.open_now === 'boolean') {
+      return { isOpen: oh.open_now, timeLabel: oh.open_now ? 'Currently open' : 'Currently closed' };
+    }
+    return null;
+  }
 
   const now = new Date();
   const currentDay = now.getDay();
@@ -48,13 +55,10 @@ function getOpenClosedStatus(openingHours: unknown): { isOpen: boolean; timeLabe
     return `${h12}:${m} ${ampm}`;
   };
 
-  // 24-hour place
-  if (
-    oh.periods.length === 1 &&
-    oh.periods[0]?.open?.day === 0 &&
-    oh.periods[0]?.open?.time === '0000' &&
-    !oh.periods[0]?.close
-  ) {
+  // 24-hour place: single period with open day 0, time 0000, no close
+  // Also handle cases where every period has no close (all day, every day)
+  const allNoClose = oh.periods.every((p) => p.open && !p.close);
+  if (allNoClose && oh.periods[0]?.open?.time === '0000') {
     return { isOpen: true, timeLabel: 'Open 24 hours' };
   }
 
@@ -81,35 +85,36 @@ function getOpenClosedStatus(openingHours: unknown): { isOpen: boolean; timeLabe
   }
 
   // Currently closed - find next open time
-  // Look for the next period that opens on today (later) or the next day
-  const sortedPeriods = [...oh.periods]
+  // Build a list of all opening times with their "minutes from now" offset
+  const periodsWithOffset = oh.periods
     .filter((p) => p.open)
-    .sort((a, b) => {
-      const aDayDiff = ((a.open!.day - currentDay) + 7) % 7 || (a.open!.time > currentTime ? 0 : 7);
-      const bDayDiff = ((b.open!.day - currentDay) + 7) % 7 || (b.open!.time > currentTime ? 0 : 7);
-      if (aDayDiff !== bDayDiff) return aDayDiff - bDayDiff;
-      return a.open!.time.localeCompare(b.open!.time);
-    });
+    .map((p) => {
+      const openDay = p.open!.day;
+      const openTime = p.open!.time;
+      // Calculate how many minutes from now until this period opens
+      let dayDiff = (openDay - currentDay + 7) % 7;
+      // If same day but time has already passed, it's next week
+      if (dayDiff === 0 && openTime <= currentTime) dayDiff = 7;
+      const openHour = parseInt(openTime.slice(0, 2), 10);
+      const openMin = parseInt(openTime.slice(2), 10);
+      const nowHour = now.getHours();
+      const nowMin = now.getMinutes();
+      const minutesFromNow = dayDiff * 24 * 60 + (openHour * 60 + openMin) - (nowHour * 60 + nowMin);
+      return { period: p, dayDiff, minutesFromNow, openDay, openTime };
+    })
+    .sort((a, b) => a.minutesFromNow - b.minutesFromNow);
 
-  // Find the next opening after now
-  for (const period of sortedPeriods) {
-    if (!period.open) continue;
-    const openDay = period.open.day;
-    const openTime = period.open.time;
-    if (openDay === currentDay && openTime > currentTime) {
-      return { isOpen: false, timeLabel: `Opens at ${fmtTime(openTime)}` };
+  if (periodsWithOffset.length > 0) {
+    const next = periodsWithOffset[0];
+    if (next.dayDiff === 0) {
+      // Opens later today
+      return { isOpen: false, timeLabel: `Opens at ${fmtTime(next.openTime)}` };
     }
-    if (openDay !== currentDay) {
-      const dayName = DAY_NAMES[openDay];
-      return { isOpen: false, timeLabel: `Opens ${dayName} at ${fmtTime(openTime)}` };
+    if (next.dayDiff === 1) {
+      return { isOpen: false, timeLabel: `Opens tomorrow at ${fmtTime(next.openTime)}` };
     }
-  }
-
-  // Fallback: find the earliest period on the next available day
-  if (sortedPeriods.length > 0 && sortedPeriods[0].open) {
-    const nextPeriod = sortedPeriods[0];
-    const dayName = DAY_NAMES[nextPeriod.open!.day];
-    return { isOpen: false, timeLabel: `Opens ${dayName} at ${fmtTime(nextPeriod.open!.time)}` };
+    const dayName = DAY_NAMES[next.openDay] ?? `Day ${next.openDay}`;
+    return { isOpen: false, timeLabel: `Opens ${dayName} at ${fmtTime(next.openTime)}` };
   }
 
   return null;
@@ -135,7 +140,10 @@ function getAmenityLabel(amenity: string): string {
 
 function formatOpeningHours(openingHours: unknown): string[] {
   try {
-    if (!openingHours || typeof openingHours !== 'object') return [];
+    if (!openingHours) return [];
+    // Handle case where openingHours is a simple string like "Open 24 hours"
+    if (typeof openingHours === 'string') return [openingHours];
+    if (typeof openingHours !== 'object') return [];
 
     const oh = openingHours as Record<string, unknown>;
 
@@ -204,44 +212,46 @@ function formatOpeningHours(openingHours: unknown): string[] {
   }
 }
 
+function photoRefToUrl(ref: string, maxWidth = 600): string | null {
+  if (!GOOGLE_MAPS_KEY) return null;
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${encodeURIComponent(ref)}&key=${GOOGLE_MAPS_KEY}`;
+}
+
+function extractPhotoUrl(item: unknown, maxWidth = 600): string | null {
+  if (typeof item === 'string' && item.length > 0) return item;
+  if (!item || typeof item !== 'object') return null;
+  const p = item as Record<string, unknown>;
+  if (typeof p.url === 'string' && p.url.length > 0) return p.url;
+  // DB stores as "reference", Google API returns "photo_reference" -- handle both
+  const ref = (typeof p.reference === 'string' ? p.reference : null)
+    || (typeof p.photo_reference === 'string' ? p.photo_reference : null);
+  if (ref) return photoRefToUrl(ref, maxWidth);
+  return null;
+}
+
 function getPhotoUrl(photos: unknown): string | null {
   if (!Array.isArray(photos) || photos.length === 0) return null;
-  const first = photos[0];
-  if (typeof first === 'string') return first;
-  if (first && typeof first === 'object') {
-    const p = first as Record<string, unknown>;
-    if (typeof p.url === 'string') return p.url;
-    // DB stores as "reference", Google API returns "photo_reference" — handle both
-    const ref = (typeof p.reference === 'string' ? p.reference : null)
-      || (typeof p.photo_reference === 'string' ? p.photo_reference : null);
-    if (ref) {
-      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`;
-    }
-  }
-  return null;
+  return extractPhotoUrl(photos[0]);
 }
 
 function getPhotoUrls(photos: unknown, maxCount = 5): string[] {
   if (!Array.isArray(photos) || photos.length === 0) return [];
   const urls: string[] = [];
   for (const item of photos.slice(0, maxCount)) {
-    if (typeof item === 'string') {
-      urls.push(item);
-    } else if (item && typeof item === 'object') {
-      const p = item as Record<string, unknown>;
-      if (typeof p.url === 'string') {
-        urls.push(p.url);
-      } else {
-        // DB stores as "reference", Google API returns "photo_reference" — handle both
-        const ref = (typeof p.reference === 'string' ? p.reference : null)
-          || (typeof p.photo_reference === 'string' ? p.photo_reference : null);
-        if (ref) {
-          urls.push(`https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`);
-        }
-      }
-    }
+    const url = extractPhotoUrl(item);
+    if (url) urls.push(url);
   }
   return urls;
+}
+
+/** Render star rating as visual stars */
+function renderStarRating(rating: number): string {
+  const ceilStars = Math.round(rating);
+  let stars = '';
+  for (let i = 0; i < 5; i++) {
+    stars += i < ceilStars ? '\u2605' : '\u2606';
+  }
+  return stars;
 }
 
 export default function StudioDetail() {
@@ -259,6 +269,26 @@ export default function StudioDetail() {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     toggleFavorite(id);
+  };
+
+  const handleShare = async () => {
+    if (!data?.studio) return;
+    const s = data.studio;
+    const address = s.formattedAddress || s.address || '';
+    let message = `Check out ${s.name}`;
+    if (address) message += ` at ${address}`;
+    if (s.rating != null) message += ` - Rated ${s.rating.toFixed(1)}/5`;
+    // Include a maps link if coordinates are available, otherwise use address
+    if (s.latitude != null && s.longitude != null) {
+      message += `\nhttps://maps.google.com/?q=${s.latitude},${s.longitude}`;
+    } else if (address) {
+      message += `\nhttps://maps.google.com/?q=${encodeURIComponent(address)}`;
+    }
+    try {
+      await RNShare.share({ message });
+    } catch {
+      // User cancelled or share failed - no action needed
+    }
   };
 
   const { data, isLoading } = useQuery({
@@ -300,11 +330,18 @@ export default function StudioDetail() {
           </Svg>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{studio.name}</Text>
-        <Pressable onPress={handleToggleFavorite} style={styles.headerHeartButton} hitSlop={8}>
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill={favorited ? colors.error : 'none'} stroke={favorited ? colors.error : colors.fg.primary} strokeWidth={2}>
-            <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-          </Svg>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={handleShare} style={styles.headerIconButton} hitSlop={8}>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
+              <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </Pressable>
+          <Pressable onPress={handleToggleFavorite} style={styles.headerIconButton} hitSlop={8}>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill={favorited ? colors.error : 'none'} stroke={favorited ? colors.error : colors.fg.primary} strokeWidth={2}>
+              <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+            </Svg>
+          </Pressable>
+        </View>
       </View>
 
       {/* Tabs */}
@@ -356,10 +393,14 @@ function StudioInfo({ studio, photoUrl, photoUrls }: { studio: NonNullable<Await
         android: `google.navigation:q=${latitude},${longitude}`,
         default: `https://maps.google.com/maps?daddr=${latitude},${longitude}`,
       });
-      if (url) Linking.openURL(url);
+      if (url) Linking.openURL(url).catch(() => {
+        // Fallback if the native maps app is not installed
+        Linking.openURL(`https://maps.google.com/maps?daddr=${latitude},${longitude}`);
+      });
     } else {
-      // Fallback to address search
-      const addr = encodeURIComponent(studio.formattedAddress || studio.address || name);
+      // Fallback to address search when no coordinates are available
+      const searchStr = studio.formattedAddress || studio.address || `${name} ${studio.city || ''}`.trim();
+      const addr = encodeURIComponent(searchStr);
       Linking.openURL(`https://maps.google.com/?q=${addr}`);
     }
   };
@@ -416,20 +457,22 @@ function StudioInfo({ studio, photoUrl, photoUrls }: { studio: NonNullable<Await
       ) : null}
 
       {/* Rating */}
-      {studio.rating != null && (
-        <View style={styles.ratingRow}>
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="rgba(234, 179, 8, 0.8)" stroke="none">
-            <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-          </Svg>
-          <Text style={styles.ratingText}>{studio.rating.toFixed(1)}</Text>
-          {studio.ratingCount != null && <Text style={styles.ratingCount}>({studio.ratingCount} reviews)</Text>}
-          {studio.verified && (
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
-          )}
-        </View>
-      )}
+      <View style={styles.ratingRow}>
+        {studio.rating != null ? (
+          <>
+            <Text style={styles.starDisplay}>{renderStarRating(studio.rating)}</Text>
+            <Text style={styles.ratingText}>{studio.rating.toFixed(1)}</Text>
+            {studio.ratingCount != null && <Text style={styles.ratingCount}>({studio.ratingCount} reviews)</Text>}
+          </>
+        ) : (
+          <Text style={styles.noRatingText}>No rating yet</Text>
+        )}
+        {studio.verified && (
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
+        )}
+      </View>
 
       {/* Address */}
       {(studio.formattedAddress || studio.address) && (
@@ -456,8 +499,12 @@ function StudioInfo({ studio, photoUrl, photoUrls }: { studio: NonNullable<Await
       {studio.website && (
         <InfoRow
           icon="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
-          text={studio.website.replace(/^https?:\/\//, '')}
-          onPress={() => Linking.openURL(studio.website!)}
+          text={studio.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+          onPress={() => {
+            // Ensure the URL has a protocol prefix
+            const url = studio.website!.startsWith('http') ? studio.website! : `https://${studio.website!}`;
+            Linking.openURL(url);
+          }}
         />
       )}
 
@@ -479,7 +526,10 @@ function StudioInfo({ studio, photoUrl, photoUrls }: { studio: NonNullable<Await
           </Pressable>
         )}
         {studio.website && (
-          <Pressable style={styles.actionButton} onPress={() => Linking.openURL(studio.website!)}>
+          <Pressable style={styles.actionButton} onPress={() => {
+            const url = studio.website!.startsWith('http') ? studio.website! : `https://${studio.website!}`;
+            Linking.openURL(url);
+          }}>
             <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.button.primaryText} strokeWidth={2}>
               <Path d="M12 2a10 10 0 100 20 10 10 0 000-20z" strokeLinecap="round" strokeLinejoin="round" />
               <Path d="M2 12h20" strokeLinecap="round" strokeLinejoin="round" />
@@ -503,11 +553,11 @@ function StudioInfo({ studio, photoUrl, photoUrls }: { studio: NonNullable<Await
       )}
 
       {/* Amenities */}
-      {studio.amenities.length > 0 && (
+      {(studio.amenities ?? []).length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Amenities</Text>
           <View style={styles.amenitiesGrid}>
-            {studio.amenities.map((a) => (
+            {(studio.amenities ?? []).map((a) => (
               <View key={a} style={styles.amenityChip}>
                 <Text style={styles.amenityText}>{getAmenityLabel(a)}</Text>
               </View>
@@ -708,7 +758,10 @@ function NearbyStudiosCarousel({ studioId, lat, lng }: { studioId: string; lat: 
 
   const nearbyStudios = useMemo(() => {
     if (!data?.studios) return [];
-    return data.studios.filter((s) => s.id !== studioId).slice(0, 5);
+    // Filter out the current studio by both id and placeId to handle format mismatches
+    return data.studios
+      .filter((s) => s.id !== studioId && s.id !== studioId.replace(/^places\//, ''))
+      .slice(0, 5);
   }, [data, studioId]);
 
   const handleToggleFavorite = (id: string) => {
@@ -752,7 +805,8 @@ const styles = StyleSheet.create({
   link: { fontSize: typography.sizes.base, color: colors.fg.primary, textDecorationLine: 'underline' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   backButton: { padding: spacing.xs, marginRight: spacing.sm },
-  headerHeartButton: { padding: spacing.xs },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerIconButton: { padding: spacing.xs },
   headerTitle: { flex: 1, fontSize: typography.sizes.lg, fontWeight: typography.weights.semibold, color: colors.fg.primary },
   tabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border.default },
   tab: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center' },
@@ -764,8 +818,10 @@ const styles = StyleSheet.create({
   photoContainer: { marginBottom: spacing.md, borderRadius: radius.md, overflow: 'hidden' },
   photo: { width: '100%', height: PHOTO_HEIGHT, backgroundColor: colors.cream05 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
+  starDisplay: { fontSize: 18, color: 'rgba(234, 179, 8, 0.9)', letterSpacing: 2 },
   ratingText: { fontSize: typography.sizes.xl, fontWeight: typography.weights.semibold, color: colors.fg.primary },
   ratingCount: { fontSize: typography.sizes.sm, color: colors.fg.tertiary },
+  noRatingText: { fontSize: typography.sizes.sm, color: colors.fg.muted, fontStyle: 'italic' },
   verifiedBadge: { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.full, backgroundColor: 'rgba(34, 197, 94, 0.15)' },
   verifiedText: { fontSize: 11, color: 'rgba(34, 197, 94, 0.9)', fontWeight: typography.weights.medium },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.md },

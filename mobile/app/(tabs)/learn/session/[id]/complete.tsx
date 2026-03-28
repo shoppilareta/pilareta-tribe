@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput } from 'react-native';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Animated, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,8 @@ import { Button, Card } from '@/components/ui';
 import { getSession } from '@/api/learn';
 import { createLog } from '@/api/track';
 import { saveSession } from '@/utils/savedSessions';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -22,14 +24,15 @@ function formatElapsed(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
-function getMotivationalMessage(durationMinutes: number, rpe: number, exerciseCount: number): string {
-  if (durationMinutes >= 45 && rpe >= 7) {
+function getMotivationalMessage(durationMinutes: number, rpe: number | undefined, exerciseCount: number): string {
+  const rpeVal = rpe ?? 5;
+  if (durationMinutes >= 45 && rpeVal >= 7) {
     return 'Incredible effort! You pushed through a challenging workout.';
   }
   if (durationMinutes >= 30) {
     return 'Great session! Consistency is the key to progress.';
   }
-  if (rpe >= 7) {
+  if (rpeVal >= 7) {
     return 'You brought the intensity! Your body will thank you.';
   }
   if (exerciseCount >= 8) {
@@ -38,12 +41,92 @@ function getMotivationalMessage(durationMinutes: number, rpe: number, exerciseCo
   return 'Every session counts. Keep building your practice!';
 }
 
+// Simple confetti particle animation
+const CONFETTI_COUNT = 24;
+const CONFETTI_COLORS = [
+  'rgba(34, 197, 94, 0.8)',
+  'rgba(234, 179, 8, 0.8)',
+  'rgba(246, 237, 221, 0.8)',
+  'rgba(249, 115, 22, 0.8)',
+  'rgba(100, 200, 255, 0.8)',
+  'rgba(255, 100, 150, 0.8)',
+];
+
+function ConfettiAnimation() {
+  const particles = useRef(
+    Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+      x: new Animated.Value(Math.random() * SCREEN_WIDTH),
+      y: new Animated.Value(-20 - Math.random() * 60),
+      rotate: new Animated.Value(0),
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      size: 6 + Math.random() * 6,
+      delay: Math.random() * 600,
+    }))
+  ).current;
+
+  useEffect(() => {
+    const animations = particles.map((p) =>
+      Animated.sequence([
+        Animated.delay(p.delay),
+        Animated.parallel([
+          Animated.timing(p.y, {
+            toValue: Dimensions.get('window').height + 40,
+            duration: 2000 + Math.random() * 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(p.x, {
+            toValue: (p.x as any)._value + (Math.random() - 0.5) * 120,
+            duration: 2000 + Math.random() * 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(p.rotate, {
+            toValue: 3 + Math.random() * 5,
+            duration: 2000 + Math.random() * 1500,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+    Animated.stagger(30, animations).start();
+  }, []);
+
+  return (
+    <View style={confettiStyles.container} pointerEvents="none">
+      {particles.map((p, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            confettiStyles.particle,
+            {
+              width: p.size,
+              height: p.size * 1.5,
+              backgroundColor: p.color,
+              borderRadius: p.size / 4,
+              transform: [
+                { translateX: p.x },
+                { translateY: p.y },
+                { rotate: p.rotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+              ],
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+const confettiStyles = StyleSheet.create({
+  container: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 },
+  particle: { position: 'absolute' },
+});
+
 export default function SessionComplete() {
   const { id, elapsed } = useLocalSearchParams<{ id: string; elapsed?: string }>();
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(true);
 
   const elapsedSeconds = elapsed ? parseInt(elapsed, 10) : 0;
 
@@ -53,20 +136,27 @@ export default function SessionComplete() {
     enabled: !!id,
   });
 
+  // Dismiss confetti after a few seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowConfetti(false), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const session = data?.session;
   const exerciseCount = session?.items?.length ?? 0;
 
   const handleLogWorkout = async () => {
     if (!session) return;
     try {
+      const durationMinutes = elapsedSeconds > 0 ? Math.round(elapsedSeconds / 60) : session.durationMinutes;
       await createLog({
-        durationMinutes: elapsedSeconds > 0 ? Math.round(elapsedSeconds / 60) : session.durationMinutes,
+        durationMinutes,
         workoutType: session.equipment === 'mat' ? 'mat' : 'reformer',
-        rpe: session.rpeTarget,
-        focusAreas: session.focusAreas,
+        rpe: session.rpeTarget ?? 5,
+        focusAreas: session.focusAreas ?? [],
         notes: `Completed: ${session.name}`,
         sessionId: session.id,
-        totalSets: session.totalSets,
+        totalSets: session.totalSets ?? 0,
         totalReps: session.totalReps ?? undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -99,8 +189,14 @@ export default function SessionComplete() {
     );
   }
 
+  // Compute display values safely
+  const displayDuration = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : session ? `${session.durationMinutes}m` : '--';
+  const displayDurationLabel = elapsedSeconds > 0 ? 'Time' : 'Duration';
+  const hasRpe = session && session.rpeTarget != null && session.rpeTarget > 0;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {showConfetti && <ConfettiAnimation />}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Success icon */}
         <View style={styles.iconContainer}>
@@ -112,43 +208,40 @@ export default function SessionComplete() {
         <Text style={styles.title}>Session Complete!</Text>
 
         {/* Motivational message */}
-        {session && (
-          <Text style={styles.motivational}>
-            {getMotivationalMessage(session.durationMinutes, session.rpeTarget, exerciseCount)}
-          </Text>
-        )}
+        <Text style={styles.motivational}>
+          {getMotivationalMessage(
+            elapsedSeconds > 0 ? Math.round(elapsedSeconds / 60) : (session?.durationMinutes ?? 0),
+            session?.rpeTarget,
+            exerciseCount
+          )}
+        </Text>
 
-        {session && (
-          <Card padding="md" style={styles.summaryCard}>
-            <Text style={styles.sessionName}>{session.name}</Text>
-            <View style={styles.statsRow}>
-              {elapsedSeconds > 0 && (
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{formatElapsed(elapsedSeconds)}</Text>
-                  <Text style={styles.statLabel}>Time</Text>
-                </View>
-              )}
-              {!elapsedSeconds && (
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{session.durationMinutes}m</Text>
-                  <Text style={styles.statLabel}>Duration</Text>
-                </View>
-              )}
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{exerciseCount}</Text>
-                <Text style={styles.statLabel}>Exercises</Text>
-              </View>
+        {/* Summary card - always shows something */}
+        <Card padding="md" style={styles.summaryCard}>
+          <Text style={styles.sessionName}>{session?.name ?? 'Workout'}</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{displayDuration}</Text>
+              <Text style={styles.statLabel}>{displayDurationLabel}</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{exerciseCount}</Text>
+              <Text style={styles.statLabel}>Exercises</Text>
+            </View>
+            {session && session.totalSets > 0 && (
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{session.totalSets}</Text>
                 <Text style={styles.statLabel}>Sets</Text>
               </View>
+            )}
+            {hasRpe && (
               <View style={styles.stat}>
-                <Text style={styles.statValue}>{session.rpeTarget}/10</Text>
+                <Text style={styles.statValue}>{session!.rpeTarget}/10</Text>
                 <Text style={styles.statLabel}>RPE</Text>
               </View>
-            </View>
-          </Card>
-        )}
+            )}
+          </View>
+        </Card>
 
         {/* Exercise checklist */}
         {session?.items && session.items.length > 0 && (

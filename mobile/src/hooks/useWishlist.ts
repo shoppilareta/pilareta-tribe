@@ -7,10 +7,17 @@ export function useWishlist() {
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
   const queryClient = useQueryClient();
 
-  const { data } = useQuery({
+  const { data, error } = useQuery({
     queryKey: ['wishlist'],
     queryFn: getWishlist,
     enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      // Don't retry on network errors (user is offline)
+      if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'NetworkError') {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
   const wishlistHandles = data?.handles ?? [];
@@ -57,5 +64,10 @@ export function useWishlist() {
     [toggleMutation],
   );
 
-  return { isWishlisted, toggleWishlist, wishlistHandles };
+  return {
+    isWishlisted,
+    toggleWishlist,
+    wishlistHandles,
+    isOffline: error && typeof error === 'object' && 'name' in error && (error as any).name === 'NetworkError',
+  };
 }

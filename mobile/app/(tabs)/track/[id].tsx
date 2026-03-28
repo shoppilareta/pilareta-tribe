@@ -40,7 +40,10 @@ const FOCUS_AREA_LABELS: Record<string, string> = {
 };
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  // Parse as local time to avoid UTC timezone offset issues with YYYY-MM-DD
+  const cleaned = dateStr.slice(0, 10);
+  const date = new Date(cleaned + 'T00:00:00');
+  if (isNaN(date.getTime())) return dateStr;
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -49,7 +52,8 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatDuration(mins: number): string {
+function formatDuration(mins: number | null | undefined): string {
+  if (mins == null || mins <= 0) return '0 min';
   if (mins < 60) return `${mins} min`;
   const hours = Math.floor(mins / 60);
   const remaining = mins % 60;
@@ -207,7 +211,7 @@ export default function LogDetail() {
             <Text style={styles.statLabel}>Duration</Text>
           </Card>
           <Card padding="md" style={styles.statCard}>
-            <Text style={styles.statValue}>{log.rpe}/10</Text>
+            <Text style={styles.statValue}>{log.rpe != null ? `${log.rpe}/10` : '--'}</Text>
             <Text style={styles.statLabel}>Intensity</Text>
           </Card>
           {log.calorieEstimate && (
@@ -219,7 +223,7 @@ export default function LogDetail() {
         </View>
 
         {/* Focus Areas */}
-        {log.focusAreas.length > 0 && (
+        {log.focusAreas && log.focusAreas.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Focus Areas</Text>
             <View style={styles.chipRow}>

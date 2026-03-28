@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -10,28 +10,37 @@ import type { UgcComment } from '@shared/types';
 
 interface CommentSectionProps {
   postId: string;
+  autoFocus?: boolean;
 }
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return 'now';
+  if (seconds < 60) return 'just now';
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return `${Math.floor(days / 7)}w`;
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks}w ago`;
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function MentionText({ content }: { content: string }) {
   const parts = useMemo(() => {
-    const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
+    // Support @user_name, @user.name, @user-name, @username123
+    const mentionRegex = /@([a-zA-Z0-9][a-zA-Z0-9_.\-]*[a-zA-Z0-9]|[a-zA-Z0-9])/g;
     const result: (string | React.ReactElement)[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
     while ((match = mentionRegex.exec(content)) !== null) {
+      // Skip if preceded by a word character (e.g. email addresses)
+      if (match.index > 0 && /\w/.test(content[match.index - 1])) {
+        continue;
+      }
       if (match.index > lastIndex) {
         result.push(content.slice(lastIndex, match.index));
       }
@@ -78,10 +87,21 @@ function CommentItem({ comment }: { comment: UgcComment }) {
   );
 }
 
-export function CommentSection({ postId }: CommentSectionProps) {
+export function CommentSection({ postId, autoFocus = false }: CommentSectionProps) {
   const [text, setText] = useState('');
+  const inputRef = useRef<TextInput>(null);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
   const queryClient = useQueryClient();
+
+  // Auto-focus comment input when user navigates to comments (fix: auto-focus)
+  useEffect(() => {
+    if (autoFocus && isLoggedIn) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocus, isLoggedIn]);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
     queryKey: ['community-comments', postId],
@@ -147,6 +167,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
         <View>
           <View style={styles.inputRow}>
             <TextInput
+              ref={inputRef}
               style={styles.input}
               value={text}
               onChangeText={setText}

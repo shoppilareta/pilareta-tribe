@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
 import { Card, Badge } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import type { Program } from '@shared/types';
@@ -37,7 +38,7 @@ export function ProgramCard({ program }: ProgramCardProps) {
           </View>
         </View>
 
-        {program.focusAreas.length > 0 && (
+        {program.focusAreas && program.focusAreas.length > 0 && (
           <View style={styles.focusRow}>
             {program.focusAreas.map((area) => (
               <View key={area} style={styles.focusChip}>
@@ -46,6 +47,16 @@ export function ProgramCard({ program }: ProgramCardProps) {
             ))}
           </View>
         )}
+
+        {/* Prominent Start button */}
+        <View style={styles.startRow}>
+          <View style={styles.startButton}>
+            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.button.primaryText} strokeWidth={2.5}>
+              <Path d="M5 3l14 9-14 9V3z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.startButtonText}>View Program</Text>
+          </View>
+        </View>
       </Card>
     </Pressable>
   );
@@ -93,6 +104,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
+    marginBottom: spacing.md,
   },
   focusChip: {
     paddingHorizontal: 8,
@@ -104,5 +116,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.fg.tertiary,
     textTransform: 'capitalize',
+  },
+  startRow: {
+    alignItems: 'flex-end',
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.button.primaryBg,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: radius.sm,
+  },
+  startButtonText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    color: colors.button.primaryText,
   },
 });

@@ -29,7 +29,23 @@ function RecordRow({ icon, label, value, highlight }: RecordRowProps) {
 export function PersonalRecords({ records, currentStreak = 0 }: PersonalRecordsProps) {
   if (!records) return null;
 
-  const isStreakPR = currentStreak > 0 && currentStreak >= records.bestStreak;
+  const longestSession = records.longestSession ?? 0;
+  const mostActiveWeek = records.mostActiveWeekWorkouts ?? 0;
+  const bestStreak = records.bestStreak ?? 0;
+
+  // Don't show if all records are zero (no workouts logged yet)
+  if (longestSession === 0 && mostActiveWeek === 0 && bestStreak === 0) {
+    return (
+      <Card padding="md">
+        <Text style={styles.title}>Personal Records</Text>
+        <Text style={styles.emptyText}>
+          Log your first workout to start tracking personal records.
+        </Text>
+      </Card>
+    );
+  }
+
+  const isStreakPR = currentStreak > 0 && currentStreak >= bestStreak;
 
   return (
     <Card padding="md">
@@ -44,7 +60,7 @@ export function PersonalRecords({ records, currentStreak = 0 }: PersonalRecordsP
             </Svg>
           }
           label="Longest session"
-          value={`${records.longestSession} min`}
+          value={`${longestSession} min`}
         />
 
         <RecordRow
@@ -55,7 +71,7 @@ export function PersonalRecords({ records, currentStreak = 0 }: PersonalRecordsP
             </Svg>
           }
           label="Most active week"
-          value={`${records.mostActiveWeekWorkouts} workouts`}
+          value={`${mostActiveWeek} workout${mostActiveWeek !== 1 ? 's' : ''}`}
         />
 
         <RecordRow
@@ -65,7 +81,7 @@ export function PersonalRecords({ records, currentStreak = 0 }: PersonalRecordsP
             </Svg>
           }
           label={isStreakPR ? 'Current streak (PR!)' : 'Best streak'}
-          value={`${isStreakPR ? currentStreak : records.bestStreak} days`}
+          value={`${isStreakPR ? currentStreak : bestStreak} day${(isStreakPR ? currentStreak : bestStreak) !== 1 ? 's' : ''}`}
           highlight={isStreakPR}
         />
       </View>
@@ -79,6 +95,11 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
     color: colors.fg.primary,
     marginBottom: spacing.md,
+  },
+  emptyText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    fontStyle: 'italic',
   },
   rows: {
     gap: spacing.sm,

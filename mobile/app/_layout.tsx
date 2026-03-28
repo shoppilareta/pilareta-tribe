@@ -1,5 +1,5 @@
 import { useState, useEffect, Component, type ReactNode } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, LogBox, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, LogBox } from 'react-native';
 
 // Track which modules loaded successfully
 const loadLog: string[] = [];
@@ -30,6 +30,7 @@ const AuthStoreMod = tryLoad('@/stores/authStore', () => require('@/stores/authS
 const SecureStoreMod = tryLoad('expo-secure-store', () => require('expo-secure-store'));
 const ToastMod = tryLoad('@/components/ui/Toast', () => require('@/components/ui/Toast'));
 const StorageKeysMod = tryLoad('@/constants/storage-keys', () => require('@/constants/storage-keys'));
+const NetworkStatusBannerMod = tryLoad('@/components/ui/NetworkStatusBanner', () => require('@/components/ui/NetworkStatusBanner'));
 
 const ONBOARDING_KEY = StorageKeysMod?.STORAGE_KEYS?.ONBOARDING_COMPLETE ?? 'pilareta_onboarding_complete';
 async function hasCompletedOnboarding(): Promise<boolean> {
@@ -51,6 +52,7 @@ const GestureHandlerRootView = GestureHandler?.GestureHandlerRootView;
 const colors = ThemeMod?.colors ?? { bg: { primary: '#202219' }, fg: { primary: '#f6eddd' } };
 const useAuthStore = AuthStoreMod?.useAuthStore;
 const ToastProvider = ToastMod?.ToastProvider;
+const NetworkStatusBanner = NetworkStatusBannerMod?.NetworkStatusBanner;
 
 // Keep splash visible while loading
 try {
@@ -117,6 +119,15 @@ function DeferredServices() {
     useDeepLinks();
     usePushNotifications();
   } catch {}
+
+  // Load cart on mount for badge count
+  useEffect(() => {
+    try {
+      const { useCartStore } = require('@/stores/cartStore');
+      useCartStore.getState().loadCart();
+    } catch {}
+  }, []);
+
   return null;
 }
 
@@ -190,7 +201,14 @@ export default function RootLayout() {
     content = <>{content}<StatusBar style="light" /></>;
   }
 
-  content = <><AppServices />{content}<DiagnosticOverlay /></>;
+  content = (
+    <>
+      <AppServices />
+      {content}
+      {NetworkStatusBanner ? <NetworkStatusBanner /> : null}
+      <DiagnosticOverlay />
+    </>
+  );
 
   if (ToastProvider) {
     content = <ToastProvider>{content}</ToastProvider>;

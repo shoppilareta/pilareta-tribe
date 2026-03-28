@@ -9,17 +9,28 @@ interface TrendChartProps {
 const MAX_BAR_HEIGHT = 100;
 
 export function TrendChart({ weeklyData }: TrendChartProps) {
-  if (!weeklyData || weeklyData.length === 0) return null;
+  if (!weeklyData || weeklyData.length === 0) {
+    return (
+      <Card padding="md">
+        <Text style={styles.title}>Weekly Trend</Text>
+        <Text style={styles.emptyText}>
+          Not enough data yet. Keep logging workouts!
+        </Text>
+      </Card>
+    );
+  }
 
   const maxMinutes = Math.max(...weeklyData.map((d) => d.minutes), 1);
   const totalMinutes = weeklyData.reduce((sum, d) => sum + d.minutes, 0);
+  const weeksWithData = weeklyData.filter((d) => d.minutes > 0).length;
+  const avgMinutes = weeksWithData > 0 ? Math.round(totalMinutes / weeksWithData) : 0;
 
   return (
     <Card padding="md">
       <View style={styles.header}>
         <Text style={styles.title}>Weekly Trend</Text>
         <Text style={styles.subtitle}>
-          {totalMinutes} min over 4 weeks
+          {totalMinutes} min over {weeklyData.length} week{weeklyData.length !== 1 ? 's' : ''}
         </Text>
       </View>
 
@@ -29,6 +40,7 @@ export function TrendChart({ weeklyData }: TrendChartProps) {
             (week.minutes / maxMinutes) * MAX_BAR_HEIGHT,
             week.minutes > 0 ? 4 : 0
           );
+          const isLatest = index === weeklyData.length - 1;
 
           return (
             <View key={index} style={styles.barColumn}>
@@ -42,7 +54,7 @@ export function TrendChart({ weeklyData }: TrendChartProps) {
                     {
                       height: barHeight,
                       backgroundColor: week.minutes > 0
-                        ? colors.accent.amber
+                        ? isLatest ? colors.accent.gold : colors.accent.amber
                         : colors.cream10,
                     },
                   ]}
@@ -53,6 +65,11 @@ export function TrendChart({ weeklyData }: TrendChartProps) {
           );
         })}
       </View>
+
+      {/* Average line */}
+      {weeksWithData > 1 && (
+        <Text style={styles.avgText}>Avg: {avgMinutes} min/week</Text>
+      )}
     </Card>
   );
 }
@@ -107,5 +124,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.fg.tertiary,
     marginTop: 2,
+  },
+  emptyText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    fontStyle: 'italic',
+    marginTop: spacing.sm,
+  },
+  avgText: {
+    fontSize: typography.sizes.xs,
+    color: colors.fg.muted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
 });

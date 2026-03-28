@@ -19,6 +19,7 @@ import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { profileApi, apiFetch } from '@/api';
 import { useAuthStore } from '@/stores/authStore';
+import { useToast } from '@/components/ui/Toast';
 import type { UserProfile } from '@shared/types';
 
 const FITNESS_GOALS = [
@@ -31,6 +32,7 @@ const FITNESS_GOALS = [
 
 export default function ProfileScreen() {
   const { user } = useAuthStore();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -152,10 +154,14 @@ export default function ProfileScreen() {
 
       const { profile } = await profileApi.updateProfile(data);
       populateForm(profile);
-      Alert.alert('Success', 'Profile updated successfully.');
+      showToast('Profile updated successfully', 'success');
     } catch (error: any) {
-      const message = error?.data?.error || 'Failed to save profile. Please try again.';
-      Alert.alert('Error', message);
+      if (error?.name === 'NetworkError') {
+        showToast('No internet connection. Please check your network.', 'error');
+      } else {
+        const message = error?.data?.error || 'Failed to save profile. Please try again.';
+        showToast(message, 'error');
+      }
     } finally {
       setSaving(false);
     }

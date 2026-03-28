@@ -6,11 +6,10 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Badge } from '@/components/ui';
-import { getExercise } from '@/api/learn';
-import { getExerciseCompletionStats } from '@/api/learn';
+import { getExercise, getExerciseCompletionStats } from '@/api/learn';
 
 const FAVORITES_KEY = 'pilareta_favorite_exercises';
 
@@ -27,10 +26,11 @@ async function setFavorites(slugs: string[]): Promise<void> {
   await SecureStore.setItemAsync(FAVORITES_KEY, JSON.stringify(slugs));
 }
 
-const SECTION_COLORS: Record<string, string> = {
-  beginner: 'rgba(34, 197, 94, 0.3)',
-  intermediate: 'rgba(234, 179, 8, 0.3)',
-  advanced: 'rgba(239, 68, 68, 0.3)',
+// Color-coded difficulty: green = beginner, amber = intermediate, red = advanced
+const DIFFICULTY_BADGE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  beginner: { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.4)', text: 'rgba(34, 197, 94, 0.9)' },
+  intermediate: { bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)', text: 'rgba(234, 179, 8, 0.9)' },
+  advanced: { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)', text: 'rgba(239, 68, 68, 0.9)' },
 };
 
 function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -57,6 +57,8 @@ const sectionStyles = StyleSheet.create({
 export default function ExerciseDetail() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const videoRef = useRef<Video>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['learn-exercise', slug],
@@ -64,11 +66,13 @@ export default function ExerciseDetail() {
     enabled: !!slug,
   });
 
-  // 3A: Exercise completion stats
+  // 3A: Exercise completion stats - graceful error handling
   const { data: statsData } = useQuery({
     queryKey: ['exercise-completion-stats', slug],
     queryFn: () => getExerciseCompletionStats(slug!),
     enabled: !!slug,
+    retry: 1,
+    // Silently fail - stats are non-critical
   });
 
   // Load favorite state
@@ -86,6 +90,16 @@ export default function ExerciseDetail() {
     setIsFavorite(!isFavorite);
   }, [slug, isFavorite]);
 
+  const handleVideoError = useCallback(() => {
+    setVideoError(true);
+  }, []);
+
+  const handleVideoStatus = useCallback((status: AVPlaybackStatus) => {
+    if ('error' in status && status.error) {
+      setVideoError(true);
+    }
+  }, []);
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -93,8 +107,6 @@ export default function ExerciseDetail() {
       </SafeAreaView>
     );
   }
-
-  const videoRef = useRef<Video>(null);
 
   const ex = data?.exercise;
   if (!ex) {
@@ -107,6 +119,18 @@ export default function ExerciseDetail() {
       </SafeAreaView>
     );
   }
+
+  // Safe access with null checks for all optional arrays/objects
+  const cues = ex.cues ?? [];
+  const modifications = ex.modifications;
+  const commonMistakes = ex.commonMistakes ?? [];
+  const contraindications = ex.contraindications ?? [];
+  const setupSteps = ex.setupSteps ?? [];
+  const executionSteps = ex.executionSteps ?? [];
+  const primaryMuscles = ex.primaryMuscles ?? [];
+  const secondaryMuscles = ex.secondaryMuscles ?? [];
+
+  const difficultyColors = DIFFICULTY_BADGE_COLORS[ex.difficulty] || DIFFICULTY_BADGE_COLORS.beginner;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -125,8 +149,8 @@ export default function ExerciseDetail() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Video / Hero image */}
-        {ex.videoUrl ? (
+        {/* Video with error fallback / Hero image */}
+        {ex.videoUrl && !videoError ? (
           <View style={styles.videoContainer}>
             <Video
               ref={videoRef}
@@ -138,24 +162,43 @@ export default function ExerciseDetail() {
               resizeMode={ResizeMode.CONTAIN}
               isLooping
               shouldPlay={false}
+              onError={handleVideoError}
+              onPlaybackStatusUpdate={handleVideoStatus}
             />
+          </View>
+        ) : videoError && ex.imageUrl ? (
+          <View style={styles.videoContainer}>
+            <Image source={{ uri: ex.imageUrl }} style={styles.video} resizeMode="cover" />
+            <View style={styles.videoErrorOverlay}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={1.5}>
+                <Path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={styles.videoErrorText}>Video unavailable</Text>
+            </View>
+          </View>
+        ) : videoError ? (
+          <View style={[styles.videoContainer, styles.videoErrorFallback]}>
+            <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={1.5}>
+              <Path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.videoErrorText}>Video unavailable</Text>
           </View>
         ) : ex.imageUrl ? (
           <Image source={{ uri: ex.imageUrl }} style={styles.heroImage} resizeMode="cover" />
         ) : null}
 
-        {/* Badges */}
+        {/* Color-coded difficulty badge */}
         <View style={styles.badgeRow}>
-          <View style={[styles.diffBadge, { backgroundColor: SECTION_COLORS[ex.difficulty] || colors.cream10 }]}>
-            <Text style={styles.diffBadgeText}>{ex.difficulty}</Text>
+          <View style={[styles.diffBadge, { backgroundColor: difficultyColors.bg, borderColor: difficultyColors.border, borderWidth: 1 }]}>
+            <Text style={[styles.diffBadgeText, { color: difficultyColors.text }]}>{ex.difficulty}</Text>
           </View>
-          <Badge text={ex.equipment} variant="accent" />
+          {ex.equipment ? <Badge text={ex.equipment} variant="accent" /> : null}
         </View>
 
         <Text style={styles.description}>{ex.description}</Text>
 
-        {/* 3A: Completion stats */}
-        {statsData && statsData.completionCount > 0 && (
+        {/* 3A: Completion stats - with safe access */}
+        {statsData && typeof statsData.completionCount === 'number' && statsData.completionCount > 0 && (
           <View style={styles.completionCard}>
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth={2}>
               <Path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
@@ -177,56 +220,58 @@ export default function ExerciseDetail() {
               <Text style={styles.infoLabel}>Sets</Text>
             </View>
           )}
-          {ex.defaultReps && (
+          {ex.defaultReps != null && ex.defaultReps > 0 && (
             <View style={styles.infoItem}>
               <Text style={styles.infoValue}>{ex.defaultReps}</Text>
               <Text style={styles.infoLabel}>Reps</Text>
             </View>
           )}
-          {ex.defaultDuration && (
+          {ex.defaultDuration != null && ex.defaultDuration > 0 && (
             <View style={styles.infoItem}>
               <Text style={styles.infoValue}>{ex.defaultDuration}s</Text>
               <Text style={styles.infoLabel}>Duration</Text>
             </View>
           )}
-          {ex.defaultTempo && (
+          {ex.defaultTempo ? (
             <View style={styles.infoItem}>
               <Text style={styles.infoValue}>{ex.defaultTempo}</Text>
               <Text style={styles.infoLabel}>Tempo</Text>
             </View>
+          ) : null}
+          {ex.rpeTarget != null && ex.rpeTarget > 0 && (
+            <View style={styles.infoItem}>
+              <Text style={styles.infoValue}>{ex.rpeTarget}</Text>
+              <Text style={styles.infoLabel}>RPE</Text>
+            </View>
           )}
-          <View style={styles.infoItem}>
-            <Text style={styles.infoValue}>{ex.rpeTarget}</Text>
-            <Text style={styles.infoLabel}>RPE</Text>
-          </View>
-          {ex.springSuggestion && (
+          {ex.springSuggestion ? (
             <View style={styles.infoItem}>
               <Text style={styles.infoValue} numberOfLines={1}>{ex.springSuggestion}</Text>
               <Text style={styles.infoLabel}>Springs</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Collapsible sections */}
-        {ex.setupSteps.length > 0 && (
+        {setupSteps.length > 0 && (
           <CollapsibleSection title="Setup" defaultOpen>
-            {ex.setupSteps.map((step, i) => (
+            {setupSteps.map((step, i) => (
               <Text key={i} style={styles.stepText}>{i + 1}. {step}</Text>
             ))}
           </CollapsibleSection>
         )}
 
-        {ex.executionSteps.length > 0 && (
+        {executionSteps.length > 0 && (
           <CollapsibleSection title="Execution" defaultOpen>
-            {ex.executionSteps.map((step, i) => (
+            {executionSteps.map((step, i) => (
               <Text key={i} style={styles.stepText}>{i + 1}. {step}</Text>
             ))}
           </CollapsibleSection>
         )}
 
-        {ex.cues.length > 0 && (
+        {cues.length > 0 && (
           <CollapsibleSection title="Key Cues">
-            {ex.cues.map((cue, i) => (
+            {cues.map((cue, i) => (
               <View key={i} style={styles.cueBox}>
                 <Text style={styles.cueNumber}>{i + 1}</Text>
                 <Text style={styles.cueText}>{cue}</Text>
@@ -235,28 +280,28 @@ export default function ExerciseDetail() {
           </CollapsibleSection>
         )}
 
-        {ex.commonMistakes.length > 0 && (
+        {commonMistakes.length > 0 && (
           <CollapsibleSection title="Common Mistakes">
-            {ex.commonMistakes.map((m, i) => (
+            {commonMistakes.map((m, i) => (
               <Text key={i} style={styles.mistakeText}>{'\u2022'} {m}</Text>
             ))}
           </CollapsibleSection>
         )}
 
-        {ex.modifications && (
+        {modifications && (modifications.easier?.length > 0 || modifications.harder?.length > 0) && (
           <CollapsibleSection title="Modifications">
-            {ex.modifications.easier.length > 0 && (
+            {modifications.easier && modifications.easier.length > 0 && (
               <>
                 <Text style={styles.modLabel}>Easier:</Text>
-                {ex.modifications.easier.map((m, i) => (
+                {modifications.easier.map((m, i) => (
                   <Text key={i} style={styles.stepText}>{'\u2022'} {m}</Text>
                 ))}
               </>
             )}
-            {ex.modifications.harder.length > 0 && (
+            {modifications.harder && modifications.harder.length > 0 && (
               <>
                 <Text style={[styles.modLabel, { marginTop: spacing.sm }]}>Harder:</Text>
-                {ex.modifications.harder.map((m, i) => (
+                {modifications.harder.map((m, i) => (
                   <Text key={i} style={styles.stepText}>{'\u2022'} {m}</Text>
                 ))}
               </>
@@ -264,27 +309,27 @@ export default function ExerciseDetail() {
           </CollapsibleSection>
         )}
 
-        {(ex.primaryMuscles.length > 0 || ex.secondaryMuscles.length > 0) && (
+        {(primaryMuscles.length > 0 || secondaryMuscles.length > 0) && (
           <CollapsibleSection title="Muscles Worked">
-            {ex.primaryMuscles.length > 0 && (
+            {primaryMuscles.length > 0 && (
               <View style={styles.muscleRow}>
                 <Text style={styles.muscleLabel}>Primary: </Text>
-                <Text style={styles.muscleValue}>{ex.primaryMuscles.join(', ')}</Text>
+                <Text style={styles.muscleValue}>{primaryMuscles.join(', ')}</Text>
               </View>
             )}
-            {ex.secondaryMuscles.length > 0 && (
+            {secondaryMuscles.length > 0 && (
               <View style={styles.muscleRow}>
                 <Text style={styles.muscleLabel}>Secondary: </Text>
-                <Text style={styles.muscleSecondary}>{ex.secondaryMuscles.join(', ')}</Text>
+                <Text style={styles.muscleSecondary}>{secondaryMuscles.join(', ')}</Text>
               </View>
             )}
           </CollapsibleSection>
         )}
 
-        {(ex.safetyNotes || ex.contraindications.length > 0) && (
+        {(ex.safetyNotes || contraindications.length > 0) && (
           <CollapsibleSection title="Safety">
-            {ex.safetyNotes && <Text style={styles.safetyText}>{ex.safetyNotes}</Text>}
-            {ex.contraindications.map((c, i) => (
+            {ex.safetyNotes ? <Text style={styles.safetyText}>{ex.safetyNotes}</Text> : null}
+            {contraindications.map((c, i) => (
               <Text key={i} style={styles.mistakeText}>{'\u26A0\uFE0F'} {c}</Text>
             ))}
           </CollapsibleSection>
@@ -307,10 +352,13 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, paddingBottom: 100 },
   videoContainer: { width: '100%', aspectRatio: 16 / 9, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.cream10, marginBottom: spacing.md },
   video: { width: '100%', height: '100%' },
+  videoErrorOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 6, backgroundColor: 'rgba(0, 0, 0, 0.6)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
+  videoErrorFallback: { alignItems: 'center', justifyContent: 'center' },
+  videoErrorText: { fontSize: typography.sizes.xs, color: colors.fg.tertiary },
   heroImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: radius.md, marginBottom: spacing.md },
   badgeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   diffBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.xs },
-  diffBadgeText: { fontSize: typography.sizes.sm, color: colors.fg.primary, textTransform: 'capitalize', fontWeight: typography.weights.medium },
+  diffBadgeText: { fontSize: typography.sizes.sm, textTransform: 'capitalize', fontWeight: typography.weights.semibold },
   description: { fontSize: typography.sizes.base, color: colors.fg.secondary, lineHeight: 22, marginBottom: spacing.md },
   completionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: 'rgba(34, 197, 94, 0.08)', borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.lg },
   completionText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, flex: 1 },

@@ -27,7 +27,7 @@ const BANNER_WIDTH = SCREEN_WIDTH - spacing.md * 2;
 const BANNER_HEIGHT = BANNER_WIDTH / 2.5;
 
 async function getBanners(): Promise<Banner[]> {
-  const data = await apiFetch('/api/shop/banners', { skipAuth: true });
+  const data = await apiFetch('/api/shop/banners', { skipAuth: true }) as { banners?: Banner[] };
   return data.banners ?? [];
 }
 
@@ -47,10 +47,14 @@ export function BannerCarousel() {
   const startAutoScroll = () => {
     if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
     autoScrollTimer.current = setInterval(() => {
-      if (userScrolling.current) return;
+      if (userScrolling.current || banners.length <= 1) return;
       setCurrentIndex((prev) => {
         const next = (prev + 1) % banners.length;
-        flatListRef.current?.scrollToIndex({ index: next, animated: true });
+        try {
+          flatListRef.current?.scrollToIndex({ index: next, animated: true });
+        } catch {
+          // Ignore scroll errors (e.g., component unmounted)
+        }
         return next;
       });
     }, 5000);
@@ -100,13 +104,16 @@ export function BannerCarousel() {
             startAutoScroll();
           }, 8000);
         }}
+        onScrollToIndexFailed={() => {
+          // Silently handle scroll failures (can happen during rapid state changes)
+        }}
         getItemLayout={(_, index) => ({
           length: BANNER_WIDTH + spacing.sm,
           offset: (BANNER_WIDTH + spacing.sm) * index,
           index,
         })}
         renderItem={({ item }) => (
-          <Pressable onPress={() => handlePress(item)} style={styles.bannerCard}>
+          <Pressable onPress={() => handlePress(item)} style={styles.bannerCard} accessibilityLabel={`${item.title}${item.subtitle ? `, ${item.subtitle}` : ''}`} accessibilityRole="button">
             <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} resizeMode="cover" />
             <View style={styles.overlay} />
             <View style={styles.bannerContent}>

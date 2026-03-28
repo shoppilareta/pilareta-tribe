@@ -43,7 +43,7 @@ export function SizeGuideModal({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       {/* Backdrop */}
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close size guide" accessibilityRole="button" />
 
       {/* Content card from bottom */}
       <View style={styles.content}>
@@ -55,17 +55,23 @@ export function SizeGuideModal({ visible, onClose }: Props) {
               <Pressable
                 style={[styles.toggleButton, unit === 'in' && styles.toggleButtonActive]}
                 onPress={() => setUnit('in')}
+                accessibilityLabel="Show inches"
+                accessibilityRole="button"
+                accessibilityState={{ selected: unit === 'in' }}
               >
                 <Text style={[styles.toggleText, unit === 'in' && styles.toggleTextActive]}>Inches</Text>
               </Pressable>
               <Pressable
                 style={[styles.toggleButton, unit === 'cm' && styles.toggleButtonActive]}
                 onPress={() => setUnit('cm')}
+                accessibilityLabel="Show centimetres"
+                accessibilityRole="button"
+                accessibilityState={{ selected: unit === 'cm' }}
               >
                 <Text style={[styles.toggleText, unit === 'cm' && styles.toggleTextActive]}>cm</Text>
               </Pressable>
             </View>
-            <Pressable onPress={onClose} hitSlop={8}>
+            <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close size guide" accessibilityRole="button" style={styles.closeButton}>
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
                 <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
               </Svg>
@@ -127,6 +133,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  closeButton: {
+    padding: spacing.xs,
   },
   title: {
     fontSize: typography.sizes.lg,

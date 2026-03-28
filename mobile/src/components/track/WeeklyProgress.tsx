@@ -17,12 +17,12 @@ export function WeeklyProgress({ progress, weeklyWorkoutGoal }: WeeklyProgressPr
   const todayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   const workoutsThisWeek = progress.filter(Boolean).length;
   const goalDays = weeklyWorkoutGoal ?? 7;
-  const progressPercent = (workoutsThisWeek / goalDays) * 100;
+  const progressPercent = goalDays > 0 ? (workoutsThisWeek / goalDays) * 100 : 0;
 
   // Determine if on track: at current day of week, should have completed
   // at least 70% of the proportional goal
   const daysPassed = todayIndex + 1; // Mon=1 ... Sun=7
-  const expectedByNow = (goalDays / 7) * daysPassed;
+  const expectedByNow = goalDays > 0 ? (goalDays / 7) * daysPassed : 0;
   const onTrack = weeklyWorkoutGoal == null || workoutsThisWeek >= expectedByNow * 0.7;
 
   return (

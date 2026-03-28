@@ -22,20 +22,28 @@ export default function LogWorkout() {
     // Check if daily calorie target was met or streak milestone reached
     try {
       const stats = await getStats();
+      if (!stats) {
+        router.back();
+        return;
+      }
 
       // Check calorie goal
+      const dailyTarget = stats?.profile?.dailyCalorieTarget;
+      const todayCal = stats?.todayCalories;
       if (
-        stats?.profile?.dailyCalorieTarget &&
-        stats?.todayCalories >= stats.profile.dailyCalorieTarget
+        dailyTarget != null &&
+        dailyTarget > 0 &&
+        todayCal != null &&
+        todayCal >= dailyTarget
       ) {
         setCelebrationMessage(undefined);
         setShowCelebration(true);
-        return; // Don't navigate back yet — celebration will dismiss
+        return; // Don't navigate back yet -- celebration will dismiss
       }
 
       // Check streak milestones
       const currentStreak = stats?.stats?.currentStreak;
-      if (currentStreak && STREAK_MILESTONES.includes(currentStreak)) {
+      if (currentStreak != null && currentStreak > 0 && STREAK_MILESTONES.includes(currentStreak)) {
         setCelebrationMessage(`${currentStreak}-day streak milestone!`);
         setShowCelebration(true);
         return;

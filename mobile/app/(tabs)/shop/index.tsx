@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, SectionList, Pressable, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,7 +41,7 @@ function categorizeProduct(product: ShopifyProduct): string {
   // Primary: use Shopify collection data
   if (product.collections && product.collections.length > 0) {
     for (const col of product.collections) {
-      const title = col.title.trim();
+      const title = (col.title ?? '').trim();
       // Use the collection title directly as category name
       if (title) return title;
     }
@@ -58,7 +58,7 @@ function categorizeProduct(product: ShopifyProduct): string {
   }
 
   // Fallback: title keywords
-  const title = product.title.toLowerCase();
+  const title = (product.title ?? '').toLowerCase();
   for (const [keyword, label] of Object.entries(FALLBACK_LABELS)) {
     if (title.includes(keyword)) return label;
   }
@@ -82,6 +82,7 @@ export default function ShopScreen() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortOption, setSortOption] = useState<'default' | 'price-asc' | 'price-desc'>('default');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const pillScrollRef = useRef<ScrollView>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -92,7 +93,12 @@ export default function ShopScreen() {
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+      // Reset category and scroll pills back to start on new search
+      setActiveCategory(null);
+      pillScrollRef.current?.scrollTo({ x: 0, animated: true });
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -142,8 +148,8 @@ export default function ShopScreen() {
     // Sort by price if needed
     if (sortOption !== 'default') {
       filtered = [...filtered].sort((a, b) => {
-        const priceA = parseFloat(a.priceRange.minVariantPrice.amount);
-        const priceB = parseFloat(b.priceRange.minVariantPrice.amount);
+        const priceA = parseFloat(a.priceRange?.minVariantPrice?.amount ?? '0');
+        const priceB = parseFloat(b.priceRange?.minVariantPrice?.amount ?? '0');
         return sortOption === 'price-asc' ? priceA - priceB : priceB - priceA;
       });
     }
@@ -189,17 +195,19 @@ export default function ShopScreen() {
             }}
             style={styles.cartButton}
             hitSlop={8}
+            accessibilityLabel="My orders"
+            accessibilityRole="button"
           >
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
               <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
           </Pressable>
-          <Pressable onPress={() => router.push('/(tabs)/shop/wishlist')} style={styles.cartButton} hitSlop={8}>
+          <Pressable onPress={() => router.push('/(tabs)/shop/wishlist')} style={styles.cartButton} hitSlop={8} accessibilityLabel="Wishlist" accessibilityRole="button">
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
               <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
           </Pressable>
-          <Pressable onPress={() => router.push('/(tabs)/shop/cart')} style={styles.cartButton} hitSlop={8}>
+          <Pressable onPress={() => router.push('/(tabs)/shop/cart')} style={styles.cartButton} hitSlop={8} accessibilityLabel={`Cart${cartCount > 0 ? `, ${cartCount} items` : ''}`} accessibilityRole="button">
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
               <Path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
@@ -225,9 +233,10 @@ export default function ShopScreen() {
           onChangeText={setSearchQuery}
           returnKeyType="search"
           autoCorrect={false}
+          accessibilityLabel="Search products"
         />
         {searchQuery.length > 0 && (
-          <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+          <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={2}>
               <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
@@ -239,10 +248,16 @@ export default function ShopScreen() {
       {categoryNames.length > 1 && (
         <View style={styles.pillBar}>
           <View style={styles.pillRow}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillScroll} style={{ flex: 1 }}>
+            <ScrollView ref={pillScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillScroll} style={{ flex: 1 }}>
               <Pressable
                 style={[styles.pill, !activeCategory && styles.pillActive]}
-                onPress={() => setActiveCategory(null)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setActiveCategory(null);
+                }}
+                accessibilityLabel="All categories"
+                accessibilityRole="button"
+                accessibilityState={{ selected: !activeCategory }}
               >
                 <Text style={[styles.pillText, !activeCategory && styles.pillTextActive]}>All</Text>
               </Pressable>
@@ -250,7 +265,13 @@ export default function ShopScreen() {
                 <Pressable
                   key={cat}
                   style={[styles.pill, activeCategory === cat && styles.pillActive]}
-                  onPress={() => setActiveCategory(activeCategory === cat ? null : cat)}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setActiveCategory(activeCategory === cat ? null : cat);
+                  }}
+                  accessibilityLabel={`${cat} category`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: activeCategory === cat }}
                 >
                   <Text style={[styles.pillText, activeCategory === cat && styles.pillTextActive]}>{cat}</Text>
                 </Pressable>
@@ -258,7 +279,12 @@ export default function ShopScreen() {
             </ScrollView>
             <Pressable
               style={styles.sortButton}
-              onPress={() => setShowSortMenu(!showSortMenu)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowSortMenu(!showSortMenu);
+              }}
+              accessibilityLabel="Sort products"
+              accessibilityRole="button"
             >
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={sortOption !== 'default' ? colors.fg.primary : colors.fg.tertiary} strokeWidth={2}>
                 <Path d="M3 6h18M6 12h12M9 18h6" strokeLinecap="round" />
@@ -284,7 +310,7 @@ export default function ShopScreen() {
               <Pressable
                 key={opt.value}
                 style={[styles.sortMenuItem, sortOption === opt.value && styles.sortMenuItemActive]}
-                onPress={() => { setSortOption(opt.value); setShowSortMenu(false); }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSortOption(opt.value); setShowSortMenu(false); }}
               >
                 <Text style={[styles.sortMenuText, sortOption === opt.value && styles.sortMenuTextActive]}>
                   {opt.label}
@@ -302,7 +328,7 @@ export default function ShopScreen() {
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>Something went wrong</Text>
           <Text style={styles.emptyText}>We couldn't load the shop. Please try again.</Text>
-          <Pressable onPress={() => refetch()} style={styles.retryButton}>
+          <Pressable onPress={() => refetch()} style={styles.retryButton} accessibilityLabel="Retry loading products" accessibilityRole="button">
             <Text style={styles.retryButtonText}>Retry</Text>
           </Pressable>
         </View>

@@ -99,7 +99,7 @@ export default function RecapScreen() {
   }
 
   const log = logData.log;
-  const streak = statsData?.stats?.currentStreak || 0;
+  const streak = statsData?.stats?.currentStreak ?? 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -130,7 +130,7 @@ export default function RecapScreen() {
             studioName={log.studio?.name || log.customStudioName}
             sessionName={log.session?.name}
             currentStreak={streak}
-            focusAreas={log.focusAreas}
+            focusAreas={log.focusAreas ?? []}
           />
         </ViewShot>
       </View>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   viewShot: {
     backgroundColor: '#202219',
-    borderRadius: 16,
+    borderRadius: 20,
   },
   actions: {
     flexDirection: 'row',

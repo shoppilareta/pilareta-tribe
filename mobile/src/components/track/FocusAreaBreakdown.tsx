@@ -29,10 +29,20 @@ export function FocusAreaBreakdown({ focusAreaCounts }: FocusAreaBreakdownProps)
   if (!focusAreaCounts) return null;
 
   const entries = Object.entries(focusAreaCounts)
+    .filter(([, count]) => count > 0)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5);
 
-  if (entries.length === 0) return null;
+  if (entries.length === 0) {
+    return (
+      <Card padding="md">
+        <Text style={styles.title}>Focus Areas</Text>
+        <Text style={styles.emptyText}>
+          No focus area data yet. Add focus areas when logging workouts.
+        </Text>
+      </Card>
+    );
+  }
 
   const total = entries.reduce((sum, [, count]) => sum + count, 0);
 
@@ -43,14 +53,14 @@ export function FocusAreaBreakdown({ focusAreaCounts }: FocusAreaBreakdownProps)
       <View style={styles.bars}>
         {entries.map(([area, count], index) => {
           const percent = total > 0 ? Math.round((count / total) * 100) : 0;
-          const label = AREA_LABELS[area] || area.charAt(0).toUpperCase() + area.slice(1);
+          const label = AREA_LABELS[area] || area.charAt(0).toUpperCase() + area.slice(1).replace(/_/g, ' ');
           const barColor = BAR_COLORS[index % BAR_COLORS.length];
 
           return (
             <View key={area} style={styles.barRow}>
               <Text style={styles.barLabel}>{label}</Text>
               <View style={styles.barTrack}>
-                <View style={[styles.barFill, { width: `${percent}%`, backgroundColor: barColor }]} />
+                <View style={[styles.barFill, { width: `${Math.max(percent, 2)}%`, backgroundColor: barColor }]} />
               </View>
               <Text style={styles.barPercent}>{percent}%</Text>
             </View>
@@ -67,6 +77,11 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
     color: colors.fg.primary,
     marginBottom: spacing.md,
+  },
+  emptyText: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.tertiary,
+    fontStyle: 'italic',
   },
   bars: {
     gap: spacing.sm,

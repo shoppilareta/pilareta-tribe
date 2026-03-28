@@ -1,13 +1,29 @@
+import { useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, typography, spacing, radius } from '@/theme';
+import { useAuthStore } from '@/stores/authStore';
 
 interface AuthPromptProps {
   action: string; // e.g., "save favorites", "track workouts", "post to community"
+  onAuthenticated?: () => void;
 }
 
-export function AuthPrompt({ action }: AuthPromptProps) {
+export function AuthPrompt({ action, onAuthenticated }: AuthPromptProps) {
   const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const wasAuthenticatedRef = useRef(isAuthenticated);
+
+  // When the user returns from login and becomes authenticated, navigate back
+  useEffect(() => {
+    if (!wasAuthenticatedRef.current && isAuthenticated) {
+      // User just authenticated -- trigger callback or dismiss
+      if (onAuthenticated) {
+        onAuthenticated();
+      }
+    }
+    wasAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated, onAuthenticated]);
 
   return (
     <View style={styles.container}>

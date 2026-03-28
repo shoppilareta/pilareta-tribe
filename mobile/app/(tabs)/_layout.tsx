@@ -1,8 +1,10 @@
+import { useEffect, useRef } from 'react';
 import { Tabs } from 'expo-router';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, typography } from '@/theme';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Line } from 'react-native-svg';
+import { useCartStore } from '@/stores/cartStore';
 
 function TrackIcon({ color, size }: { color: string; size: number }) {
   return (
@@ -51,7 +53,41 @@ function ShopIcon({ color, size }: { color: string; size: number }) {
   );
 }
 
+/** Animated tab bar button with a subtle scale effect on press/switch */
+function AnimatedTabBarButton(props: any) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePress = (e: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Quick scale-down-up animation on tab switch
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.88,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 200,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    props.onPress?.(e);
+  };
+
+  return (
+    <Pressable {...props} onPress={handlePress}>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }], flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        {props.children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export default function TabLayout() {
+  const cartItemCount = useCartStore((s) => s.lines.reduce((sum, line) => sum + line.quantity, 0));
+
   return (
     <Tabs
       screenOptions={{
@@ -61,15 +97,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.tabBar.inactive,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
-        tabBarButton: (props) => (
-          <Pressable
-            {...props}
-            onPress={(e) => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              props.onPress?.(e);
-            }}
-          />
-        ),
+        tabBarButton: (props) => <AnimatedTabBarButton {...props} />,
       }}
     >
       <Tabs.Screen
@@ -78,6 +106,8 @@ export default function TabLayout() {
           title: 'Shop',
           tabBarIcon: ({ color }) => <ShopIcon color={color} size={22} />,
           tabBarAccessibilityLabel: 'Shop merchandise',
+          tabBarBadge: cartItemCount > 0 ? cartItemCount : undefined,
+          tabBarBadgeStyle: cartItemCount > 0 ? styles.badge : undefined,
         }}
       />
       <Tabs.Screen
@@ -132,5 +162,13 @@ const styles = StyleSheet.create({
   },
   tabBarItem: {
     paddingVertical: 4,
+  },
+  badge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    fontSize: 10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    lineHeight: 18,
   },
 });

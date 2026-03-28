@@ -19,12 +19,13 @@ interface ProductCardProps {
 
 export const ProductCard = memo(function ProductCard({ product, isWishlisted, onToggleWishlist }: ProductCardProps) {
   const image = product.images?.[0];
-  const price = product.priceRange.minVariantPrice;
-  const hasMultiplePrices = product.priceRange.minVariantPrice.amount !== product.priceRange.maxVariantPrice.amount;
-  const inStock = product.availableForSale !== false && product.variants.some((v) => v.availableForSale);
+  const price = product.priceRange?.minVariantPrice ?? { amount: '0', currencyCode: 'INR' };
+  const maxPrice = product.priceRange?.maxVariantPrice ?? price;
+  const hasMultiplePrices = price.amount !== maxPrice.amount;
+  const inStock = product.availableForSale !== false && product.variants?.some((v) => v.availableForSale);
 
   const { hasSale, savePercent, compareAtPrice } = useMemo(() => {
-    const firstAvailable = product.variants.find((v) => v.availableForSale);
+    const firstAvailable = (product.variants ?? []).find((v) => v.availableForSale);
     if (
       firstAvailable?.compareAtPrice &&
       parseFloat(firstAvailable.compareAtPrice.amount) > parseFloat(firstAvailable.price.amount)
@@ -42,7 +43,7 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
 
   const colorSwatches = useMemo(() => {
     const seen = new Map<string, string | undefined>();
-    for (const v of product.variants) {
+    for (const v of product.variants ?? []) {
       for (const opt of v.selectedOptions ?? []) {
         const isColor = opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour';
         if (isColor && !seen.has(opt.value)) {
@@ -54,7 +55,7 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
   }, [product.variants]);
 
   const lowStockCount = useMemo(() => {
-    const firstAvailable = product.variants.find((v) => v.availableForSale);
+    const firstAvailable = (product.variants ?? []).find((v) => v.availableForSale);
     if (firstAvailable?.quantityAvailable != null && firstAvailable.quantityAvailable > 0 && firstAvailable.quantityAvailable < 5) {
       return firstAvailable.quantityAvailable;
     }
@@ -67,7 +68,7 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
 
   // Single-variant = exactly 1 variant that's available for sale
   const quickAddVariant = useMemo(() => {
-    const available = product.variants.filter((v: any) => v.availableForSale !== false);
+    const available = (product.variants ?? []).filter((v: any) => v.availableForSale !== false);
     return available.length === 1 ? available[0] : null;
   }, [product.variants]);
 
@@ -87,7 +88,11 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
   };
 
   return (
-    <Pressable onPress={() => router.push({ pathname: '/(tabs)/shop/[handle]', params: { handle: product.handle } })}>
+    <Pressable
+      onPress={() => router.push({ pathname: '/(tabs)/shop/[handle]', params: { handle: product.handle } })}
+      accessibilityLabel={`${product.title}, ${formatPrice(price.amount, price.currencyCode)}${!inStock ? ', sold out' : ''}`}
+      accessibilityRole="button"
+    >
       <Card style={styles.card}>
         <View style={styles.imageContainer}>
           {image ? (
@@ -112,6 +117,8 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
                 onToggleWishlist(product.handle);
               }}
               hitSlop={6}
+              accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+              accessibilityRole="button"
             >
               <Svg width={18} height={18} viewBox="0 0 24 24" fill={isWishlisted ? colors.error : 'none'} stroke={isWishlisted ? colors.error : colors.bg.primary} strokeWidth={2}>
                 <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
@@ -125,12 +132,15 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
           )}
           {quickAddVariant && product.availableForSale && (
             <Pressable
-              style={styles.quickAddButton}
+              style={[styles.quickAddButton, isAdding && { opacity: 0.7 }]}
               onPress={(e) => {
                 e.stopPropagation();
                 handleQuickAdd();
               }}
               hitSlop={4}
+              disabled={isAdding}
+              accessibilityLabel="Quick add to cart"
+              accessibilityRole="button"
             >
               {isAdding ? (
                 <ActivityIndicator size="small" color={colors.bg.primary} />
@@ -156,7 +166,7 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
           ) : (
             <Text style={styles.price}>
               {hasMultiplePrices
-                ? `${formatPrice(price.amount, price.currencyCode)} - ${formatPrice(product.priceRange.maxVariantPrice.amount, product.priceRange.maxVariantPrice.currencyCode)}`
+                ? `${formatPrice(price.amount, price.currencyCode)} - ${formatPrice(maxPrice.amount, maxPrice.currencyCode)}`
                 : formatPrice(price.amount, price.currencyCode)}
             </Text>
           )}

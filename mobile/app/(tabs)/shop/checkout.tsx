@@ -31,7 +31,7 @@ export default function CheckoutScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.closeButton}>
+        <Pressable onPress={() => router.back()} style={styles.closeButton} accessibilityLabel="Close checkout" accessibilityRole="button">
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
             <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
@@ -68,10 +68,10 @@ export default function CheckoutScreen() {
         <View style={styles.errorOverlay}>
           <Text style={styles.errorTitle}>Connection Issue</Text>
           <Text style={styles.errorSubtitle}>Please check your internet and try again</Text>
-          <Pressable style={styles.retryButton} onPress={() => { setWebViewError(false); webViewRef.current?.reload(); }}>
+          <Pressable style={styles.retryButton} onPress={() => { setWebViewError(false); setLoading(true); webViewRef.current?.reload(); }} accessibilityLabel="Retry loading checkout" accessibilityRole="button">
             <Text style={styles.retryButtonText}>Retry</Text>
           </Pressable>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Go back to cart" accessibilityRole="button">
             <Text style={styles.backButtonText}>Back to Cart</Text>
           </Pressable>
         </View>

@@ -25,8 +25,17 @@ try {
   // Not available
 }
 
+type LoadingButton = 'email' | 'apple' | 'facebook' | null;
+
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === 'Network request failed') return true;
+  if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'NetworkError') return true;
+  return false;
+}
+
 export default function LoginScreen() {
-  const [loading, setLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState<LoadingButton>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { setTokens, setUser } = useAuthStore();
 
   const navigateAfterLogin = () => {
@@ -37,9 +46,12 @@ export default function LoginScreen() {
     }
   };
 
+  const clearError = () => setErrorMessage(null);
+
   // Email login (Shopify OAuth)
   const handleEmailLogin = async () => {
     setLoading('email');
+    clearError();
     try {
       const { authUrl, state, codeVerifier } = await initiateLogin();
 
@@ -48,8 +60,14 @@ export default function LoginScreen() {
         'pilareta://auth/callback'
       );
 
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        // User cancelled -- no error to show
+        setLoading(null);
+        return;
+      }
+
       if (result.type !== 'success' || !result.url) {
-        console.warn('Email auth session result:', result.type, result);
+        setErrorMessage('Sign in was cancelled. Please try again.');
         setLoading(null);
         return;
       }
@@ -59,7 +77,7 @@ export default function LoginScreen() {
       const returnedState = url.searchParams.get('state');
 
       if (!code || returnedState !== state) {
-        Alert.alert('Sign In Failed', 'Authentication was cancelled or failed. Please try again.');
+        setErrorMessage('Authentication was cancelled or failed. Please try again.');
         setLoading(null);
         return;
       }
@@ -75,7 +93,11 @@ export default function LoginScreen() {
       navigateAfterLogin();
     } catch (error) {
       console.error('Login error:', error);
-      Alert.alert('Sign In Failed', 'Something went wrong. Please try again.');
+      if (isNetworkError(error)) {
+        setErrorMessage('No internet connection. Please check your network and try again.');
+      } else {
+        setErrorMessage('Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(null);
     }
@@ -85,6 +107,7 @@ export default function LoginScreen() {
   const handleAppleLogin = async () => {
     if (!AppleAuthentication) return;
     setLoading('apple');
+    clearError();
     try {
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -94,7 +117,7 @@ export default function LoginScreen() {
       });
 
       if (!credential.identityToken) {
-        Alert.alert('Sign In Failed', 'Could not get Apple identity token.');
+        setErrorMessage('Could not get Apple identity token. Please try again.');
         setLoading(null);
         return;
       }
@@ -120,9 +143,13 @@ export default function LoginScreen() {
       await setUser(user);
       navigateAfterLogin();
     } catch (error: any) {
-      if (error?.code !== 'ERR_REQUEST_CANCELED') {
+      if (error?.code === 'ERR_REQUEST_CANCELED' || error?.code === 'ERR_CANCELED') {
+        // User cancelled Apple auth -- no error to show
+      } else if (isNetworkError(error)) {
+        setErrorMessage('No internet connection. Please check your network and try again.');
+      } else {
         console.error('Apple login error:', error);
-        Alert.alert('Sign In Failed', 'Apple sign in failed. Please try again.');
+        setErrorMessage('Apple sign in failed. Please try again.');
       }
     } finally {
       setLoading(null);
@@ -132,13 +159,20 @@ export default function LoginScreen() {
   // Facebook Sign In
   const handleFacebookLogin = async () => {
     setLoading('facebook');
+    clearError();
     try {
       const result = await WebBrowser.openAuthSessionAsync(
         `https://www.facebook.com/v18.0/dialog/oauth?client_id=${process.env.EXPO_PUBLIC_FACEBOOK_APP_ID || ''}&redirect_uri=${encodeURIComponent('pilareta://auth/callback')}&scope=email,public_profile&response_type=token`,
         'pilareta://auth/callback'
       );
 
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        setLoading(null);
+        return;
+      }
+
       if (result.type !== 'success' || !result.url) {
+        setErrorMessage('Facebook sign in was cancelled. Please try again.');
         setLoading(null);
         return;
       }
@@ -149,7 +183,7 @@ export default function LoginScreen() {
       const fbToken = params.get('access_token');
 
       if (!fbToken) {
-        Alert.alert('Sign In Failed', 'Could not get Facebook access token.');
+        setErrorMessage('Could not get Facebook access token. Please try again.');
         setLoading(null);
         return;
       }
@@ -174,7 +208,11 @@ export default function LoginScreen() {
       navigateAfterLogin();
     } catch (error) {
       console.error('Facebook login error:', error);
-      Alert.alert('Sign In Failed', 'Facebook sign in failed. Please try again.');
+      if (isNetworkError(error)) {
+        setErrorMessage('No internet connection. Please check your network and try again.');
+      } else {
+        setErrorMessage('Facebook sign in failed. Please try again.');
+      }
     } finally {
       setLoading(null);
     }
@@ -203,9 +241,16 @@ export default function LoginScreen() {
           Sign in to track workouts, build streaks, and connect with the community.
         </Text>
 
+        {/* Error message display */}
+        {errorMessage && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        )}
+
         {/* Email login */}
         <Pressable
-          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+          style={[styles.loginButton, loading === 'email' && styles.loginButtonActive, isLoading && loading !== 'email' && styles.loginButtonDisabled]}
           onPress={handleEmailLogin}
           disabled={isLoading}
         >
@@ -226,7 +271,7 @@ export default function LoginScreen() {
         {/* Apple Sign In (iOS only) */}
         {showApple && (
           <Pressable
-            style={[styles.socialButton, styles.appleButton, isLoading && styles.loginButtonDisabled]}
+            style={[styles.socialButton, styles.appleButton, loading === 'apple' && styles.socialButtonActive, isLoading && loading !== 'apple' && styles.loginButtonDisabled]}
             onPress={handleAppleLogin}
             disabled={isLoading}
           >
@@ -245,7 +290,7 @@ export default function LoginScreen() {
 
         {/* Facebook Sign In */}
         <Pressable
-          style={[styles.socialButton, styles.facebookButton, isLoading && styles.loginButtonDisabled]}
+          style={[styles.socialButton, styles.facebookButton, loading === 'facebook' && styles.socialButtonActive, isLoading && loading !== 'facebook' && styles.loginButtonDisabled]}
           onPress={handleFacebookLogin}
           disabled={isLoading}
         >
@@ -301,6 +346,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     lineHeight: 22,
   },
+  errorContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  errorText: {
+    fontSize: typography.sizes.sm,
+    color: '#ef4444',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   loginButton: {
     width: '100%',
     backgroundColor: colors.button.primaryBg,
@@ -309,8 +370,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  loginButtonActive: {
+    opacity: 0.9,
+  },
   loginButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   loginButtonText: {
     fontSize: typography.sizes.md,
@@ -346,6 +410,9 @@ const styles = StyleSheet.create({
   socialButtonText: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
+  },
+  socialButtonActive: {
+    opacity: 0.9,
   },
   appleButton: {
     backgroundColor: '#000',

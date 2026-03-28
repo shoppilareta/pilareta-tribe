@@ -1,6 +1,7 @@
-import { useState, useRef, memo, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Image, Dimensions, Linking, Share, Animated } from 'react-native';
+import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, Dimensions, Linking, Share, Animated, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { Card } from '@/components/ui';
@@ -17,6 +18,7 @@ interface PostCardProps {
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const IMAGE_WIDTH = SCREEN_WIDTH - spacing.md * 2;
+const MAX_IMAGE_HEIGHT = SCREEN_WIDTH * 1.5; // Cap tall images at 1.5x width
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -40,12 +42,17 @@ function resolveMediaUrl(url: string | null): string | null {
 
 function CaptionText({ caption, displayName, postId }: { caption: string; displayName: string; postId: string }) {
   const parts = useMemo(() => {
-    const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
+    // Support @user_name, @user.name, @user-name, @username123
+    const mentionRegex = /@([a-zA-Z0-9][a-zA-Z0-9_.\-]*[a-zA-Z0-9]|[a-zA-Z0-9])/g;
     const result: (string | React.ReactElement)[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
     while ((match = mentionRegex.exec(caption)) !== null) {
+      // Skip if preceded by a word character (e.g. email addresses like user@domain)
+      if (match.index > 0 && /\w/.test(caption[match.index - 1])) {
+        continue;
+      }
       if (match.index > lastIndex) {
         result.push(caption.slice(lastIndex, match.index));
       }
@@ -80,22 +87,52 @@ function CaptionText({ caption, displayName, postId }: { caption: string; displa
 }
 
 export const PostCard = memo(function PostCard({ post, onInteraction }: PostCardProps) {
+  const queryClient = useQueryClient();
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [saved, setSaved] = useState(post.isSaved ?? false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   const [showHeartOverlay, setShowHeartOverlay] = useState(false);
   const heartScale = useRef(new Animated.Value(0)).current;
   const heartOpacity = useRef(new Animated.Value(0)).current;
   const lastTapRef = useRef(0);
+  const likePendingRef = useRef(false);
+  const savePendingRef = useRef(false);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
+
+  // Sync optimistic state with server data when post prop changes (fix #3)
+  useEffect(() => {
+    if (!likePendingRef.current) {
+      setLiked(post.isLiked ?? false);
+      setLikesCount(post.likesCount);
+    }
+  }, [post.isLiked, post.likesCount]);
+
+  useEffect(() => {
+    if (!savePendingRef.current) {
+      setSaved(post.isSaved ?? false);
+    }
+  }, [post.isSaved]);
 
   const displayName = post.user?.displayName || post.user?.firstName || 'Anonymous';
   const imageUrl = resolveMediaUrl(post.mediaUrl) || resolveMediaUrl(post.thumbnailUrl);
   const aspectRatio = post.aspectRatio || 1;
+  // Maintain aspect ratio but clamp height (fix: not all square)
+  const imageHeight = Math.min(IMAGE_WIDTH / aspectRatio, MAX_IMAGE_HEIGHT);
 
   const handleImageError = useCallback(() => {
     setImageFailed(true);
+    setImageLoading(false);
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoading(false);
+  }, []);
+
+  const handleRetryImage = useCallback(() => {
+    setImageFailed(false);
+    setImageLoading(true);
   }, []);
 
   const handleShare = useCallback(async () => {
@@ -110,9 +147,19 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
 
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Cleanup tap timer on unmount
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
+    const DOUBLE_TAP_DELAY = 250;
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
       // Double tap detected - cancel the pending single tap navigation
       if (singleTapTimerRef.current) {
         clearTimeout(singleTapTimerRef.current);
@@ -121,11 +168,14 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
       if (!isLoggedIn) return;
       if (!liked) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        likePendingRef.current = true;
         setLiked(true);
         setLikesCount((c) => c + 1);
         likePost(post.id).catch(() => {
           setLiked(false);
           setLikesCount((c) => c - 1);
+        }).finally(() => {
+          likePendingRef.current = false;
         });
         onInteraction?.();
       }
@@ -138,19 +188,20 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
         Animated.timing(heartOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
       ]).start(() => setShowHeartOverlay(false));
     } else {
-      // First tap - schedule navigation after delay
+      // First tap - schedule navigation after delay (reduced for snappier feel)
       singleTapTimerRef.current = setTimeout(() => {
         router.push(`/(tabs)/community/${post.id}`);
         singleTapTimerRef.current = null;
-      }, 300);
+      }, DOUBLE_TAP_DELAY);
     }
     lastTapRef.current = now;
   }, [liked, isLoggedIn, post.id, heartScale, heartOpacity, onInteraction]);
 
   const handleLike = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || likePendingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const wasLiked = liked;
+    likePendingRef.current = true;
     setLiked(!wasLiked);
     setLikesCount((c) => c + (wasLiked ? -1 : 1));
     try {
@@ -163,13 +214,16 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
     } catch {
       setLiked(wasLiked);
       setLikesCount((c) => c + (wasLiked ? 1 : -1));
+    } finally {
+      likePendingRef.current = false;
     }
   };
 
   const handleSave = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || savePendingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const wasSaved = saved;
+    savePendingRef.current = true;
     setSaved(!wasSaved);
     try {
       if (wasSaved) {
@@ -177,9 +231,13 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
       } else {
         await savePost(post.id);
       }
+      // Invalidate saved posts cache so the Saved tab refreshes (fix #10)
+      queryClient.invalidateQueries({ queryKey: ['community-saved'] });
       onInteraction?.();
     } catch {
       setSaved(wasSaved);
+    } finally {
+      savePendingRef.current = false;
     }
   };
 
@@ -208,12 +266,31 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
         {post.mediaType === 'instagram' && post.instagramUrl ? (
           <Pressable onPress={handleDoubleTap}>
             {imageUrl && !imageFailed ? (
-              <Image
-                source={{ uri: imageUrl }}
-                style={[styles.image, { width: IMAGE_WIDTH, height: IMAGE_WIDTH / aspectRatio }]}
-                resizeMode="cover"
-                onError={handleImageError}
-              />
+              <View>
+                {imageLoading && (
+                  <View style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: imageHeight }]}>
+                    <ActivityIndicator color={colors.fg.tertiary} />
+                  </View>
+                )}
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={[
+                    styles.image,
+                    { width: IMAGE_WIDTH, height: imageHeight },
+                    imageLoading && { position: 'absolute', opacity: 0 },
+                  ]}
+                  resizeMode="cover"
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+              </View>
+            ) : imageFailed ? (
+              <Pressable onPress={handleRetryImage} style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: IMAGE_WIDTH * 0.6 }]}>
+                <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
+                  <Path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.imageErrorText}>Tap to retry</Text>
+              </Pressable>
             ) : (
               <View style={[styles.instagramPlaceholder, { width: IMAGE_WIDTH }]}>
                 <Text style={styles.instagramLabel}>Instagram Post</Text>
@@ -223,20 +300,33 @@ export const PostCard = memo(function PostCard({ post, onInteraction }: PostCard
           </Pressable>
         ) : imageUrl && !imageFailed ? (
           <Pressable onPress={handleDoubleTap}>
+            {imageLoading && (
+              <View style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: imageHeight }]}>
+                <ActivityIndicator color={colors.fg.tertiary} />
+              </View>
+            )}
             <Image
               source={{ uri: imageUrl }}
-              style={[styles.image, { width: IMAGE_WIDTH, height: IMAGE_WIDTH / aspectRatio }]}
+              style={[
+                styles.image,
+                { width: IMAGE_WIDTH, height: imageHeight },
+                imageLoading && { position: 'absolute', opacity: 0 },
+              ]}
               resizeMode="cover"
+              onLoad={handleImageLoad}
               onError={handleImageError}
             />
           </Pressable>
-        ) : !imageUrl ? null : (
-          <Pressable onPress={() => router.push(`/(tabs)/community/${post.id}`)}>
-            <View style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: IMAGE_WIDTH }]}>
-              <Text style={styles.instagramLabel}>Image unavailable</Text>
+        ) : imageUrl && imageFailed ? (
+          <Pressable onPress={handleRetryImage}>
+            <View style={[styles.imagePlaceholder, { width: IMAGE_WIDTH, height: IMAGE_WIDTH * 0.6 }]}>
+              <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
+                <Path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+              <Text style={styles.imageErrorText}>Tap to retry</Text>
             </View>
           </Pressable>
-        )}
+        ) : null}
         {/* Heart overlay for double-tap */}
         {showHeartOverlay && (
           <Animated.View
@@ -321,6 +411,7 @@ const styles = StyleSheet.create({
   studioText: { fontSize: 10, color: colors.fg.tertiary },
   image: { backgroundColor: colors.cream05 },
   imagePlaceholder: { backgroundColor: colors.cream05, alignItems: 'center', justifyContent: 'center' },
+  imageErrorText: { fontSize: typography.sizes.sm, color: colors.fg.muted, marginTop: spacing.xs },
   instagramPlaceholder: { height: 200, backgroundColor: colors.cream05, alignItems: 'center', justifyContent: 'center' },
   instagramLabel: { fontSize: typography.sizes.base, color: colors.fg.secondary, fontWeight: typography.weights.medium },
   instagramHint: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, marginTop: 4 },

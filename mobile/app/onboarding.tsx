@@ -152,20 +152,16 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Skip button */}
+      {/* Skip button - visible on all pages */}
       <View style={styles.topBar}>
-        {!isLastPage ? (
-          <Pressable
-            onPress={handleSkip}
-            style={styles.skipButton}
-            accessibilityLabel="Skip onboarding"
-            accessibilityRole="button"
-          >
-            <Text style={styles.skipText}>Skip</Text>
-          </Pressable>
-        ) : (
-          <View style={{ width: 60 }} />
-        )}
+        <Pressable
+          onPress={handleSkip}
+          style={styles.skipButton}
+          accessibilityLabel="Skip onboarding"
+          accessibilityRole="button"
+        >
+          <Text style={styles.skipText}>Skip</Text>
+        </Pressable>
       </View>
 
       {/* Pages */}

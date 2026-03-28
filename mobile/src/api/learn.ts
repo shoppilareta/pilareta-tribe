@@ -35,7 +35,12 @@ export async function getSession(id: string): Promise<{ session: PilatesSession 
 }
 
 export async function getExerciseCompletionStats(slug: string): Promise<{ completionCount: number; lastCompletedAt: string | null }> {
-  return apiFetch(`/api/learn/exercises/${slug}/stats`);
+  try {
+    return await apiFetch(`/api/learn/exercises/${slug}/stats`);
+  } catch {
+    // Return safe defaults when stats fail (user not logged in, network error, etc.)
+    return { completionCount: 0, lastCompletedAt: null };
+  }
 }
 
 export async function getProgramProgress(slug: string): Promise<{
@@ -45,5 +50,10 @@ export async function getProgramProgress(slug: string): Promise<{
     status: string;
   } | null;
 }> {
-  return apiFetch(`/api/learn/programs/${slug}/progress`);
+  try {
+    return await apiFetch(`/api/learn/programs/${slug}/progress`);
+  } catch {
+    // Return null progress when the endpoint fails (user not logged in, etc.)
+    return { progress: null };
+  }
 }

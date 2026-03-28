@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getStudioFavorites, addStudioFavorite, removeStudioFavorite } from '@/api/studios';
 import { useAuthStore } from '@/stores/authStore';
@@ -11,10 +11,11 @@ export function useStudioFavorites() {
     queryKey: ['studioFavorites'],
     queryFn: getStudioFavorites,
     enabled: isAuthenticated,
+    staleTime: 30_000, // Consider data fresh for 30s to reduce refetches
   });
 
   const favoriteIds = data?.studioIds ?? [];
-  const favoriteSet = new Set(favoriteIds);
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   const toggleMutation = useMutation({
     mutationFn: async (studioId: string) => {
@@ -24,6 +25,7 @@ export function useStudioFavorites() {
       return addStudioFavorite(studioId);
     },
     onMutate: async (studioId) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['studioFavorites'] });
       const prev = queryClient.getQueryData<{ studioIds: string[] }>(['studioFavorites']);
       queryClient.setQueryData<{ studioIds: string[] }>(['studioFavorites'], (old) => {
@@ -49,7 +51,7 @@ export function useStudioFavorites() {
 
   const isFavorited = useCallback(
     (studioId: string) => favoriteSet.has(studioId),
-    [favoriteIds],
+    [favoriteSet],
   );
 
   const toggleFavorite = useCallback(

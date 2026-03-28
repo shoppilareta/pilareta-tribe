@@ -36,6 +36,13 @@ export const colors = {
   warning: 'rgba(234, 179, 8, 0.8)',
   error: 'rgba(239, 68, 68, 0.8)',
 
+  // Semantic namespace (alias for convenience)
+  semantic: {
+    success: 'rgba(34, 197, 94, 0.8)',
+    warning: 'rgba(234, 179, 8, 0.8)',
+    error: 'rgba(239, 68, 68, 0.8)',
+  },
+
   // RPE intensity scale
   rpe: {
     low: 'rgba(34, 197, 94, 0.8)',

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { colors, typography, spacing, radius } from '@/theme';
 import { updateGoals } from '@/api/track';
 import Svg, { Path } from 'react-native-svg';
@@ -72,6 +72,14 @@ export function GoalSettingModal({
   const [minuteGoal, setMinuteGoal] = useState(currentMinuteGoal ?? 150);
   const [saving, setSaving] = useState(false);
 
+  // Re-sync when modal opens with potentially new values
+  useEffect(() => {
+    if (visible) {
+      setWorkoutGoal(currentWorkoutGoal ?? 4);
+      setMinuteGoal(currentMinuteGoal ?? 150);
+    }
+  }, [visible, currentWorkoutGoal, currentMinuteGoal]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -82,7 +90,7 @@ export function GoalSettingModal({
       onSaved();
       onClose();
     } catch (error) {
-      console.error('Failed to save goals:', error);
+      Alert.alert('Error', 'Failed to save goals. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -98,7 +106,7 @@ export function GoalSettingModal({
       onSaved();
       onClose();
     } catch (error) {
-      console.error('Failed to clear goals:', error);
+      Alert.alert('Error', 'Failed to clear goals. Please try again.');
     } finally {
       setSaving(false);
     }

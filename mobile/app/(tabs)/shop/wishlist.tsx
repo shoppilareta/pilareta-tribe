@@ -35,6 +35,7 @@ export default function WishlistScreen() {
 
   const wishlistHandles = wishlistData?.handles ?? [];
   const allProducts = productsData?.products ?? [];
+  const wishlistCount = wishlistHandles.length;
 
   const wishlistedProducts = useMemo(() => {
     if (!wishlistHandles.length || !allProducts.length) return [];
@@ -89,10 +90,10 @@ export default function WishlistScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.headerBar}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8} accessibilityLabel="Go back" accessibilityRole="button">
             <BackArrow />
           </Pressable>
-          <Text style={styles.headerTitle}>My Wishlist</Text>
+          <Text style={styles.headerTitle}>My Wishlist{wishlistCount > 0 ? ` (${wishlistCount})` : ''}</Text>
           <View style={{ width: 36 }} />
         </View>
         <View style={styles.centered}>
@@ -114,10 +115,10 @@ export default function WishlistScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.headerBar}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8} accessibilityLabel="Go back" accessibilityRole="button">
             <BackArrow />
           </Pressable>
-          <Text style={styles.headerTitle}>My Wishlist</Text>
+          <Text style={styles.headerTitle}>My Wishlist{wishlistCount > 0 ? ` (${wishlistCount})` : ''}</Text>
           <View style={{ width: 36 }} />
         </View>
         <View style={styles.centered}>
@@ -132,10 +133,10 @@ export default function WishlistScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.headerBar}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8} accessibilityLabel="Go back" accessibilityRole="button">
             <BackArrow />
           </Pressable>
-          <Text style={styles.headerTitle}>My Wishlist</Text>
+          <Text style={styles.headerTitle}>My Wishlist{wishlistCount > 0 ? ` (${wishlistCount})` : ''}</Text>
           <View style={{ width: 36 }} />
         </View>
         <View style={styles.centered}>

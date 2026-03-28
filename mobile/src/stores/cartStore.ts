@@ -43,15 +43,15 @@ const CART_ID_KEY = 'pilareta_cart_id';
 // Extract cart state from API response to avoid repeating 9 lines in every action
 function setCartFromResponse(cart: any) {
   return {
-    cartId: cart.id,
-    lines: cart.lines,
-    checkoutUrl: cart.checkoutUrl,
-    totalAmount: cart.cost.totalAmount.amount,
-    subtotalAmount: cart.cost.subtotalAmount.amount,
-    taxAmount: cart.cost.totalTaxAmount?.amount ?? null,
-    currencyCode: cart.cost.totalAmount.currencyCode,
-    discountCode: cart.discountCodes?.[0]?.code || null,
-    discountAmount: cart.discountAllocations?.[0]?.discountedAmount?.amount || null,
+    cartId: cart?.id ?? null,
+    lines: cart?.lines ?? [],
+    checkoutUrl: cart?.checkoutUrl ?? null,
+    totalAmount: cart?.cost?.totalAmount?.amount ?? null,
+    subtotalAmount: cart?.cost?.subtotalAmount?.amount ?? null,
+    taxAmount: cart?.cost?.totalTaxAmount?.amount ?? null,
+    currencyCode: cart?.cost?.totalAmount?.currencyCode ?? 'INR',
+    discountCode: cart?.discountCodes?.[0]?.code || null,
+    discountAmount: cart?.discountAllocations?.[0]?.discountedAmount?.amount || null,
   };
 }
 

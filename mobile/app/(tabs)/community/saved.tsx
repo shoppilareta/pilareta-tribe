@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { router, useFocusEffect } from 'expo-router';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing } from '@/theme';
 import { PostCard } from '@/components/community';
@@ -10,6 +10,8 @@ import { getSavedPosts } from '@/api/community';
 import type { UgcPost } from '@shared/types';
 
 export default function SavedPosts() {
+  const queryClient = useQueryClient();
+
   const {
     data,
     fetchNextPage,
@@ -25,11 +27,23 @@ export default function SavedPosts() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
+  // Refetch saved posts when this screen gains focus (fix #10: not refreshing after unsaving)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
   const posts = data?.pages.flatMap((p) => p.posts) ?? [];
 
+  const handlePostInteraction = useCallback(() => {
+    // Invalidate and refetch so unsaved posts disappear
+    queryClient.invalidateQueries({ queryKey: ['community-saved'] });
+  }, [queryClient]);
+
   const renderPost = useCallback(({ item }: { item: UgcPost }) => (
-    <PostCard post={item} onInteraction={() => refetch()} />
-  ), [refetch]);
+    <PostCard post={item} onInteraction={handlePostInteraction} />
+  ), [handlePostInteraction]);
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -66,7 +80,13 @@ export default function SavedPosts() {
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.fg.primary} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.fg.primary}
+              title={isRefetching ? 'Refreshing...' : 'Pull to refresh'}
+              titleColor={colors.fg.tertiary}
+            />
           }
           ListFooterComponent={
             isFetchingNextPage ? <ActivityIndicator color={colors.fg.primary} style={styles.footerLoader} /> : null

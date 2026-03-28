@@ -11,35 +11,46 @@ interface StreakDisplayProps {
   lastWorkoutDate: string | null;
 }
 
+/** Parse a YYYY-MM-DD date string as local time (not UTC) */
+function parseLocalDate(dateStr: string): Date {
+  // Append T00:00:00 to force local timezone interpretation
+  const d = new Date(dateStr + 'T00:00:00');
+  return d;
+}
+
 function formatLastWorkout(dateStr: string | null): string {
   if (!dateStr) return 'Never';
 
-  const date = new Date(dateStr);
+  const logDate = parseLocalDate(dateStr.slice(0, 10));
+  if (isNaN(logDate.getTime())) return 'Unknown';
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  const logDate = new Date(date);
   logDate.setHours(0, 0, 0, 0);
 
   if (logDate.getTime() === today.getTime()) return 'Today';
   if (logDate.getTime() === yesterday.getTime()) return 'Yesterday';
 
   const diffDays = Math.floor((today.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 0) return 'Today'; // Future date edge case
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
 
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function isLastWorkoutYesterday(dateStr: string | null): boolean {
   if (!dateStr) return false;
+  const logDate = parseLocalDate(dateStr.slice(0, 10));
+  if (isNaN(logDate.getTime())) return false;
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  const logDate = new Date(dateStr);
   logDate.setHours(0, 0, 0, 0);
   return logDate.getTime() === yesterday.getTime();
 }

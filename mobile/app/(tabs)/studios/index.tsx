@@ -56,8 +56,12 @@ export default function StudiosScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Reset search on unfocus but preserve sort and filters
       return () => {
         setSearchQuery('');
+        setSearchLocation(null);
+        setShowSuggestions(false);
+        setSuggestions([]);
       };
     }, [])
   );
@@ -86,12 +90,15 @@ export default function StudiosScreen() {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };
       setUserLocation(coords);
-      setRegion({
+      const newRegion = {
         latitude: coords.lat,
         longitude: coords.lng,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
-      });
+      };
+      setRegion(newRegion);
+      // Animate map to user's location once obtained
+      mapRef.current?.animateToRegion(newRegion, 500);
     })();
   }, []);
 
@@ -158,9 +165,10 @@ export default function StudiosScreen() {
     }
     if (filters.amenities.length > 0) {
       const lowerAmenities = filters.amenities.map((a) => a.toLowerCase());
-      filtered = filtered.filter((s) =>
-        lowerAmenities.every((fa) => s.amenities.some((sa) => sa.toLowerCase() === fa))
-      );
+      filtered = filtered.filter((s) => {
+        const studioAmenities = s.amenities ?? [];
+        return lowerAmenities.every((fa) => studioAmenities.some((sa) => sa.toLowerCase() === fa));
+      });
     }
     if (sortOption === 'rating') {
       filtered = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
@@ -351,7 +359,7 @@ export default function StudiosScreen() {
 
         {/* Autocomplete suggestions dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <View style={styles.suggestionsDropdown}>
+          <ScrollView style={styles.suggestionsDropdown} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
             {suggestions.map((s, i) => (
               <Pressable
                 key={`${s.placeId}-${i}`}
@@ -364,7 +372,7 @@ export default function StudiosScreen() {
                 <Text style={styles.suggestionText} numberOfLines={1}>{s.name}</Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
         )}
       </View>
 
@@ -388,17 +396,19 @@ export default function StudiosScreen() {
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={styles.map}
-          region={region}
+          initialRegion={region}
           onRegionChangeComplete={setRegion}
           showsUserLocation
           showsMyLocationButton={false}
         >
-          {(studios ?? []).filter((s) => s.latitude && s.longitude).map((studio) => (
+          {(studios ?? []).filter((s) => s.latitude != null && s.longitude != null).map((studio) => (
             <Marker
               key={studio.id}
               coordinate={{ latitude: studio.latitude!, longitude: studio.longitude! }}
               title={studio.name}
-              description={studio.city}
+              description={studio.formattedAddress || studio.address || studio.city || ''}
+              onCalloutPress={() => router.push(`/(tabs)/studios/${studio.id}`)}
+              tracksViewChanges={false}
             />
           ))}
         </MapView>
@@ -444,6 +454,7 @@ export default function StudiosScreen() {
           renderItem={({ item }) => (
             <StudioCard
               studio={item}
+              userLocation={userLocation}
               isFavorited={isFavorited(item.id)}
               onToggleFavorite={handleToggleFavorite}
             />
@@ -621,6 +632,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     zIndex: 20,
     elevation: 5,
+    // Constrain max height to prevent overflowing the screen on small devices
+    maxHeight: 220,
   },
   suggestionItem: {
     flexDirection: 'row',

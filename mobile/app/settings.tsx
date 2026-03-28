@@ -338,7 +338,7 @@ function SettingsContent() {
           <View style={styles.card}>
             <Pressable
               style={styles.contactRow}
-              onPress={() => Linking.openURL('https://wa.me/919910220744?text=Hi%20Pilareta')}
+              onPress={() => Linking.openURL('https://wa.me/919910220744?text=Hi%20Pilareta%20%F0%9F%A7%98%E2%80%8D%E2%99%80%EF%B8%8F%0AI%27m%20reaching%20out%20from%20the%20Pilareta%20Tribe%20app.%20I%20need%20help%20with%3A%20')}
             >
               <View style={styles.settingIconRow}>
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.secondary} strokeWidth={1.5}>

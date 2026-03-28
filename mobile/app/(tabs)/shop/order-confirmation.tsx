@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +11,11 @@ export default function OrderConfirmationScreen() {
   const insets = useSafeAreaInsets();
   const { items } = useLocalSearchParams<{ items?: string }>();
   const itemCount = items ? parseInt(items, 10) : 0;
+
+  // Play success haptic on mount
+  useEffect(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 40 }]}>
@@ -31,11 +38,11 @@ export default function OrderConfirmationScreen() {
       <Text style={styles.delivery}>Estimated delivery: 5-7 business days</Text>
 
       {/* Buttons */}
-      <Pressable style={styles.primaryButton} onPress={() => router.replace('/(tabs)/shop')}>
+      <Pressable style={styles.primaryButton} onPress={() => router.replace('/(tabs)/shop')} accessibilityLabel="Continue shopping" accessibilityRole="button">
         <Text style={styles.primaryButtonText}>Continue Shopping</Text>
       </Pressable>
 
-      <Pressable style={styles.outlineButton} onPress={() => router.push('/orders')}>
+      <Pressable style={styles.outlineButton} onPress={() => router.push('/orders')} accessibilityLabel="View my orders" accessibilityRole="button">
         <Text style={styles.outlineButtonText}>View My Orders</Text>
       </Pressable>
     </View>

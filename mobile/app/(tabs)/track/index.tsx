@@ -15,7 +15,7 @@ import { GoalCard } from '@/components/track/GoalCard';
 import { FocusAreaBreakdown } from '@/components/track/FocusAreaBreakdown';
 import { TrendChart } from '@/components/track/TrendChart';
 import { PersonalRecords } from '@/components/track/PersonalRecords';
-import { Skeleton, StatsSkeleton, WorkoutCardSkeleton } from '@/components/ui';
+import { Skeleton } from '@/components/ui';
 import Svg, { Path } from 'react-native-svg';
 
 type ViewMode = 'dashboard' | 'calendar';
@@ -24,19 +24,17 @@ const logo = require('@/../../assets/images/logo.png');
 
 export default function TrackDashboard() {
   const { isAuthenticated, user } = useAuthStore();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const insets = useSafeAreaInsets();
 
   const { data, isLoading, isRefetching, refetch } = useQuery({
-    queryKey: ['track-stats', refreshKey],
+    queryKey: ['track-stats'],
     queryFn: getStats,
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 2,
   });
 
   const onRefresh = useCallback(() => {
-    setRefreshKey((k) => k + 1);
     refetch();
   }, [refetch]);
 
@@ -102,7 +100,7 @@ export default function TrackDashboard() {
   }
 
   const stats = data?.stats;
-  const weeklyProgress = data?.weeklyProgress || [];
+  const weeklyProgress = Array.isArray(data?.weeklyProgress) ? data.weeklyProgress : [];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -169,7 +167,7 @@ export default function TrackDashboard() {
               <View style={styles.section}><Skeleton width="100%" height={100} borderRadius={12} /></View>
             ) : stats ? (
               <View style={styles.section}>
-                <StreakDisplay currentStreak={stats.currentStreak} longestStreak={stats.longestStreak} lastWorkoutDate={stats.lastWorkoutDate} />
+                <StreakDisplay currentStreak={stats.currentStreak ?? 0} longestStreak={stats.longestStreak ?? 0} lastWorkoutDate={stats.lastWorkoutDate ?? null} />
               </View>
             ) : null}
 
@@ -180,7 +178,7 @@ export default function TrackDashboard() {
                   weeklyWorkoutGoal={stats.weeklyWorkoutGoal}
                   weeklyMinuteGoal={stats.weeklyMinuteGoal}
                   currentWorkouts={stats.weeklyWorkouts ?? weeklyProgress.filter(Boolean).length}
-                  currentMinutes={stats.weeklyMinutes}
+                  currentMinutes={stats.weeklyMinutes ?? 0}
                   onGoalsSaved={onRefresh}
                 />
               </View>
@@ -197,16 +195,26 @@ export default function TrackDashboard() {
 
             {/* Stats */}
             {isLoading && !stats ? (
-              <View style={styles.section}><StatsSkeleton /></View>
+              <View style={styles.section}>
+                <StatsOverview
+                  totalWorkouts={0}
+                  totalMinutes={0}
+                  weeklyMinutes={0}
+                  monthlyMinutes={0}
+                  totalCalories={0}
+                  averageRpe={null}
+                  isLoading
+                />
+              </View>
             ) : stats ? (
               <View style={styles.section}>
                 <StatsOverview
-                  totalWorkouts={stats.totalWorkouts}
-                  totalMinutes={stats.totalMinutes}
-                  weeklyMinutes={stats.weeklyMinutes}
-                  monthlyMinutes={stats.monthlyMinutes}
-                  totalCalories={stats.totalCalories}
-                  averageRpe={stats.averageRpe}
+                  totalWorkouts={stats.totalWorkouts ?? 0}
+                  totalMinutes={stats.totalMinutes ?? 0}
+                  weeklyMinutes={stats.weeklyMinutes ?? 0}
+                  monthlyMinutes={stats.monthlyMinutes ?? 0}
+                  totalCalories={stats.totalCalories ?? 0}
+                  averageRpe={stats.averageRpe ?? null}
                   monthlyWorkouts={stats.monthlyWorkouts}
                 />
               </View>
@@ -241,7 +249,7 @@ export default function TrackDashboard() {
           </>
         ) : (
           <View style={styles.section}>
-            <MonthlyCalendar currentStreak={stats?.currentStreak} />
+            <MonthlyCalendar currentStreak={stats?.currentStreak ?? 0} />
           </View>
         )}
       </ScrollView>

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { useLiveWorkoutStore } from '@/stores/liveWorkoutStore';
@@ -18,6 +19,8 @@ const WORKOUT_TYPES = [
   { label: 'Stretching', value: 'stretching' },
   { label: 'Other', value: 'other' },
 ];
+
+const LAST_WORKOUT_TYPE_KEY = 'pilareta_last_live_workout_type';
 
 function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -38,18 +41,36 @@ export default function LiveWorkoutScreen() {
   const [saving, setSaving] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // If not active, show type picker to start
+  // If not active, show type picker to start - load last used type
   const [selectedType, setSelectedType] = useState('reformer');
 
-  // Timer update
+  // Load last used workout type from storage
+  useEffect(() => {
+    if (!store.isActive) {
+      SecureStore.getItemAsync(LAST_WORKOUT_TYPE_KEY)
+        .then((stored) => {
+          if (stored && WORKOUT_TYPES.some((t) => t.value === stored)) {
+            setSelectedType(stored);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [store.isActive]);
+
+  // Timer update - use 250ms interval for smoother display
   useEffect(() => {
     if (store.isActive && !store.pausedAt) {
+      // Immediately set the current elapsed time
+      setElapsed(store.getElapsedMs());
       intervalRef.current = setInterval(() => {
         setElapsed(store.getElapsedMs());
-      }, 1000);
+      }, 250);
     }
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
   }, [store.isActive, store.pausedAt]);
 
@@ -60,8 +81,20 @@ export default function LiveWorkoutScreen() {
     }
   }, [store.pausedAt]);
 
+  // Refresh elapsed time when app returns from background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && store.isActive) {
+        setElapsed(store.getElapsedMs());
+      }
+    });
+    return () => subscription.remove();
+  }, [store.isActive]);
+
   const handleStart = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Persist the selected type for next time
+    SecureStore.setItemAsync(LAST_WORKOUT_TYPE_KEY, selectedType).catch(() => {});
     store.start(selectedType);
   };
 
@@ -75,35 +108,62 @@ export default function LiveWorkoutScreen() {
   };
 
   const handleEnd = () => {
-    Alert.alert('End Workout?', 'Save this workout to your log?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => { store.reset(); router.back(); } },
-      {
-        text: 'Save',
-        onPress: async () => {
-          setSaving(true);
-          const result = store.end();
-          try {
-            await createLog({
-              durationMinutes: result.durationMinutes,
-              workoutType: result.workoutType,
-              rpe,
-              workoutDate: new Date().toISOString().split('T')[0],
-              ...(result.workoutType === 'running' && result.distanceKm > 0 && {
-                distanceKm: result.distanceKm,
-              }),
-            });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.back();
-          } catch {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Error', 'Failed to save workout.');
-          } finally {
-            setSaving(false);
-          }
+    // Pause first so the timer doesn't keep running during dialog
+    if (!store.pausedAt) {
+      store.pause();
+    }
+
+    const elapsedMinutes = Math.round(store.getElapsedMs() / 60000);
+    const timeStr = elapsedMinutes >= 1 ? `${elapsedMinutes} min` : 'less than a minute';
+
+    Alert.alert(
+      'End Workout?',
+      `You've been working out for ${timeStr}. What would you like to do?`,
+      [
+        {
+          text: 'Keep Going',
+          style: 'cancel',
+          onPress: () => {
+            // Resume if we auto-paused
+            if (store.pausedAt) store.resume();
+          },
         },
-      },
-    ]);
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            store.reset();
+            router.back();
+          },
+        },
+        {
+          text: 'Save',
+          onPress: async () => {
+            setSaving(true);
+            const result = store.end();
+            try {
+              await createLog({
+                durationMinutes: result.durationMinutes,
+                workoutType: result.workoutType,
+                rpe,
+                workoutDate: new Date().toISOString().split('T')[0],
+                ...(result.workoutType === 'running' && result.distanceKm > 0 && {
+                  distanceKm: result.distanceKm,
+                }),
+              });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              router.back();
+            } catch {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Error', 'Failed to save workout.');
+              // Store is already reset from end(), nothing to resume
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   // Pre-start screen (type selection)

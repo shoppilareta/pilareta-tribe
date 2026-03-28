@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, FlatList, Image, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, typography, spacing, radius } from '@/theme';
+import { formatPrice } from '@/utils/formatPrice';
 import type { ShopifyProduct } from '@shared/types';
 
 interface Props {
@@ -31,13 +32,17 @@ export function RecentlyViewedCarousel({ products, handles }: Props) {
           <Pressable
             style={styles.card}
             onPress={() => router.push({ pathname: '/(tabs)/shop/[handle]', params: { handle: item.handle } })}
+            accessibilityLabel={`${item.title}, ${formatPrice(item.priceRange?.minVariantPrice?.amount ?? '0', item.priceRange?.minVariantPrice?.currencyCode ?? 'INR')}`}
+            accessibilityRole="button"
           >
-            {item.images[0] && (
+            {item.images?.[0] ? (
               <Image source={{ uri: item.images[0].url }} style={styles.image} resizeMode="cover" />
+            ) : (
+              <View style={[styles.image, styles.imagePlaceholder]} />
             )}
             <Text style={styles.name} numberOfLines={1}>{item.title}</Text>
             <Text style={styles.price}>
-              {'\u20B9'}{parseFloat(item.priceRange.minVariantPrice.amount).toFixed(0)}
+              {formatPrice(item.priceRange?.minVariantPrice?.amount ?? '0', item.priceRange?.minVariantPrice?.currencyCode ?? 'INR')}
             </Text>
           </Pressable>
         )}
@@ -68,6 +73,9 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     backgroundColor: 'rgba(246,237,221,0.05)',
+  },
+  imagePlaceholder: {
+    backgroundColor: 'rgba(70, 74, 60, 0.3)',
   },
   name: {
     fontSize: typography.sizes.xs,

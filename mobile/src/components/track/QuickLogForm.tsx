@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,15 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
 import { Button } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import { createLog, createLogWithImage, updateLog } from '@/api/track';
 import { scheduleInactivityReminder } from '@/hooks/useInactivityReminder';
 import type { CreateWorkoutLogRequest, UpdateWorkoutLogRequest } from '@shared/types';
+
+const LAST_WORKOUT_TYPE_KEY = 'pilareta_last_workout_type';
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 const WORKOUT_TYPES = [
@@ -109,6 +112,19 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
     editLog && !DURATION_OPTIONS.includes(editLog.durationMinutes) ? String(editLog.durationMinutes) : ''
   );
   const [workoutType, setWorkoutType] = useState(editLog?.workoutType || 'reformer');
+
+  // Load last used workout type (only for new logs)
+  useEffect(() => {
+    if (!isEditMode) {
+      SecureStore.getItemAsync(LAST_WORKOUT_TYPE_KEY)
+        .then((stored) => {
+          if (stored && WORKOUT_TYPES.some((t) => t.value === stored)) {
+            setWorkoutType(stored);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isEditMode]);
   const [rpe, setRpe] = useState(editLog?.rpe || 5);
   const [focusAreas, setFocusAreas] = useState<string[]>(editLog?.focusAreas || []);
   const [notes, setNotes] = useState(editLog?.notes || '');
@@ -198,6 +214,8 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Remember the workout type for next time
+      SecureStore.setItemAsync(LAST_WORKOUT_TYPE_KEY, workoutType).catch(() => {});
       scheduleInactivityReminder(); // Reset 7-day inactivity reminder
       onComplete();
     } catch (error) {

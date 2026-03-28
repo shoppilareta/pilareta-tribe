@@ -1,7 +1,33 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { useRef, useEffect } from 'react';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
 import Svg, { Path } from 'react-native-svg';
+
+function SkeletonBlock({ width, height }: { width: number | string; height: number }) {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.7, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+  return (
+    <Animated.View
+      style={{
+        width: width as any,
+        height,
+        borderRadius: radius.sm,
+        backgroundColor: colors.cream10,
+        opacity,
+      }}
+    />
+  );
+}
 
 interface StatsOverviewProps {
   totalWorkouts: number;
@@ -11,6 +37,7 @@ interface StatsOverviewProps {
   totalCalories: number;
   averageRpe: number | null;
   monthlyWorkouts?: number;
+  isLoading?: boolean;
 }
 
 function formatMinutes(mins: number): string {
@@ -59,7 +86,30 @@ export function StatsOverview({
   totalCalories,
   averageRpe,
   monthlyWorkouts,
+  isLoading,
 }: StatsOverviewProps) {
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <View>
+        <View style={styles.grid}>
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} padding="md" style={styles.statCard}>
+              <SkeletonBlock width={40} height={40} />
+              <View style={{ height: 8 }} />
+              <SkeletonBlock width={60} height={20} />
+              <View style={{ height: 4 }} />
+              <SkeletonBlock width={50} height={12} />
+            </Card>
+          ))}
+        </View>
+        <View style={styles.secondaryRow}>
+          <SkeletonBlock width={120} height={14} />
+          <SkeletonBlock width={100} height={14} />
+        </View>
+      </View>
+    );
+  }
   // Calculate consistency: (workouts this month / days elapsed) * 100, capped at 100
   const now = new Date();
   const daysElapsed = now.getDate(); // 1-based day of month = days elapsed
@@ -92,7 +142,7 @@ export function StatsOverview({
       <View style={styles.secondaryRow}>
         <Text style={styles.secondaryText}>
           <Text style={styles.secondaryLabel}>Est. Calories: </Text>
-          <Text style={styles.secondaryValue}>{totalCalories.toLocaleString()}</Text>
+          <Text style={styles.secondaryValue}>{(totalCalories ?? 0).toLocaleString()}</Text>
         </Text>
         {averageRpe !== null && (
           <Text style={styles.secondaryText}>

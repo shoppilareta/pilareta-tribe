@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Dimensions, Linking, Alert, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -46,18 +46,28 @@ export default function PostDetail() {
   const [likesCount, setLikesCount] = useState(post?.likesCount ?? 0);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageFailed, setImageFailed] = useState(false);
+  const likePendingRef = useRef(false);
+  const savePendingRef = useRef(false);
 
-  // Sync state when post loads
-  if (post && liked !== (post.isLiked ?? false)) {
-    setLiked(post.isLiked ?? false);
-    setSaved(post.isSaved ?? false);
-    setLikesCount(post.likesCount);
-  }
+  // Sync state when post data loads/changes (fix #3: avoid render-during-render)
+  useEffect(() => {
+    if (post && !likePendingRef.current) {
+      setLiked(post.isLiked ?? false);
+      setLikesCount(post.likesCount);
+    }
+  }, [post?.isLiked, post?.likesCount]);
+
+  useEffect(() => {
+    if (post && !savePendingRef.current) {
+      setSaved(post.isSaved ?? false);
+    }
+  }, [post?.isSaved]);
 
   const handleLike = async () => {
-    if (!isLoggedIn || !post) return;
+    if (!isLoggedIn || !post || likePendingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const wasLiked = liked;
+    likePendingRef.current = true;
     setLiked(!wasLiked);
     setLikesCount((c) => c + (wasLiked ? -1 : 1));
     try {
@@ -66,19 +76,26 @@ export default function PostDetail() {
     } catch {
       setLiked(wasLiked);
       setLikesCount((c) => c + (wasLiked ? 1 : -1));
+    } finally {
+      likePendingRef.current = false;
     }
   };
 
   const handleSave = async () => {
-    if (!isLoggedIn || !post) return;
+    if (!isLoggedIn || !post || savePendingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const wasSaved = saved;
+    savePendingRef.current = true;
     setSaved(!wasSaved);
     try {
       if (wasSaved) await unsavePost(post.id);
       else await savePost(post.id);
+      // Invalidate saved posts to refresh that tab (fix #10)
+      queryClient.invalidateQueries({ queryKey: ['community-saved'] });
     } catch {
       setSaved(wasSaved);
+    } finally {
+      savePendingRef.current = false;
     }
   };
 
@@ -199,12 +216,16 @@ export default function PostDetail() {
             />
           </View>
         ) : imageUrl && imageFailed ? (
-          <View style={[styles.imagePlaceholder, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 0.6 }]}>
+          <Pressable
+            onPress={() => { setImageFailed(false); setImageLoading(true); }}
+            style={[styles.imagePlaceholder, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 0.6 }]}
+          >
             <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
               <Path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
             <Text style={styles.imageErrorText}>Image unavailable</Text>
-          </View>
+            <Text style={styles.imageRetryText}>Tap to retry</Text>
+          </Pressable>
         ) : null}
 
         {/* Instagram link */}
@@ -246,7 +267,7 @@ export default function PostDetail() {
             <Svg width={22} height={22} viewBox="0 0 24 24" fill={liked ? 'rgba(239, 68, 68, 0.9)' : 'none'} stroke={liked ? 'rgba(239, 68, 68, 0.9)' : colors.fg.secondary} strokeWidth={1.5}>
               <Path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
-            <Text style={[styles.actionText, liked && styles.actionTextActive]}>{likesCount || post.likesCount} likes</Text>
+            <Text style={[styles.actionText, liked && styles.actionTextActive]}>{likesCount} likes</Text>
           </Pressable>
 
           <Pressable onPress={handleShare} style={styles.actionButton} hitSlop={8}>
@@ -298,7 +319,7 @@ export default function PostDetail() {
 
         {/* Comments */}
         <View style={styles.commentsSection}>
-          <CommentSection postId={post.id} />
+          <CommentSection postId={post.id} autoFocus />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -326,6 +347,7 @@ const styles = StyleSheet.create({
   image: { backgroundColor: colors.cream05 },
   imagePlaceholder: { backgroundColor: colors.cream05, alignItems: 'center', justifyContent: 'center' },
   imageErrorText: { fontSize: typography.sizes.sm, color: colors.fg.muted, marginTop: spacing.sm },
+  imageRetryText: { fontSize: typography.sizes.sm, color: colors.fg.tertiary, marginTop: spacing.xs, textDecorationLine: 'underline' },
   instagramLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.cream05 },
   instagramLinkText: { fontSize: typography.sizes.sm, color: colors.fg.secondary },
   recapCard: { margin: spacing.md, padding: spacing.md, backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default },

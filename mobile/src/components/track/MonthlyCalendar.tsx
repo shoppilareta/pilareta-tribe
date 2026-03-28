@@ -81,7 +81,7 @@ function buildCalendarGrid(year: number, month: number): DayData[] {
   const startDayOfWeek = firstOfMonth.getDay(); // 0=Sun
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Previous month padding
+  // Previous month padding (handles month=0 correctly since JS Date wraps)
   const prevMonthDays = new Date(year, month, 0).getDate();
 
   const grid: DayData[] = [];
@@ -90,6 +90,7 @@ function buildCalendarGrid(year: number, month: number): DayData[] {
   for (let i = startDayOfWeek - 1; i >= 0; i--) {
     const d = prevMonthDays - i;
     const date = new Date(year, month - 1, d);
+    date.setHours(0, 0, 0, 0);
     grid.push({
       date,
       day: d,
@@ -102,6 +103,7 @@ function buildCalendarGrid(year: number, month: number): DayData[] {
   // Days in current month
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d);
+    date.setHours(0, 0, 0, 0);
     grid.push({
       date,
       day: d,
@@ -111,10 +113,12 @@ function buildCalendarGrid(year: number, month: number): DayData[] {
     });
   }
 
-  // Next month padding to fill complete rows (always 6 rows = 42 cells)
-  const remaining = 42 - grid.length;
+  // Next month padding - only fill enough rows (ceil to full weeks)
+  const totalCells = grid.length <= 35 ? 35 : 42;
+  const remaining = totalCells - grid.length;
   for (let d = 1; d <= remaining; d++) {
     const date = new Date(year, month + 1, d);
+    date.setHours(0, 0, 0, 0);
     grid.push({
       date,
       day: d,
@@ -400,10 +404,11 @@ export function MonthlyCalendar({ currentStreak = 0 }: MonthlyCalendarProps) {
   }, [month, isCurrentMonth]);
 
   const goToToday = useCallback(() => {
-    setYear(today.getFullYear());
-    setMonth(today.getMonth());
-    setSelectedDate(toDateKey(today));
-  }, [today]);
+    const now = new Date();
+    setYear(now.getFullYear());
+    setMonth(now.getMonth());
+    setSelectedDate(toDateKey(now));
+  }, []);
 
   const handleDayPress = useCallback((dateKey: string) => {
     setSelectedDate((prev) => (prev === dateKey ? null : dateKey));
@@ -577,6 +582,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.sm,
     gap: 2,
+    minHeight: 40,
   },
   dayCellSelected: {
     backgroundColor: colors.cream10,
@@ -601,17 +607,17 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
   },
 
-  // Workout dots
+  // Workout dots - sized for tappability on small screens
   dotsRow: {
     flexDirection: 'row',
-    gap: 2,
-    height: 6,
+    gap: 3,
+    height: 8,
     alignItems: 'center',
   },
   dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
 
   // Legend
@@ -630,9 +636,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   legendDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   legendText: {
     fontSize: 10,

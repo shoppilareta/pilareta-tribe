@@ -30,7 +30,9 @@ export default function CartScreen() {
     discountAmount,
     applyDiscount: applyDiscountAction,
     removeDiscount,
+    totalItems,
   } = useCartStore();
+  const cartCount = totalItems();
   const { showToast } = useToast();
   const [promoCode, setPromoCode] = useState('');
   const [promoError, setPromoError] = useState('');
@@ -87,6 +89,7 @@ export default function CartScreen() {
 
   const handleCheckout = () => {
     if (checkoutUrl) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       router.push({ pathname: '/(tabs)/shop/checkout', params: { url: checkoutUrl } });
     }
   };
@@ -95,14 +98,14 @@ export default function CartScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.closeButton}>
+        <Pressable onPress={() => router.back()} style={styles.closeButton} accessibilityLabel="Close cart" accessibilityRole="button">
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={2}>
             <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
         </Pressable>
-        <Text style={styles.headerTitle}>Cart</Text>
+        <Text style={styles.headerTitle}>Cart{cartCount > 0 ? ` (${cartCount})` : ''}</Text>
         {lines.length > 0 && (
-          <Pressable onPress={() => Alert.alert('Clear Cart', 'Remove all items from your cart?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearCart }])} style={styles.clearButton}>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert('Clear Cart', 'Remove all items from your cart?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearCart }]); }} style={styles.clearButton} accessibilityLabel="Clear cart" accessibilityRole="button">
             <Text style={styles.clearText}>Clear</Text>
           </Pressable>
         )}
@@ -151,7 +154,7 @@ export default function CartScreen() {
                   <Text style={styles.promoAppliedText}>
                     Code "{discountCode}" applied
                   </Text>
-                  <Pressable onPress={handleRemoveDiscount}>
+                  <Pressable onPress={handleRemoveDiscount} accessibilityLabel="Remove discount code" accessibilityRole="button" hitSlop={8}>
                     <Text style={styles.promoRemove}>Remove</Text>
                   </Pressable>
                 </View>
@@ -162,13 +165,19 @@ export default function CartScreen() {
                     placeholder="Promo code"
                     placeholderTextColor={colors.fg.muted}
                     value={promoCode}
-                    onChangeText={setPromoCode}
+                    onChangeText={(text) => { setPromoCode(text); setPromoError(''); }}
                     autoCapitalize="characters"
+                    accessibilityLabel="Promo code"
+                    returnKeyType="done"
+                    onSubmitEditing={() => { if (promoCode.trim()) handleApplyDiscount(); }}
                   />
                   <Pressable
-                    style={[styles.promoButton, !promoCode.trim() && { opacity: 0.5 }]}
+                    style={[styles.promoButton, (!promoCode.trim() || loading) && { opacity: 0.5 }]}
                     onPress={handleApplyDiscount}
                     disabled={!promoCode.trim() || loading}
+                    accessibilityLabel="Apply promo code"
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !promoCode.trim() || loading }}
                   >
                     <Text style={styles.promoButtonText}>Apply</Text>
                   </Pressable>

@@ -59,7 +59,10 @@ const FOCUS_AREA_LABELS: Record<string, string> = {
 };
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  // Parse as local time to avoid UTC timezone offset issues with YYYY-MM-DD
+  const cleaned = dateStr.slice(0, 10);
+  const date = new Date(cleaned + 'T00:00:00');
+  if (isNaN(date.getTime())) return dateStr;
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
@@ -82,16 +85,18 @@ export function RecapCard({
   const streakMilestone = getStreakMilestone(currentStreak);
 
   return (
-    <View style={styles.card}>
+    <View style={styles.cardOuter}>
+      <View style={styles.card}>
       <LinearGradient
-        colors={['#202219', '#2a2b25', '#1a1b15']}
+        colors={['#262820', '#1e2018', '#2a2c22', '#1a1b15']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Decorative radial light */}
+      {/* Decorative radial light - premium glow */}
       <View style={styles.radialDecor} />
+      <View style={styles.radialDecorBottom} />
 
       {/* Streak milestone badge */}
       {streakMilestone ? (
@@ -194,11 +199,20 @@ export function RecapCard({
           <Text style={styles.brandSub}>TRIBE</Text>
         </View>
       </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  cardOuter: {
+    borderRadius: radius.lg + 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+  },
   card: {
     width: '100%',
     aspectRatio: 1,
@@ -207,16 +221,25 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: 'rgba(246, 237, 221, 0.1)',
+    borderColor: 'rgba(246, 237, 221, 0.15)',
   },
   radialDecor: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: '60%',
-    height: '60%',
-    backgroundColor: 'rgba(246, 237, 221, 0.03)',
+    top: -20,
+    right: -20,
+    width: '65%',
+    height: '65%',
+    backgroundColor: 'rgba(246, 237, 221, 0.04)',
     borderBottomLeftRadius: 999,
+  },
+  radialDecorBottom: {
+    position: 'absolute',
+    bottom: -30,
+    left: -30,
+    width: '40%',
+    height: '40%',
+    backgroundColor: 'rgba(245, 158, 11, 0.03)',
+    borderTopRightRadius: 999,
   },
   streakBadge: {
     position: 'absolute',
@@ -243,8 +266,9 @@ const styles = StyleSheet.create({
   },
   topLabel: {
     fontSize: 11,
-    color: 'rgba(246, 237, 221, 0.5)',
-    letterSpacing: 1,
+    fontWeight: '600',
+    color: 'rgba(245, 158, 11, 0.6)',
+    letterSpacing: 2,
     marginBottom: 4,
   },
   dateText: {
@@ -257,11 +281,12 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   heroNumber: {
-    fontSize: 64,
+    fontSize: 68,
     fontWeight: '700',
     color: colors.fg.primary,
-    lineHeight: 70,
+    lineHeight: 74,
     marginBottom: 4,
+    letterSpacing: -1,
   },
   heroSubtext: {
     fontSize: 20,
@@ -312,7 +337,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(246, 237, 221, 0.1)',
+    borderTopColor: 'rgba(246, 237, 221, 0.12)',
     zIndex: 1,
   },
   bottomStat: {
@@ -365,14 +390,15 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.fg.primary,
-    letterSpacing: 1,
-    opacity: 0.8,
+    letterSpacing: 2,
+    opacity: 0.9,
   },
   brandSub: {
     fontSize: 10,
-    color: 'rgba(246, 237, 221, 0.4)',
-    letterSpacing: 1,
+    color: 'rgba(245, 158, 11, 0.5)',
+    letterSpacing: 2,
+    fontWeight: '500',
   },
 });

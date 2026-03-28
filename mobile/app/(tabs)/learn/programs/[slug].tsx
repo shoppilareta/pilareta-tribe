@@ -52,7 +52,7 @@ const SECTION_COLORS: Record<string, string> = {
   cooldown: 'rgba(150, 255, 150, 0.3)',
 };
 
-export default function ProgramDetail() {
+export default function ProgramDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
 
@@ -62,11 +62,12 @@ export default function ProgramDetail() {
     enabled: !!slug,
   });
 
-  // 3B: Program progress
+  // 3B: Program progress - graceful when user hasn't started
   const { data: progressData } = useQuery({
     queryKey: ['program-progress', slug],
     queryFn: () => getProgramProgress(slug!),
     enabled: !!slug,
+    retry: 1,
   });
 
   const progress = progressData?.progress ?? null;
@@ -92,6 +93,16 @@ export default function ProgramDetail() {
   }
 
   const totalSessions = program.durationWeeks * program.sessionsPerWeek;
+
+  // Find the first session to start with (for "Start Program" button)
+  const firstSessionId = (() => {
+    for (const week of program.weeks ?? []) {
+      for (const session of week.sessions ?? []) {
+        if (session.sessionId) return session.sessionId;
+      }
+    }
+    return null;
+  })();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -129,7 +140,20 @@ export default function ProgramDetail() {
           </Card>
         </View>
 
-        {/* 3B: Program progress */}
+        {/* Prominent Start / Resume button */}
+        {!progress && firstSessionId && (
+          <Pressable
+            onPress={() => router.push(`/(tabs)/learn/session/${firstSessionId}`)}
+            style={styles.startProgramButton}
+          >
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.button.primaryText} strokeWidth={2.5}>
+              <Path d="M5 3l14 9-14 9V3z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.startProgramText}>Start Program</Text>
+          </Pressable>
+        )}
+
+        {/* 3B: Program progress - handles in_progress and completed */}
         {progress && progress.status !== 'completed' && (
           <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
@@ -140,16 +164,16 @@ export default function ProgramDetail() {
               Week {progress.currentWeek} of {program.durationWeeks}  {'\u00B7'}  {progress.completedSessionIds.length} / {totalSessions} sessions
             </Text>
             <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBarFill, { width: `${Math.round((progress.completedSessionIds.length / totalSessions) * 100)}%` }]} />
+              <View style={[styles.progressBarFill, { width: `${totalSessions > 0 ? Math.round((progress.completedSessionIds.length / totalSessions) * 100) : 0}%` }]} />
             </View>
             {/* Find next uncompleted session and add Resume button */}
             {(() => {
-              // Find the first session with a sessionId that is not in completedSessionIds
               for (const week of program.weeks ?? []) {
                 for (const session of week.sessions ?? []) {
                   if (session.sessionId && !progress.completedSessionIds.includes(session.sessionId)) {
                     return (
                       <Pressable
+                        key={session.sessionId}
                         onPress={() => router.push(`/(tabs)/learn/session/${session.sessionId}`)}
                         style={styles.resumeButton}
                       >
@@ -167,8 +191,18 @@ export default function ProgramDetail() {
           </View>
         )}
 
+        {/* Completed state */}
+        {progress && progress.status === 'completed' && (
+          <View style={styles.completedCard}>
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth={2}>
+              <Path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.completedText}>Program completed! Great work.</Text>
+          </View>
+        )}
+
         {/* Benefits */}
-        {program.benefits.length > 0 && (
+        {program.benefits && program.benefits.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Benefits</Text>
             {program.benefits.map((b, i) => (
@@ -187,7 +221,7 @@ export default function ProgramDetail() {
 
         {/* Weekly schedule */}
         <Text style={styles.sectionTitle}>Weekly Schedule</Text>
-        {program.weeks?.map((week) => (
+        {(program.weeks ?? []).map((week) => (
           <View key={week.weekNumber} style={styles.weekContainer}>
             <Pressable
               onPress={() => setExpandedWeek(expandedWeek === week.weekNumber ? null : week.weekNumber)}
@@ -198,7 +232,7 @@ export default function ProgramDetail() {
                   <Text style={styles.weekTitle}>{week.title || `Week ${week.weekNumber}`}</Text>
                   {progress && (() => {
                     const weekSessionIds = (week.sessions ?? []).map((s) => s.sessionId).filter(Boolean) as string[];
-                    const completedCount = weekSessionIds.filter((sid) => progress.completedSessionIds.includes(sid)).length;
+                    const completedCount = weekSessionIds.filter((sid) => (progress.completedSessionIds ?? []).includes(sid)).length;
                     if (weekSessionIds.length === 0) return null;
                     return (
                       <Text style={styles.weekProgress}>
@@ -207,12 +241,12 @@ export default function ProgramDetail() {
                     );
                   })()}
                 </View>
-                {week.focus && <Text style={styles.weekFocus}>{week.focus}</Text>}
+                {week.focus ? <Text style={styles.weekFocus}>{week.focus}</Text> : null}
               </View>
               <Text style={styles.chevron}>{expandedWeek === week.weekNumber ? '\u25B2' : '\u25BC'}</Text>
             </Pressable>
 
-            {expandedWeek === week.weekNumber && week.sessions?.map((session) => (
+            {expandedWeek === week.weekNumber && (week.sessions ?? []).map((session) => (
               <View key={session.dayNumber} style={styles.sessionContainer}>
                 <Text style={styles.sessionTitle}>Day {session.dayNumber}: {session.title}</Text>
                 {session.template?.items?.map((item) => (
@@ -226,17 +260,31 @@ export default function ProgramDetail() {
                         {item.duration ? ` x ${item.duration}s` : ''}
                       </Text>
                     </View>
+                    {/* Completion checkmark */}
+                    {progress && session.sessionId && progress.completedSessionIds.includes(session.sessionId) && (
+                      <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="rgba(34, 197, 94, 0.8)" strokeWidth={2.5}>
+                        <Path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                      </Svg>
+                    )}
                   </View>
                 ))}
                 {session.sessionId && (
                   <Pressable
                     onPress={() => router.push(`/(tabs)/learn/session/${session.sessionId}`)}
-                    style={styles.startWorkoutButton}
+                    style={[
+                      styles.startWorkoutButton,
+                      progress && progress.completedSessionIds.includes(session.sessionId) && styles.startWorkoutButtonCompleted,
+                    ]}
                   >
-                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.bg.primary} strokeWidth={2}>
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={progress && progress.completedSessionIds.includes(session.sessionId) ? colors.fg.secondary : colors.bg.primary} strokeWidth={2}>
                       <Path d="M5 3l14 9-14 9V3z" strokeLinecap="round" strokeLinejoin="round" />
                     </Svg>
-                    <Text style={styles.startWorkoutText}>Start Workout</Text>
+                    <Text style={[
+                      styles.startWorkoutText,
+                      progress && progress.completedSessionIds.includes(session.sessionId) && styles.startWorkoutTextCompleted,
+                    ]}>
+                      {progress && progress.completedSessionIds.includes(session.sessionId) ? 'Redo Workout' : 'Start Workout'}
+                    </Text>
                   </Pressable>
                 )}
               </View>
@@ -264,6 +312,22 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: typography.sizes.xl, fontWeight: typography.weights.semibold, color: colors.fg.primary },
   statLabel: { fontSize: 10, color: colors.fg.tertiary, textTransform: 'uppercase' },
+  startProgramButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.button.primaryBg,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
+    marginBottom: spacing.lg,
+  },
+  startProgramText: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.button.primaryText,
+  },
   section: { marginBottom: spacing.lg },
   sectionTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.sm },
   bulletText: { fontSize: typography.sizes.sm, color: colors.fg.secondary, lineHeight: 20, marginBottom: 2 },
@@ -278,6 +342,8 @@ const styles = StyleSheet.create({
   progressBarFill: { height: '100%', backgroundColor: 'rgba(34, 197, 94, 0.8)', borderRadius: 3 },
   resumeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.button.primaryBg, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.sm },
   resumeButtonText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.button.primaryText },
+  completedCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: 'rgba(34, 197, 94, 0.08)', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg },
+  completedText: { fontSize: typography.sizes.base, color: 'rgba(34, 197, 94, 0.9)', fontWeight: typography.weights.medium, flex: 1 },
   weekContainer: { backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, marginBottom: spacing.sm, overflow: 'hidden' },
   weekHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md },
   weekTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -293,5 +359,7 @@ const styles = StyleSheet.create({
   exerciseName: { fontSize: typography.sizes.sm, color: colors.fg.primary },
   exerciseDetails: { fontSize: 11, color: colors.fg.tertiary },
   startWorkoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.button.primaryBg, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.sm, marginTop: spacing.sm },
+  startWorkoutButtonCompleted: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border.default },
   startWorkoutText: { fontSize: typography.sizes.sm, fontWeight: typography.weights.semibold, color: colors.button.primaryText },
+  startWorkoutTextCompleted: { color: colors.fg.secondary },
 });

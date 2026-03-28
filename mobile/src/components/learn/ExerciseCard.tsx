@@ -9,24 +9,29 @@ interface ExerciseCardProps {
   exercise: Exercise;
 }
 
-const DIFFICULTY_COLORS: Record<string, string> = {
-  beginner: 'rgba(34, 197, 94, 0.3)',
-  intermediate: 'rgba(234, 179, 8, 0.3)',
-  advanced: 'rgba(239, 68, 68, 0.3)',
+// Color-coded difficulty: green/amber/red
+const DIFFICULTY_BADGE: Record<string, { bg: string; border: string; text: string }> = {
+  beginner: { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.4)', text: 'rgba(34, 197, 94, 0.9)' },
+  intermediate: { bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)', text: 'rgba(234, 179, 8, 0.9)' },
+  advanced: { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)', text: 'rgba(239, 68, 68, 0.9)' },
 };
 
 export function ExerciseCard({ exercise }: ExerciseCardProps) {
+  const diffColors = DIFFICULTY_BADGE[exercise.difficulty] || DIFFICULTY_BADGE.beginner;
+
   return (
     <Pressable onPress={() => router.push(`/(tabs)/learn/exercises/${exercise.slug}`)}>
       <Card padding="md" style={styles.card}>
         <View style={styles.topRow}>
-          <View style={[styles.difficultyBadge, { backgroundColor: DIFFICULTY_COLORS[exercise.difficulty] || colors.cream10 }]}>
-            <Text style={styles.difficultyText}>{exercise.difficulty}</Text>
+          <View style={[styles.difficultyBadge, { backgroundColor: diffColors.bg, borderColor: diffColors.border }]}>
+            <Text style={[styles.difficultyText, { color: diffColors.text }]}>{exercise.difficulty}</Text>
           </View>
-          <Text style={styles.rpe}>RPE {exercise.rpeTarget}</Text>
+          {exercise.rpeTarget != null && exercise.rpeTarget > 0 && (
+            <Text style={styles.rpe}>RPE {exercise.rpeTarget}</Text>
+          )}
         </View>
 
-        {exercise.imageUrl && (
+        {exercise.imageUrl ? (
           <View style={styles.imageContainer}>
             <Image source={{ uri: exercise.imageUrl }} style={styles.cardImage} resizeMode="cover" />
             {exercise.videoUrl && (
@@ -39,12 +44,12 @@ export function ExerciseCard({ exercise }: ExerciseCardProps) {
               </View>
             )}
           </View>
-        )}
+        ) : null}
 
         <Text style={styles.name} numberOfLines={2}>{exercise.name}</Text>
         <Text style={styles.description} numberOfLines={2}>{exercise.description}</Text>
 
-        {exercise.focusAreas.length > 0 && (
+        {exercise.focusAreas && exercise.focusAreas.length > 0 && (
           <View style={styles.focusRow}>
             {exercise.focusAreas.slice(0, 3).map((area) => (
               <View key={area} style={styles.focusChip}>
@@ -55,9 +60,9 @@ export function ExerciseCard({ exercise }: ExerciseCardProps) {
         )}
 
         <View style={styles.infoRow}>
-          {exercise.equipment && (
+          {exercise.equipment ? (
             <Text style={styles.infoText}>{exercise.equipment}</Text>
-          )}
+          ) : null}
           {exercise.defaultSets > 0 && (
             <Text style={styles.infoText}>
               {exercise.defaultSets} sets
@@ -86,11 +91,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   difficultyText: {
     fontSize: typography.sizes.xs,
-    color: colors.fg.primary,
     textTransform: 'uppercase',
     fontWeight: typography.weights.semibold,
     letterSpacing: 0.5,
