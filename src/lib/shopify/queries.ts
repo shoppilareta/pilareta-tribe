@@ -30,7 +30,7 @@ const PRODUCT_FRAGMENT = `
       width
       height
     }
-    images(first: 10) {
+    images(first: 20) {
       edges {
         node {
           url
