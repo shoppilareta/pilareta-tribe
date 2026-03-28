@@ -290,19 +290,19 @@ struct DashboardView: View {
     private func refreshStats() {
         isRefreshing = true
         WKInterfaceDevice.current().play(.click)
-        workoutManager.fetchStats()
         ringAnimationProgress = 0
+
+        workoutManager.fetchStats {
+            DispatchQueue.main.async {
+                isRefreshing = false
+            }
+        }
 
         // Re-animate rings after refresh
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation(.easeOut(duration: 1.0)) {
                 ringAnimationProgress = 1.0
             }
-        }
-
-        // Auto-reset refreshing state after a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            isRefreshing = false
         }
     }
 }

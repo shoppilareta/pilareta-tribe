@@ -225,15 +225,17 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate, WKExtendedR
 
     // MARK: - Fetch Stats
 
-    func fetchStats() {
-        guard WCSession.default.activationState == .activated else {
+    func fetchStats(completion: (() -> Void)? = nil) {
+        guard WCSession.default.activationState != .notActivated else {
             lastSyncStatus = "Not activated"
+            completion?()
             return
         }
 
         guard WCSession.default.isReachable else {
             isPhoneReachable = false
             lastSyncStatus = "iPhone not connected"
+            completion?()
             return
         }
 
@@ -243,10 +245,11 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate, WKExtendedR
 
         // Timeout timer -- if no reply within messageTimeout, mark as timed out
         let timeoutWork = DispatchWorkItem { [weak self] in
-            guard let self = self else { return }
+            guard let self = self else { completion?(); return }
             DispatchQueue.main.async {
                 self.isLoading = false
                 self.lastSyncStatus = "Sync timed out"
+                completion?()
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + messageTimeout, execute: timeoutWork)
@@ -263,15 +266,17 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate, WKExtendedR
                 self.lastSyncStatus = "Synced"
                 self.isLoading = false
                 self.cacheStats()
+                completion?()
             }
         }, errorHandler: { [weak self] error in
             timeoutWork.cancel()
-            guard let self = self else { return }
+            guard let self = self else { completion?(); return }
 
             DispatchQueue.main.async {
                 self.isLoading = false
                 self.lastSyncStatus = "Sync failed"
                 print("WC fetchStats error: \(error.localizedDescription)")
+                completion?()
             }
         })
     }

@@ -63,12 +63,17 @@ struct HistoryView: View {
     }
 
     func loadRecords() {
-        guard let data = UserDefaults.standard.data(forKey: "workout_history"),
-              let decoded = try? JSONDecoder().decode([WorkoutRecord].self, from: data) else {
+        guard let data = UserDefaults.standard.data(forKey: "workout_history") else {
             records = []
             return
         }
-        records = decoded
+        do {
+            records = try JSONDecoder().decode([WorkoutRecord].self, from: data)
+        } catch {
+            print("[History] Corrupted data, clearing: \(error.localizedDescription)")
+            UserDefaults.standard.removeObject(forKey: "workout_history")
+            records = []
+        }
     }
 
     func formatDate(_ date: Date) -> String {

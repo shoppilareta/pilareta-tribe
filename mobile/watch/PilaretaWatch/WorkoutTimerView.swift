@@ -166,6 +166,10 @@ struct WorkoutTimerView: View {
         .animation(.easeInOut(duration: 0.3), value: showCoolDownPrompt)
         .animation(.easeInOut(duration: 0.3), value: inCoolDown)
         .onDisappear {
+            if isActive || inCoolDown {
+                workoutManager.endExtendedSession()
+                workoutManager.endHealthKitWorkout { _, _ in }
+            }
             timer?.invalidate()
             timer = nil
             breathingTimer?.invalidate()
@@ -743,6 +747,7 @@ struct WorkoutTimerView: View {
                 Button(action: {
                     showSummary = false
                     workoutSummary = nil
+                    workoutManager.newBadgeUnlocked = nil
                 }) {
                     Text("Done")
                         .font(.system(size: 15, weight: .semibold))
