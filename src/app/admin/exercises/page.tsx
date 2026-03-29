@@ -421,9 +421,9 @@ export default function ExercisesAdminPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 24 }}>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
         {/* Left: Exercise list */}
-        <div style={{ width: 420, flexShrink: 0 }}>
+        <div style={{ width: '100%', maxWidth: 500 }}>
           <input
             type="text"
             placeholder="Search exercises..."
@@ -481,13 +481,13 @@ export default function ExercisesAdminPage() {
                   />
                   <div
                     onClick={() => setSelectedId(ex.id)}
-                    style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                    style={{ flex: 1, cursor: 'pointer' }}
                   >
-                    <div style={{ fontSize: 13, fontWeight: 500, color: textColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ex.name}
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#f6eddd' }}>
+                      {ex.name || '(Unnamed)'}
                     </div>
-                    <div style={{ fontSize: 11, color: mutedColor, marginTop: 2 }}>
-                      {ex.equipment} · {ex.difficulty}
+                    <div style={{ fontSize: 11, color: 'rgba(246,237,221,0.5)', marginTop: 2 }}>
+                      {ex.equipment || 'no equipment'} · {ex.difficulty || 'no level'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
