@@ -373,7 +373,7 @@ export default function ExercisesAdminPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 7rem)' }}>
+    <div>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, color: textColor, margin: 0 }}>
@@ -421,9 +421,9 @@ export default function ExercisesAdminPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: 24 }}>
         {/* Left: Exercise list */}
-        <div style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: 420, flexShrink: 0 }}>
           <input
             type="text"
             placeholder="Search exercises..."
@@ -458,7 +458,7 @@ export default function ExercisesAdminPage() {
           {loading ? (
             <p style={{ color: mutedColor, fontSize: 13 }}>Loading...</p>
           ) : (
-            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
               {exercises.map((ex) => (
                 <div
                   key={ex.id}
@@ -554,7 +554,7 @@ export default function ExercisesAdminPage() {
         </div>
 
         {/* Right: Detail panel */}
-        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {detail ? (
             <div style={{ background: cardBg, borderRadius: 12, padding: 24, border: `1px solid ${borderColor}` }}>
               <h2 style={{ fontSize: 18, fontWeight: 600, color: textColor, margin: 0 }}>
