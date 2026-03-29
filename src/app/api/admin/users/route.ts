@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
           firstName: true,
           lastName: true,
           isAdmin: true,
+          deactivated: true,
+          bannedAt: true,
           createdAt: true,
           _count: {
             select: {

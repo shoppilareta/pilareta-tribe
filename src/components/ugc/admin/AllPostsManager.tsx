@@ -54,6 +54,10 @@ export function AllPostsManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCaption, setEditCaption] = useState('');
 
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
@@ -187,6 +191,51 @@ export function AllPostsManager() {
     });
   };
 
+  const toggleSelectPost = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === posts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(posts.map((p) => p.id)));
+    }
+  };
+
+  const handleBulkAction = async (action: string) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!confirm(`Are you sure you want to ${action} ${ids.length} post(s)?`)) return;
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/admin/bulk-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, entityType: 'posts', ids }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Bulk operation failed');
+        return;
+      }
+      const data = await res.json();
+      alert(`${data.count} post(s) affected`);
+      setSelectedIds(new Set());
+      fetchPosts();
+    } catch {
+      setError('Bulk operation failed');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
@@ -290,6 +339,21 @@ export function AllPostsManager() {
         </button>
       </div>
 
+      {/* Select All */}
+      {posts.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+          <input
+            type="checkbox"
+            checked={selectedIds.size === posts.length && posts.length > 0}
+            onChange={toggleSelectAll}
+            style={{ accentColor: '#81c784', width: '16px', height: '16px', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '0.8rem', color: 'rgba(246, 237, 221, 0.5)' }}>
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
+          </span>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div
@@ -345,12 +409,38 @@ export function AllPostsManager() {
             <div
               key={post.id}
               style={{
-                background: 'rgba(246, 237, 221, 0.03)',
+                background: selectedIds.has(post.id)
+                  ? 'rgba(129, 199, 132, 0.06)'
+                  : 'rgba(246, 237, 221, 0.03)',
                 borderRadius: '4px',
                 overflow: 'hidden',
-                border: '1px solid rgba(246, 237, 221, 0.1)',
+                border: selectedIds.has(post.id)
+                  ? '1px solid rgba(129, 199, 132, 0.3)'
+                  : '1px solid rgba(246, 237, 221, 0.1)',
+                position: 'relative',
               }}
             >
+              {/* Selection checkbox */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  zIndex: 10,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(post.id)}
+                  onChange={() => toggleSelectPost(post.id)}
+                  style={{
+                    accentColor: '#81c784',
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
               {/* Media */}
               <div
                 style={{
@@ -655,6 +745,114 @@ export function AllPostsManager() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(30, 30, 30, 0.95)',
+            border: '1px solid rgba(246, 237, 221, 0.15)',
+            borderRadius: '12px',
+            padding: '0.75rem 1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            zIndex: 100,
+            backdropFilter: 'blur(12px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          <span style={{ fontSize: '0.85rem', color: '#f6eddd', fontWeight: 500 }}>
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={() => handleBulkAction('approve')}
+            disabled={bulkLoading}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: '1px solid rgba(129, 199, 132, 0.3)',
+              background: 'rgba(129, 199, 132, 0.1)',
+              color: '#81c784',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              cursor: bulkLoading ? 'not-allowed' : 'pointer',
+              opacity: bulkLoading ? 0.5 : 1,
+            }}
+          >
+            Approve
+          </button>
+          <button
+            onClick={() => handleBulkAction('reject')}
+            disabled={bulkLoading}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: '1px solid rgba(255, 183, 77, 0.3)',
+              background: 'rgba(255, 183, 77, 0.1)',
+              color: '#ffb74d',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              cursor: bulkLoading ? 'not-allowed' : 'pointer',
+              opacity: bulkLoading ? 0.5 : 1,
+            }}
+          >
+            Reject
+          </button>
+          <button
+            onClick={() => handleBulkAction('feature')}
+            disabled={bulkLoading}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              background: 'rgba(245, 158, 11, 0.1)',
+              color: '#f59e0b',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              cursor: bulkLoading ? 'not-allowed' : 'pointer',
+              opacity: bulkLoading ? 0.5 : 1,
+            }}
+          >
+            Feature
+          </button>
+          <button
+            onClick={() => handleBulkAction('delete')}
+            disabled={bulkLoading}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: '1px solid rgba(229, 115, 115, 0.3)',
+              background: 'rgba(229, 115, 115, 0.1)',
+              color: '#e57373',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              cursor: bulkLoading ? 'not-allowed' : 'pointer',
+              opacity: bulkLoading ? 0.5 : 1,
+            }}
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: '1px solid rgba(246, 237, 221, 0.1)',
+              background: 'transparent',
+              color: 'rgba(246, 237, 221, 0.5)',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Clear
+          </button>
         </div>
       )}
     </div>

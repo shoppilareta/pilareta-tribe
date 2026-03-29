@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { logAdminAction } from '@/lib/admin/audit';
 
 // POST /api/ugc/admin/moderate/[id] - Approve or reject a post
 export async function POST(
@@ -72,6 +73,7 @@ export async function POST(
     });
 
     logger.info('ugc/admin/moderate', `${action}d post ${id}`, { adminUserId: session.userId, postId: id });
+    await logAdminAction(session.userId, action, 'post', id, { note, feature: feature ?? false });
 
     return NextResponse.json({
       success: true,
@@ -126,6 +128,7 @@ export async function PATCH(
     });
 
     logger.info('ugc/admin/moderate', `${isFeatured ? 'featured' : 'unfeatured'} post ${id}`, { adminUserId: session.userId, postId: id });
+    await logAdminAction(session.userId, isFeatured ? 'feature' : 'unfeature', 'post', id);
 
     return NextResponse.json({
       success: true,

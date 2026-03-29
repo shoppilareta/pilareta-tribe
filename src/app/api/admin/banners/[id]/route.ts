@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { logAdminAction } from '@/lib/admin/audit';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +39,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
 
     logger.info('admin/banners', `Updated banner ${id}`, { adminUserId: session.userId });
+    await logAdminAction(session.userId, 'update', 'banner', id, { title: banner.title });
 
     return NextResponse.json({ banner });
   } catch (error) {
@@ -61,6 +63,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     await prisma.shopBanner.delete({ where: { id } });
     logger.info('admin/banners', `Deleted banner ${id}`, { adminUserId: session.userId });
+    await logAdminAction(session.userId, 'delete', 'banner', id);
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error('admin/banners', 'Failed to delete banner', error);

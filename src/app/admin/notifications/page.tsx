@@ -8,6 +8,8 @@ interface AdminNotification {
   body: string;
   data: Record<string, unknown> | null;
   segment: string;
+  scheduledFor: string | null;
+  status: string;
   sentAt: string;
   sentBy: string;
   recipientCount: number;
@@ -26,12 +28,15 @@ export default function AdminNotificationsPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [lastResult, setLastResult] = useState<SendResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Form state
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [dataJson, setDataJson] = useState('');
   const [segment, setSegment] = useState<'all' | 'active'>('all');
+  const [sendMode, setSendMode] = useState<'now' | 'schedule'>('now');
+  const [scheduledFor, setScheduledFor] = useState('');
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -73,15 +78,21 @@ export default function AdminNotificationsPage() {
         }
       }
 
+      const payload: Record<string, unknown> = {
+        title: title.trim(),
+        body: body.trim(),
+        data: parsedData,
+        segment,
+      };
+
+      if (sendMode === 'schedule' && scheduledFor) {
+        payload.scheduledFor = new Date(scheduledFor).toISOString();
+      }
+
       const res = await fetch('/api/admin/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          body: body.trim(),
-          data: parsedData,
-          segment,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -97,6 +108,8 @@ export default function AdminNotificationsPage() {
       setBody('');
       setDataJson('');
       setSegment('all');
+      setSendMode('now');
+      setScheduledFor('');
 
       // Refresh history
       await fetchNotifications();
@@ -107,7 +120,61 @@ export default function AdminNotificationsPage() {
     }
   };
 
-  const canSend = title.trim() && body.trim() && !sending;
+  const handleScheduledAction = async (notificationId: string, action: 'send_now' | 'cancel') => {
+    setActionLoading(notificationId);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId, action }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to ${action} notification`);
+      }
+
+      const result = await res.json();
+      if (result.result) {
+        setLastResult(result.result);
+      }
+
+      await fetchNotifications();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to ${action} notification`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const canSend = title.trim() && body.trim() && !sending && (sendMode === 'now' || scheduledFor);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return {
+          bg: 'rgba(234, 179, 8, 0.15)',
+          border: 'rgba(234, 179, 8, 0.3)',
+          color: 'rgba(234, 179, 8, 0.9)',
+          label: 'Scheduled',
+        };
+      case 'cancelled':
+        return {
+          bg: 'rgba(239, 68, 68, 0.1)',
+          border: 'rgba(239, 68, 68, 0.3)',
+          color: 'rgba(239, 68, 68, 0.8)',
+          label: 'Cancelled',
+        };
+      default:
+        return {
+          bg: 'rgba(34, 197, 94, 0.1)',
+          border: 'rgba(34, 197, 94, 0.3)',
+          color: 'rgba(34, 197, 94, 0.8)',
+          label: 'Sent',
+        };
+    }
+  };
 
   return (
     <div
@@ -160,7 +227,7 @@ export default function AdminNotificationsPage() {
               color: 'rgba(246, 237, 221, 0.6)',
             }}
           >
-            Send push notifications to mobile app users
+            Send or schedule push notifications to mobile app users
           </p>
         </div>
 
@@ -177,7 +244,9 @@ export default function AdminNotificationsPage() {
               fontSize: '0.875rem',
             }}
           >
-            Notification sent to {lastResult.totalSent} recipient{lastResult.totalSent !== 1 ? 's' : ''}.
+            {lastResult.totalSent > 0
+              ? `Notification sent to ${lastResult.totalSent} recipient${lastResult.totalSent !== 1 ? 's' : ''}.`
+              : 'Notification scheduled successfully.'}
             {lastResult.failureCount > 0 && (
               <span style={{ color: 'rgba(239, 68, 68, 0.9)', marginLeft: '0.5rem' }}>
                 {lastResult.failureCount} failed.
@@ -361,7 +430,7 @@ export default function AdminNotificationsPage() {
               >
                 Audience
               </label>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {(['all', 'active'] as const).map((seg) => (
                   <button
                     key={seg}
@@ -390,6 +459,90 @@ export default function AdminNotificationsPage() {
               </div>
             </div>
 
+            {/* Send Mode: Now vs Schedule */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.375rem',
+                  fontSize: '0.8125rem',
+                  color: 'rgba(246, 237, 221, 0.7)',
+                  fontWeight: 500,
+                }}
+              >
+                When to Send
+              </label>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                {(['now', 'schedule'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setSendMode(mode)}
+                    style={{
+                      padding: '0.5rem 1.25rem',
+                      borderRadius: '9999px',
+                      border: sendMode === mode
+                        ? '1px solid rgba(246, 237, 221, 0.6)'
+                        : '1px solid rgba(246, 237, 221, 0.2)',
+                      background: sendMode === mode
+                        ? 'rgba(246, 237, 221, 0.1)'
+                        : 'transparent',
+                      color: sendMode === mode
+                        ? '#f6eddd'
+                        : 'rgba(246, 237, 221, 0.5)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    {mode === 'now' ? 'Send Now' : 'Schedule'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Datetime picker for scheduling */}
+            {sendMode === 'schedule' && (
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    marginBottom: '0.375rem',
+                    fontSize: '0.8125rem',
+                    color: 'rgba(246, 237, 221, 0.7)',
+                    fontWeight: 500,
+                  }}
+                >
+                  Scheduled Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  style={{
+                    background: 'rgba(70, 74, 60, 0.3)',
+                    border: '1px solid rgba(246, 237, 221, 0.2)',
+                    borderRadius: '0.5rem',
+                    padding: '0.75rem 1rem',
+                    color: '#f6eddd',
+                    fontSize: '0.875rem',
+                    width: '100%',
+                    colorScheme: 'dark',
+                  }}
+                />
+                <p
+                  style={{
+                    margin: '0.375rem 0 0',
+                    fontSize: '0.75rem',
+                    color: 'rgba(234, 179, 8, 0.7)',
+                  }}
+                >
+                  Note: Scheduled notifications require a cron job to auto-send. Use the &quot;Send Now&quot; button on a scheduled notification to send manually.
+                </p>
+              </div>
+            )}
+
             {/* Send button */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
               {!showConfirm ? (
@@ -406,19 +559,22 @@ export default function AdminNotificationsPage() {
                     fontWeight: 600,
                     cursor: canSend ? 'pointer' : 'not-allowed',
                     transition: 'all 0.2s ease',
+                    minHeight: '44px',
                   }}
                 >
-                  Send Notification
+                  {sendMode === 'now' ? 'Send Notification' : 'Schedule Notification'}
                 </button>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <span
                     style={{
                       fontSize: '0.8125rem',
                       color: 'rgba(246, 237, 221, 0.7)',
                     }}
                   >
-                    Send to {segment === 'all' ? 'all users' : 'active users'}?
+                    {sendMode === 'now'
+                      ? `Send to ${segment === 'all' ? 'all users' : 'active users'}?`
+                      : `Schedule for ${new Date(scheduledFor).toLocaleString()}?`}
                   </span>
                   <button
                     onClick={handleSend}
@@ -433,9 +589,10 @@ export default function AdminNotificationsPage() {
                       fontWeight: 600,
                       cursor: sending ? 'not-allowed' : 'pointer',
                       opacity: sending ? 0.6 : 1,
+                      minHeight: '44px',
                     }}
                   >
-                    {sending ? 'Sending...' : 'Confirm'}
+                    {sending ? 'Processing...' : 'Confirm'}
                   </button>
                   <button
                     onClick={() => setShowConfirm(false)}
@@ -447,6 +604,7 @@ export default function AdminNotificationsPage() {
                       color: 'rgba(246, 237, 221, 0.6)',
                       fontSize: '0.8125rem',
                       cursor: 'pointer',
+                      minHeight: '44px',
                     }}
                   >
                     Cancel
@@ -468,7 +626,7 @@ export default function AdminNotificationsPage() {
               letterSpacing: '-0.01em',
             }}
           >
-            Sent Notifications
+            Notification History
           </h2>
 
           {loading ? (
@@ -487,110 +645,193 @@ export default function AdminNotificationsPage() {
                 border: '1px solid rgba(246, 237, 221, 0.05)',
               }}
             >
-              No notifications sent yet.
+              No notifications yet.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  style={{
-                    background: 'rgba(70, 74, 60, 0.15)',
-                    border: '1px solid rgba(246, 237, 221, 0.08)',
-                    borderRadius: '0.75rem',
-                    padding: '1rem 1.25rem',
-                  }}
-                >
+              {notifications.map((notif) => {
+                const badge = getStatusBadge(notif.status);
+                return (
                   <div
+                    key={notif.id}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      marginBottom: '0.375rem',
+                      background: 'rgba(70, 74, 60, 0.15)',
+                      border: '1px solid rgba(246, 237, 221, 0.08)',
+                      borderRadius: '0.75rem',
+                      padding: '1rem 1.25rem',
                     }}
                   >
-                    <h3
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '0.375rem',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: '0.9375rem',
+                          fontWeight: 500,
+                          color: '#f6eddd',
+                        }}
+                      >
+                        {notif.title}
+                      </h3>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
+                        {/* Status badge */}
+                        <span
+                          style={{
+                            padding: '0.2rem 0.625rem',
+                            borderRadius: '9999px',
+                            background: badge.bg,
+                            border: `1px solid ${badge.border}`,
+                            color: badge.color,
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          {badge.label}
+                        </span>
+                        <span
+                          style={{
+                            padding: '0.2rem 0.625rem',
+                            borderRadius: '9999px',
+                            background: 'rgba(246, 237, 221, 0.08)',
+                            color: 'rgba(246, 237, 221, 0.6)',
+                            fontSize: '0.6875rem',
+                            fontWeight: 500,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          {notif.segment}
+                        </span>
+                        {notif.status === 'sent' && (
+                          <span
+                            style={{
+                              padding: '0.2rem 0.625rem',
+                              borderRadius: '9999px',
+                              background: 'rgba(246, 237, 221, 0.08)',
+                              color: 'rgba(246, 237, 221, 0.6)',
+                              fontSize: '0.6875rem',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {notif.recipientCount} recipient{notif.recipientCount !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p
                       style={{
                         margin: 0,
-                        fontSize: '0.9375rem',
-                        fontWeight: 500,
-                        color: '#f6eddd',
+                        fontSize: '0.8125rem',
+                        color: 'rgba(246, 237, 221, 0.6)',
+                        lineHeight: 1.5,
                       }}
                     >
-                      {notif.title}
-                    </h3>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                      <span
+                      {notif.body}
+                    </p>
+                    {notif.data && (
+                      <pre
                         style={{
-                          padding: '0.2rem 0.625rem',
-                          borderRadius: '9999px',
-                          background: 'rgba(246, 237, 221, 0.08)',
-                          color: 'rgba(246, 237, 221, 0.6)',
+                          margin: '0.5rem 0 0',
+                          padding: '0.5rem 0.75rem',
+                          background: 'rgba(0, 0, 0, 0.2)',
+                          borderRadius: '0.375rem',
                           fontSize: '0.6875rem',
-                          fontWeight: 500,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
+                          color: 'rgba(246, 237, 221, 0.5)',
+                          overflow: 'auto',
+                          fontFamily: 'monospace',
                         }}
                       >
-                        {notif.segment}
-                      </span>
-                      <span
+                        {JSON.stringify(notif.data, null, 2)}
+                      </pre>
+                    )}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '0.5rem',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <p
                         style={{
-                          padding: '0.2rem 0.625rem',
-                          borderRadius: '9999px',
-                          background: 'rgba(246, 237, 221, 0.08)',
-                          color: 'rgba(246, 237, 221, 0.6)',
-                          fontSize: '0.6875rem',
-                          fontWeight: 500,
+                          margin: 0,
+                          fontSize: '0.75rem',
+                          color: 'rgba(246, 237, 221, 0.35)',
                         }}
                       >
-                        {notif.recipientCount} recipient{notif.recipientCount !== 1 ? 's' : ''}
-                      </span>
+                        {notif.scheduledFor && notif.status === 'scheduled'
+                          ? `Scheduled for ${new Date(notif.scheduledFor).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}`
+                          : new Date(notif.sentAt).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                      </p>
+                      {/* Action buttons for scheduled notifications */}
+                      {notif.status === 'scheduled' && (
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => handleScheduledAction(notif.id, 'send_now')}
+                            disabled={actionLoading === notif.id}
+                            style={{
+                              padding: '0.375rem 0.875rem',
+                              borderRadius: '9999px',
+                              border: 'none',
+                              background: 'rgba(34, 197, 94, 0.8)',
+                              color: '#fff',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: actionLoading === notif.id ? 'not-allowed' : 'pointer',
+                              opacity: actionLoading === notif.id ? 0.6 : 1,
+                              minHeight: '32px',
+                            }}
+                          >
+                            {actionLoading === notif.id ? '...' : 'Send Now'}
+                          </button>
+                          <button
+                            onClick={() => handleScheduledAction(notif.id, 'cancel')}
+                            disabled={actionLoading === notif.id}
+                            style={{
+                              padding: '0.375rem 0.875rem',
+                              borderRadius: '9999px',
+                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              background: 'transparent',
+                              color: 'rgba(239, 68, 68, 0.8)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: actionLoading === notif.id ? 'not-allowed' : 'pointer',
+                              opacity: actionLoading === notif.id ? 0.6 : 1,
+                              minHeight: '32px',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '0.8125rem',
-                      color: 'rgba(246, 237, 221, 0.6)',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {notif.body}
-                  </p>
-                  {notif.data && (
-                    <pre
-                      style={{
-                        margin: '0.5rem 0 0',
-                        padding: '0.5rem 0.75rem',
-                        background: 'rgba(0, 0, 0, 0.2)',
-                        borderRadius: '0.375rem',
-                        fontSize: '0.6875rem',
-                        color: 'rgba(246, 237, 221, 0.5)',
-                        overflow: 'auto',
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {JSON.stringify(notif.data, null, 2)}
-                    </pre>
-                  )}
-                  <p
-                    style={{
-                      margin: '0.5rem 0 0',
-                      fontSize: '0.75rem',
-                      color: 'rgba(246, 237, 221, 0.35)',
-                    }}
-                  >
-                    {new Date(notif.sentAt).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

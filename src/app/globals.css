@@ -480,3 +480,43 @@ input::placeholder, textarea::placeholder {
   white-space: nowrap;
   border-width: 0;
 }
+
+/* ============================================
+   ADMIN MOBILE RESPONSIVENESS
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Admin layout: main content gets full width on mobile */
+  .admin-sidebar-toggle {
+    display: flex !important;
+  }
+
+  /* Admin data tables: horizontal scroll */
+  table {
+    display: table;
+  }
+
+  /* Admin forms: full-width, stacked */
+  .admin-form-row {
+    flex-direction: column !important;
+  }
+
+  /* Admin action buttons: larger tap targets */
+  button, [role="button"] {
+    min-height: 44px;
+  }
+
+  /* Admin modals: full-screen on mobile */
+  .admin-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  .admin-modal-overlay {
+    padding: 0 !important;
+  }
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { logAdminAction } from '@/lib/admin/audit';
 
 // GET /api/admin/banners — List all banners (admin only)
 export async function GET(request: NextRequest) {
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
     });
 
     logger.info('admin/banners', `Created banner ${banner.id}`, { adminUserId: session.userId });
+    await logAdminAction(session.userId, 'create', 'banner', banner.id, { title: banner.title });
 
     return NextResponse.json({ banner }, { status: 201 });
   } catch (error) {

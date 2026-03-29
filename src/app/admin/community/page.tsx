@@ -1,4 +1,5 @@
 import { AdminUgcTabs } from '@/components/ugc/admin/AdminUgcTabs';
+import { CommunityExportButton } from '@/components/ugc/admin/CommunityExportButton';
 
 export default async function AdminUgcPage() {
   return (
@@ -21,26 +22,31 @@ export default async function AdminUgcPage() {
             Community
           </span>
         </div>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: '1.5rem',
-            fontWeight: 400,
-            color: '#f6eddd',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Community Content Moderation
-        </h1>
-        <p
-          style={{
-            margin: '0.25rem 0 0',
-            fontSize: '0.875rem',
-            color: 'rgba(246, 237, 221, 0.5)',
-          }}
-        >
-          Review and approve user-submitted content
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: '1.5rem',
+                fontWeight: 400,
+                color: '#f6eddd',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Community Content Moderation
+            </h1>
+            <p
+              style={{
+                margin: '0.25rem 0 0',
+                fontSize: '0.875rem',
+                color: 'rgba(246, 237, 221, 0.5)',
+              }}
+            >
+              Review and approve user-submitted content
+            </p>
+          </div>
+          <CommunityExportButton />
+        </div>
       </div>
 
       {/* Admin Tabs */}

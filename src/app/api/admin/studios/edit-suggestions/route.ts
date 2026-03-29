@@ -18,7 +18,15 @@ export async function GET(request: NextRequest) {
     const suggestions = await prisma.studioEditSuggestion.findMany({
       include: {
         studio: {
-          select: { name: true, city: true },
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            address: true,
+            phoneNumber: true,
+            website: true,
+            amenities: true,
+          },
         },
       },
       orderBy: [

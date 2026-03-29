@@ -8,6 +8,8 @@ interface UserListItem {
   firstName: string | null;
   lastName: string | null;
   isAdmin: boolean;
+  deactivated: boolean;
+  bannedAt: string | null;
   createdAt: string;
   _count: {
     ugcPosts: number;
@@ -21,6 +23,8 @@ interface UserDetail {
   firstName: string | null;
   lastName: string | null;
   isAdmin: boolean;
+  deactivated: boolean;
+  bannedAt: string | null;
   shopifyId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -57,6 +61,9 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [togglingAdmin, setTogglingAdmin] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchUsers = useCallback(
     async (page: number, searchQuery: string) => {
@@ -106,6 +113,9 @@ export default function AdminUsersPage() {
   };
 
   const toggleAdmin = async (userId: string, currentIsAdmin: boolean) => {
+    const action = currentIsAdmin ? 'remove admin access from' : 'grant admin access to';
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+
     setTogglingAdmin(userId);
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -119,11 +129,10 @@ export default function AdminUsersPage() {
         return;
       }
       const data = await res.json();
-      // Update list
+      alert(`Admin access ${data.user.isAdmin ? 'granted' : 'removed'} successfully`);
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, isAdmin: data.user.isAdmin } : u))
       );
-      // Update detail if open
       if (selectedUser?.id === userId) {
         setSelectedUser((prev) => (prev ? { ...prev, isAdmin: data.user.isAdmin } : prev));
       }
@@ -132,6 +141,118 @@ export default function AdminUsersPage() {
     } finally {
       setTogglingAdmin(null);
     }
+  };
+
+  const handleDeactivate = async (userId: string, currentlyDeactivated: boolean) => {
+    const action = currentlyDeactivated ? 'reactivate' : 'deactivate';
+    if (!window.confirm(`Are you sure you want to ${action} this user?${!currentlyDeactivated ? ' All their sessions will be terminated.' : ''}`)) return;
+
+    setActionLoading(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deactivated: !currentlyDeactivated }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || `Failed to ${action} user`);
+        return;
+      }
+      const data = await res.json();
+      alert(`User ${action}d successfully`);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, deactivated: data.user.deactivated } : u))
+      );
+      if (selectedUser?.id === userId) {
+        setSelectedUser((prev) => (prev ? { ...prev, deactivated: data.user.deactivated } : prev));
+      }
+    } catch {
+      alert(`Failed to ${action} user`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBan = async (userId: string, currentlyBanned: boolean) => {
+    const action = currentlyBanned ? 'unban' : 'ban';
+    if (!window.confirm(`Are you sure you want to ${action} this user?${!currentlyBanned ? ' All their sessions will be terminated immediately.' : ''}`)) return;
+
+    setActionLoading(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bannedAt: currentlyBanned ? null : new Date().toISOString() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || `Failed to ${action} user`);
+        return;
+      }
+      const data = await res.json();
+      alert(`User ${action}ned successfully`);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, bannedAt: data.user.bannedAt } : u))
+      );
+      if (selectedUser?.id === userId) {
+        setSelectedUser((prev) => (prev ? { ...prev, bannedAt: data.user.bannedAt } : prev));
+      }
+    } catch {
+      alert(`Failed to ${action} user`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const toggleSelectUser = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === users.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(users.map((u) => u.id)));
+    }
+  };
+
+  const handleBulkAction = async (action: string) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const confirmMsg = `Are you sure you want to ${action} ${ids.length} user(s)?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/admin/bulk-operations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, entityType: 'users', ids }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Bulk operation failed');
+        return;
+      }
+      const data = await res.json();
+      alert(`${data.count} user(s) affected`);
+      setSelectedIds(new Set());
+      fetchUsers(pagination.page, search);
+    } catch {
+      alert('Bulk operation failed');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    window.open('/api/admin/exports?type=users', '_blank');
   };
 
   const cardStyle: React.CSSProperties = {
@@ -213,6 +334,22 @@ export default function AdminUsersPage() {
             Clear
           </button>
         )}
+        <button
+          onClick={handleExportCsv}
+          style={{
+            padding: '0.625rem 1.25rem',
+            borderRadius: '8px',
+            border: '1px solid rgba(246, 237, 221, 0.15)',
+            background: 'rgba(246, 237, 221, 0.08)',
+            color: '#f6eddd',
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            marginLeft: 'auto',
+          }}
+        >
+          Export CSV
+        </button>
       </div>
 
       {/* Two column layout for detail view */}
@@ -234,7 +371,7 @@ export default function AdminUsersPage() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 80px 80px 60px 100px',
+                    gridTemplateColumns: '32px 1fr 80px 80px 90px 100px',
                     gap: '0.75rem',
                     padding: '0.75rem 1rem',
                     borderBottom: '1px solid rgba(246, 237, 221, 0.08)',
@@ -243,12 +380,21 @@ export default function AdminUsersPage() {
                     color: 'rgba(246, 237, 221, 0.45)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
+                    alignItems: 'center',
                   }}
                 >
+                  <div>
+                    <input
+                      type="checkbox"
+                      checked={users.length > 0 && selectedIds.size === users.length}
+                      onChange={toggleSelectAll}
+                      style={{ accentColor: '#81c784', cursor: 'pointer' }}
+                    />
+                  </div>
                   <div>User</div>
                   <div style={{ textAlign: 'center' }}>Posts</div>
                   <div style={{ textAlign: 'center' }}>Workouts</div>
-                  <div style={{ textAlign: 'center' }}>Admin</div>
+                  <div style={{ textAlign: 'center' }}>Status</div>
                   <div style={{ textAlign: 'right' }}>Joined</div>
                 </div>
 
@@ -259,29 +405,43 @@ export default function AdminUsersPage() {
                     onClick={() => viewUserDetail(u.id)}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 80px 80px 60px 100px',
+                      gridTemplateColumns: '32px 1fr 80px 80px 90px 100px',
                       gap: '0.75rem',
                       padding: '0.75rem 1rem',
                       borderBottom: '1px solid rgba(246, 237, 221, 0.04)',
                       cursor: 'pointer',
                       transition: 'background 0.1s ease',
-                      background: selectedUser?.id === u.id ? 'rgba(246, 237, 221, 0.06)' : 'transparent',
+                      background: selectedIds.has(u.id)
+                        ? 'rgba(129, 199, 132, 0.06)'
+                        : selectedUser?.id === u.id
+                          ? 'rgba(246, 237, 221, 0.06)'
+                          : 'transparent',
+                      alignItems: 'center',
                     }}
                     onMouseEnter={(e) => {
-                      if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'rgba(246, 237, 221, 0.03)';
+                      if (selectedUser?.id !== u.id && !selectedIds.has(u.id)) e.currentTarget.style.background = 'rgba(246, 237, 221, 0.03)';
                     }}
                     onMouseLeave={(e) => {
-                      if (selectedUser?.id !== u.id) e.currentTarget.style.background = 'transparent';
+                      if (selectedUser?.id !== u.id && !selectedIds.has(u.id)) e.currentTarget.style.background = 'transparent';
                     }}
                   >
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(u.id)}
+                        onChange={() => toggleSelectUser(u.id)}
+                        style={{ accentColor: '#81c784', cursor: 'pointer' }}
+                      />
+                    </div>
                     <div style={{ minWidth: 0 }}>
                       <div
                         style={{
                           fontSize: '0.85rem',
-                          color: '#f6eddd',
+                          color: u.deactivated || u.bannedAt ? 'rgba(246, 237, 221, 0.4)' : '#f6eddd',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
+                          textDecoration: u.deactivated ? 'line-through' : 'none',
                         }}
                       >
                         {u.firstName || u.lastName
@@ -308,11 +468,11 @@ export default function AdminUsersPage() {
                     <div style={{ textAlign: 'center', fontSize: '0.85rem', color: 'rgba(246, 237, 221, 0.7)' }}>
                       {u._count.workoutLogs}
                     </div>
-                    <div style={{ textAlign: 'center' }}>
+                    <div style={{ textAlign: 'center', display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
                       {u.isAdmin && (
                         <span
                           style={{
-                            fontSize: '0.65rem',
+                            fontSize: '0.6rem',
                             fontWeight: 600,
                             padding: '2px 6px',
                             borderRadius: '4px',
@@ -320,7 +480,35 @@ export default function AdminUsersPage() {
                             color: '#81c784',
                           }}
                         >
-                          YES
+                          ADMIN
+                        </span>
+                      )}
+                      {u.bannedAt && (
+                        <span
+                          style={{
+                            fontSize: '0.6rem',
+                            fontWeight: 600,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(229, 115, 115, 0.15)',
+                            color: '#e57373',
+                          }}
+                        >
+                          BANNED
+                        </span>
+                      )}
+                      {u.deactivated && !u.bannedAt && (
+                        <span
+                          style={{
+                            fontSize: '0.6rem',
+                            fontWeight: 600,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(255, 183, 77, 0.15)',
+                            color: '#ffb74d',
+                          }}
+                        >
+                          INACTIVE
                         </span>
                       )}
                     </div>
@@ -420,6 +608,34 @@ export default function AdminUsersPage() {
                   </button>
                 </div>
 
+                {/* Status badges */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                  {selectedUser.bannedAt && (
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+                      background: 'rgba(229, 115, 115, 0.15)', color: '#e57373',
+                    }}>
+                      BANNED {new Date(selectedUser.bannedAt).toLocaleDateString()}
+                    </span>
+                  )}
+                  {selectedUser.deactivated && !selectedUser.bannedAt && (
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+                      background: 'rgba(255, 183, 77, 0.15)', color: '#ffb74d',
+                    }}>
+                      DEACTIVATED
+                    </span>
+                  )}
+                  {selectedUser.isAdmin && (
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+                      background: 'rgba(129, 199, 132, 0.15)', color: '#81c784',
+                    }}>
+                      ADMIN
+                    </span>
+                  )}
+                </div>
+
                 {/* Name & Email */}
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 400, color: '#f6eddd', marginBottom: '0.25rem' }}>
@@ -493,34 +709,142 @@ export default function AdminUsersPage() {
                   )}
                 </div>
 
-                {/* Admin toggle */}
-                <button
-                  onClick={() => toggleAdmin(selectedUser.id, selectedUser.isAdmin)}
-                  disabled={togglingAdmin === selectedUser.id}
-                  style={{
-                    width: '100%',
-                    padding: '0.625rem',
-                    borderRadius: '8px',
-                    border: `1px solid ${selectedUser.isAdmin ? 'rgba(229, 115, 115, 0.3)' : 'rgba(129, 199, 132, 0.3)'}`,
-                    background: selectedUser.isAdmin ? 'rgba(229, 115, 115, 0.08)' : 'rgba(129, 199, 132, 0.08)',
-                    color: selectedUser.isAdmin ? '#e57373' : '#81c784',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    cursor: togglingAdmin === selectedUser.id ? 'not-allowed' : 'pointer',
-                    opacity: togglingAdmin === selectedUser.id ? 0.5 : 1,
-                  }}
-                >
-                  {togglingAdmin === selectedUser.id
-                    ? 'Updating...'
-                    : selectedUser.isAdmin
-                      ? 'Remove Admin Access'
-                      : 'Grant Admin Access'}
-                </button>
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {/* Admin toggle */}
+                  <button
+                    onClick={() => toggleAdmin(selectedUser.id, selectedUser.isAdmin)}
+                    disabled={togglingAdmin === selectedUser.id}
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem',
+                      borderRadius: '8px',
+                      border: `1px solid ${selectedUser.isAdmin ? 'rgba(229, 115, 115, 0.3)' : 'rgba(129, 199, 132, 0.3)'}`,
+                      background: selectedUser.isAdmin ? 'rgba(229, 115, 115, 0.08)' : 'rgba(129, 199, 132, 0.08)',
+                      color: selectedUser.isAdmin ? '#e57373' : '#81c784',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      cursor: togglingAdmin === selectedUser.id ? 'not-allowed' : 'pointer',
+                      opacity: togglingAdmin === selectedUser.id ? 0.5 : 1,
+                    }}
+                  >
+                    {togglingAdmin === selectedUser.id
+                      ? 'Updating...'
+                      : selectedUser.isAdmin
+                        ? 'Remove Admin Access'
+                        : 'Grant Admin Access'}
+                  </button>
+
+                  {/* Deactivate toggle */}
+                  <button
+                    onClick={() => handleDeactivate(selectedUser.id, selectedUser.deactivated)}
+                    disabled={actionLoading === selectedUser.id}
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem',
+                      borderRadius: '8px',
+                      border: `1px solid ${selectedUser.deactivated ? 'rgba(129, 199, 132, 0.3)' : 'rgba(255, 183, 77, 0.3)'}`,
+                      background: selectedUser.deactivated ? 'rgba(129, 199, 132, 0.08)' : 'rgba(255, 183, 77, 0.08)',
+                      color: selectedUser.deactivated ? '#81c784' : '#ffb74d',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      cursor: actionLoading === selectedUser.id ? 'not-allowed' : 'pointer',
+                      opacity: actionLoading === selectedUser.id ? 0.5 : 1,
+                    }}
+                  >
+                    {actionLoading === selectedUser.id
+                      ? 'Updating...'
+                      : selectedUser.deactivated
+                        ? 'Reactivate Account'
+                        : 'Deactivate Account'}
+                  </button>
+
+                  {/* Ban toggle */}
+                  <button
+                    onClick={() => handleBan(selectedUser.id, !!selectedUser.bannedAt)}
+                    disabled={actionLoading === selectedUser.id}
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem',
+                      borderRadius: '8px',
+                      border: `1px solid ${selectedUser.bannedAt ? 'rgba(129, 199, 132, 0.3)' : 'rgba(229, 115, 115, 0.3)'}`,
+                      background: selectedUser.bannedAt ? 'rgba(129, 199, 132, 0.08)' : 'rgba(229, 115, 115, 0.08)',
+                      color: selectedUser.bannedAt ? '#81c784' : '#e57373',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      cursor: actionLoading === selectedUser.id ? 'not-allowed' : 'pointer',
+                      opacity: actionLoading === selectedUser.id ? 0.5 : 1,
+                    }}
+                  >
+                    {actionLoading === selectedUser.id
+                      ? 'Updating...'
+                      : selectedUser.bannedAt
+                        ? 'Unban User'
+                        : 'Ban User'}
+                  </button>
+                </div>
               </>
             ) : null}
           </div>
         )}
       </div>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(30, 30, 30, 0.95)',
+            border: '1px solid rgba(246, 237, 221, 0.15)',
+            borderRadius: '12px',
+            padding: '0.75rem 1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            zIndex: 100,
+            backdropFilter: 'blur(12px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          <span style={{ fontSize: '0.85rem', color: '#f6eddd', fontWeight: 500 }}>
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={() => handleBulkAction('ban')}
+            disabled={bulkLoading}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: '1px solid rgba(229, 115, 115, 0.3)',
+              background: 'rgba(229, 115, 115, 0.1)',
+              color: '#e57373',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              cursor: bulkLoading ? 'not-allowed' : 'pointer',
+              opacity: bulkLoading ? 0.5 : 1,
+            }}
+          >
+            {bulkLoading ? 'Processing...' : 'Ban (Logout)'}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: '1px solid rgba(246, 237, 221, 0.1)',
+              background: 'transparent',
+              color: 'rgba(246, 237, 221, 0.5)',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
     </div>
   );
 }

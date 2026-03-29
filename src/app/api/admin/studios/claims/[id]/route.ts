@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { logAdminAction } from '@/lib/admin/audit';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +39,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         data: { verified: true },
       });
     }
+
+    await logAdminAction(session.userId, status === 'approved' ? 'approve' : 'reject', 'studio_claim', id, {
+      studioId: claim.studioId,
+      status,
+    });
 
     return NextResponse.json({ claim });
   } catch (error) {
