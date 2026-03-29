@@ -131,6 +131,7 @@ export default function RecapScreen() {
             sessionName={log.session?.name}
             currentStreak={streak}
             focusAreas={log.focusAreas ?? []}
+            imageUrl={log.imageUrl}
           />
         </ViewShot>
       </View>

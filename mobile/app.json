@@ -122,6 +122,7 @@
       "typedRoutes": true
     },
     "extra": {
+      "googleMapsApiKey": "AIzaSyAU6a_TTpb_lAepYeVxKI9oB1TIkpze3fM",
       "eas": {
         "projectId": "07834875-89aa-4996-962e-f4fcbfe45ceb"
       },

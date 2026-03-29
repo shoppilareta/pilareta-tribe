@@ -79,6 +79,7 @@ const COLOR_MAP: Record<string, string> = {
   'thistle': '#d8bfd8',
 
   // Blues
+  'dark blue': '#00008b',
   'cobalt': '#0047ab',
   'sky': '#38bdf8',
   'light blue': '#87ceeb',
@@ -94,6 +95,9 @@ const COLOR_MAP: Record<string, string> = {
   'sapphire': '#0f52ba',
   'cerulean': '#007ba7',
   'arctic': '#c5e8f0',
+
+  // Reds (dark shades)
+  'dark red': '#8b0000',
 
   // Greens
   'dark green': '#1a472a',
@@ -113,6 +117,8 @@ const COLOR_MAP: Record<string, string> = {
   'chartreuse': '#dfff00',
 
   // Neutrals
+  'light gray': '#d1d5db',
+  'light grey': '#d1d5db',
   'charcoal': '#374151',
   'ivory': '#fffff0',
   'khaki': '#c3b091',
@@ -138,10 +144,14 @@ const COLOR_MAP: Record<string, string> = {
   'alabaster': '#f2f0eb',
   'champagne': '#f7e7ce',
   'wheat': '#f5deb3',
+  'pewter': '#8e9196',
+  'smoke': '#848884',
+  'opal': '#a8c3bc',
 
   // Browns & Earth tones
   'rust': '#b7410e',
   'copper': '#b87333',
+  'bronze': '#cd7f32',
   'clay': '#b66a50',
   'espresso': '#3c1414',
   'mocha': '#967969',
@@ -173,6 +183,18 @@ const COLOR_MAP: Record<string, string> = {
   'carbon': '#333333',
   'obsidian': '#3d3d3d',
   'iron': '#48494b',
+
+  // Neon & Pastel
+  'neon': '#39ff14',
+  'neon green': '#39ff14',
+  'neon pink': '#ff6ec7',
+  'neon yellow': '#cfff04',
+  'neon orange': '#ff5f1f',
+  'pastel': '#b39eb5',
+  'pastel blue': '#aec6cf',
+  'pastel green': '#77dd77',
+  'pastel yellow': '#fdfd96',
+  'pastel purple': '#b39eb5',
 
   // Yellows & Golds
   'lemon': '#fde047',

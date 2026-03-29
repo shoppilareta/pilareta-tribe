@@ -254,7 +254,7 @@ export default function CreatePost() {
     setSubmitting(true);
 
     try {
-      await createPost({
+      const result = await createPost({
         file: mode === 'photo' ? image! : undefined,
         instagramUrl: mode === 'instagram' ? instagramUrl.trim() : undefined,
         caption: caption.trim() || undefined,
@@ -267,9 +267,15 @@ export default function CreatePost() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['community-feed'] });
       queryClient.invalidateQueries({ queryKey: ['community-my-posts'] });
-      Alert.alert('Submitted!', 'Your post has been submitted for review.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+
+      const isApproved = result.status === 'approved';
+      Alert.alert(
+        isApproved ? 'Posted!' : 'Submitted!',
+        isApproved
+          ? 'Your post is now live in the Community feed.'
+          : 'Your post has been submitted for review.',
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
     } catch (error: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       let message = 'Failed to create post. Please try again.';
@@ -420,7 +426,7 @@ export default function CreatePost() {
         {/* Guidelines */}
         <View style={styles.guidelines}>
           <Text style={styles.guidelinesText}>
-            By posting, you agree to the community guidelines. Posts are reviewed before publishing.
+            By posting, you agree to the community guidelines. Most posts appear instantly; some may be briefly reviewed.
           </Text>
         </View>
       </ScrollView>

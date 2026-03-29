@@ -227,21 +227,6 @@ export default function ProductDetailScreen() {
     }));
   }, [product]);
 
-  // Map color names to variant image URLs for swatches
-  const colorImageMap = useMemo(() => {
-    if (!product) return new Map<string, string>();
-    const map = new Map<string, string>();
-    for (const v of product.variants ?? []) {
-      for (const opt of v.selectedOptions ?? []) {
-        const isColor = opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour';
-        if (isColor && !map.has(opt.value) && v.image?.url) {
-          map.set(opt.value, v.image.url);
-        }
-      }
-    }
-    return map;
-  }, [product]);
-
   // All products for recommendations
   const allProducts = data?.products;
 
@@ -538,7 +523,6 @@ export default function ProductDetailScreen() {
                   const available = isOptionAvailable(option.name, value);
 
                   if (isColor) {
-                    const variantImageUrl = colorImageMap.get(value);
                     return (
                       <Pressable
                         key={value}
@@ -550,19 +534,11 @@ export default function ProductDetailScreen() {
                         }}
                         style={[
                           styles.colorSwatch,
-                          !variantImageUrl && { backgroundColor: getColorCode(value) },
+                          { backgroundColor: getColorCode(value) },
                           isSelected && styles.colorSwatchSelected,
                           !available && styles.optionDisabled,
                         ]}
-                      >
-                        {variantImageUrl && (
-                          <Image
-                            source={{ uri: variantImageUrl }}
-                            style={styles.colorSwatchImage}
-                            resizeMode="cover"
-                          />
-                        )}
-                      </Pressable>
+                      />
                     );
                   }
 
@@ -788,9 +764,6 @@ const styles = StyleSheet.create({
   },
   colorSwatchSelected: {
     borderColor: colors.fg.primary, borderWidth: 3,
-  },
-  colorSwatchImage: {
-    width: '100%', height: '100%', borderRadius: 18,
   },
   optionDisabled: { opacity: 0.25 },
   sizePill: {

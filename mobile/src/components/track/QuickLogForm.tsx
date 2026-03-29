@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Switch,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,7 +17,7 @@ import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
 import { Button } from '@/components/ui';
 import { colors, typography, spacing, radius } from '@/theme';
-import { createLog, createLogWithImage, updateLog } from '@/api/track';
+import { createLog, createLogWithImage, updateLog, shareLog } from '@/api/track';
 import { scheduleInactivityReminder } from '@/hooks/useInactivityReminder';
 import type { CreateWorkoutLogRequest, UpdateWorkoutLogRequest } from '@shared/types';
 
@@ -131,6 +132,7 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
   const [showMore, setShowMore] = useState(isEditMode);
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [shareToFeed, setShareToFeed] = useState(false);
 
   // Type-specific fields
   const [distanceKm, setDistanceKm] = useState('');
@@ -160,6 +162,7 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
       });
       if (!result.canceled && result.assets[0]) {
         setImageUri(result.assets[0].uri);
+        setShareToFeed(true);
       }
     } catch (error) {
       console.warn('Failed to pick image:', error);
@@ -206,10 +209,23 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
           notes: notes || undefined,
           ...typeFields,
         };
+        let createdLog: { id: string } | undefined;
         if (imageUri) {
-          await createLogWithImage(data, imageUri);
+          const result = await createLogWithImage(data, imageUri);
+          createdLog = result.log;
         } else {
-          await createLog(data);
+          const result = await createLog(data);
+          createdLog = result.log;
+        }
+
+        // Share to community if toggled on
+        if (shareToFeed && createdLog?.id) {
+          try {
+            await shareLog(createdLog.id);
+          } catch {
+            // Sharing failed silently - workout was still saved
+            console.warn('Auto-share to community failed');
+          }
         }
       }
 
@@ -465,6 +481,19 @@ export function QuickLogForm({ onComplete, onCancel, editLog }: QuickLogFormProp
               <Text style={styles.imagePickerText}>Add a photo</Text>
             </Pressable>
           )}
+        </View>
+      )}
+
+      {/* Share to Community toggle (shown when photo is added) */}
+      {!isEditMode && imageUri && (
+        <View style={styles.shareRow}>
+          <Switch
+            value={shareToFeed}
+            onValueChange={setShareToFeed}
+            trackColor={{ false: 'rgba(246, 237, 221, 0.15)', true: 'rgba(245, 158, 11, 0.5)' }}
+            thumbColor={shareToFeed ? colors.accent.amber : colors.fg.tertiary}
+          />
+          <Text style={styles.shareLabel}>Share to Community</Text>
         </View>
       )}
 
@@ -742,6 +771,21 @@ const styles = StyleSheet.create({
   imagePickerText: {
     fontSize: typography.sizes.sm,
     color: colors.fg.tertiary,
+  },
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.cream10,
+    borderRadius: radius.sm,
+  },
+  shareLabel: {
+    fontSize: typography.sizes.sm,
+    color: colors.fg.secondary,
+    fontWeight: typography.weights.medium,
   },
   actions: {
     flexDirection: 'row',

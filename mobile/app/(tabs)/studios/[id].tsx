@@ -18,6 +18,7 @@ import { apiFetch } from '@/api/client';
 
 const GOOGLE_MAPS_KEY = Constants.expoConfig?.ios?.config?.googleMapsApiKey
   ?? (Constants.expoConfig?.android?.config?.googleMaps as { apiKey?: string })?.apiKey
+  ?? (Constants.expoConfig?.extra as Record<string, unknown>)?.googleMapsApiKey as string
   ?? '';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -214,7 +215,7 @@ function formatOpeningHours(openingHours: unknown): string[] {
 
 function photoRefToUrl(ref: string, maxWidth = 600): string | null {
   if (!GOOGLE_MAPS_KEY) return null;
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${encodeURIComponent(ref)}&key=${GOOGLE_MAPS_KEY}`;
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`;
 }
 
 function extractPhotoUrl(item: unknown, maxWidth = 600): string | null {

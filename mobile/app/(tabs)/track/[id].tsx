@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import ViewShot from 'react-native-view-shot';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card } from '@/components/ui';
-import { getLog, deleteLog, unshareLog } from '@/api/track';
+import { getLog, getStats, deleteLog, unshareLog, shareLog } from '@/api/track';
 import { QuickLogForm } from '@/components/track/QuickLogForm';
+import { RecapCard } from '@/components/track/RecapCard';
 
 const WORKOUT_TYPE_LABELS: Record<string, string> = {
   reformer: 'Reformer',
@@ -66,12 +70,64 @@ export default function LogDetail() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [sharingRecap, setSharingRecap] = useState(false);
+  const [sharingToCommunity, setSharingToCommunity] = useState(false);
+  const viewShotRef = useRef<ViewShot>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['track-log', id],
     queryFn: () => getLog(id!),
     enabled: !!id,
   });
+
+  const { data: statsData } = useQuery({
+    queryKey: ['track-stats'],
+    queryFn: getStats,
+  });
+
+  const handleShareToCommunity = async () => {
+    if (!id) return;
+    setSharingToCommunity(true);
+    try {
+      await shareLog(id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ['track-log', id] });
+      queryClient.invalidateQueries({ queryKey: ['track-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] });
+      Alert.alert('Shared!', 'Your workout has been posted to the Community feed.');
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', 'Failed to share workout to community.');
+    } finally {
+      setSharingToCommunity(false);
+    }
+  };
+
+  const handleShareRecapImage = async () => {
+    if (!viewShotRef.current?.capture) return;
+    setSharingRecap(true);
+    try {
+      const uri = await viewShotRef.current.capture();
+      const fileUri = FileSystem.cacheDirectory + 'pilareta-recap.png';
+      await FileSystem.copyAsync({ from: uri, to: fileUri });
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Share your Pilareta workout',
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert('Sharing not available', 'Sharing is not supported on this device.');
+      }
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', 'Failed to share recap card.');
+    } finally {
+      setSharingRecap(false);
+    }
+  };
 
   const handleDelete = () => {
     Alert.alert(
@@ -132,6 +188,7 @@ export default function LogDetail() {
   }
 
   const log = data.log;
+  const streak = statsData?.stats?.currentStreak ?? 0;
 
   if (isEditing) {
     return (
@@ -200,6 +257,66 @@ export default function LogDetail() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Recap Card Preview */}
+        <View style={styles.recapSection}>
+          <ViewShot
+            ref={viewShotRef}
+            options={{ format: 'png', quality: 1.0 }}
+            style={styles.viewShot}
+          >
+            <RecapCard
+              workoutDate={log.workoutDate}
+              durationMinutes={log.durationMinutes}
+              workoutType={log.workoutType}
+              rpe={log.rpe}
+              calorieEstimate={log.calorieEstimate}
+              studioName={log.studio?.name || log.customStudioName}
+              sessionName={log.session?.name}
+              currentStreak={streak}
+              focusAreas={log.focusAreas ?? []}
+              imageUrl={log.imageUrl}
+            />
+          </ViewShot>
+
+          {/* Sharing buttons */}
+          <View style={styles.shareButtons}>
+            {!log.isShared && (
+              <Pressable
+                style={styles.shareButton}
+                onPress={handleShareToCommunity}
+                disabled={sharingToCommunity}
+              >
+                {sharingToCommunity ? (
+                  <ActivityIndicator color={colors.fg.primary} size="small" />
+                ) : (
+                  <>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
+                      <Path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v-2m22-4l-5 5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                    <Text style={styles.shareButtonText}>Post to Community</Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+            <Pressable
+              style={styles.shareButton}
+              onPress={handleShareRecapImage}
+              disabled={sharingRecap}
+            >
+              {sharingRecap ? (
+                <ActivityIndicator color={colors.fg.primary} size="small" />
+              ) : (
+                <>
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
+                    <Path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                  <Text style={styles.shareButtonText}>Share Recap</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </View>
+
         {/* Date & Type */}
         <Text style={styles.date}>{formatDate(log.workoutDate)}</Text>
         <Text style={styles.type}>{WORKOUT_TYPE_LABELS[log.workoutType] || log.workoutType}</Text>
@@ -452,5 +569,34 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     color: colors.fg.tertiary,
     textDecorationLine: 'underline',
+  },
+  recapSection: {
+    marginBottom: spacing.lg,
+  },
+  viewShot: {
+    backgroundColor: '#202219',
+    borderRadius: 20,
+  },
+  shareButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  shareButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.bg.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingVertical: 12,
+  },
+  shareButtonText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    color: colors.fg.primary,
   },
 });

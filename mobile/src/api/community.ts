@@ -84,7 +84,7 @@ export async function createPost(data: {
   caption?: string;
   studioId?: string;
   tagIds?: string[];
-}): Promise<{ success: boolean; post: UgcPost; message: string }> {
+}): Promise<{ success: boolean; post: UgcPost; message: string; status?: string }> {
   const formData = new FormData();
 
   if (data.file) {

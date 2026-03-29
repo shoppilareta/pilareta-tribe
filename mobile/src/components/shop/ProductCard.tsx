@@ -176,11 +176,7 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
           {colorSwatches.length > 0 && (
             <View style={styles.swatchRow}>
               {colorSwatches.slice(0, 5).map((s) => (
-                s.imageUrl ? (
-                  <Image key={s.name} source={{ uri: s.imageUrl }} style={styles.swatchImage} />
-                ) : (
-                  <View key={s.name} style={[styles.swatch, { backgroundColor: getColorCode(s.name) }]} />
-                )
+                <View key={s.name} style={[styles.swatch, { backgroundColor: getColorCode(s.name) }]} />
               ))}
               {colorSwatches.length > 5 && (
                 <Text style={styles.moreColors}>+{colorSwatches.length - 5}</Text>
@@ -210,7 +206,6 @@ const styles = StyleSheet.create({
   lowStock: { fontSize: typography.sizes.xs, fontWeight: typography.weights.bold, color: colors.warning, marginBottom: 4 },
   swatchRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(246,237,221,0.2)' },
-  swatchImage: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(246,237,221,0.2)', overflow: 'hidden' },
   moreColors: { fontSize: 10, color: colors.fg.muted, marginLeft: 2 },
   heartButton: {
     position: 'absolute',

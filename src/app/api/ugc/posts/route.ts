@@ -512,6 +512,9 @@ export async function POST(request: NextRequest) {
       // Try to fetch and save Instagram thumbnail locally
       const thumbnailUrl = await fetchAndSaveInstagramThumbnail(tempId, instagramUrl);
 
+      // Auto-approve clean posts, flag others for review
+      const postStatus = captionModeration.clean ? 'approved' : 'pending';
+
       const post = await prisma.ugcPost.create({
         data: {
           userId: session.userId,
@@ -524,7 +527,7 @@ export async function POST(request: NextRequest) {
           instagramPostId: instagramPostId,
           consentGiven: true,
           consentTimestamp: new Date(),
-          status: 'pending',
+          status: postStatus,
           moderationNote,
         },
       });
@@ -545,7 +548,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         post,
-        message: 'Your Instagram post has been submitted for review',
+        status: postStatus,
+        message: postStatus === 'approved'
+          ? 'Your post is now live!'
+          : 'Your post has been submitted for review',
       });
     }
 
@@ -563,6 +569,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-approve clean posts, flag others for review
+    const postStatus = captionModeration.clean ? 'approved' : 'pending';
+
     // Create post first to get ID
     const post = await prisma.ugcPost.create({
       data: {
@@ -573,7 +582,7 @@ export async function POST(request: NextRequest) {
         mediaType: 'image', // Will update after file save
         consentGiven: true,
         consentTimestamp: new Date(),
-        status: 'pending',
+        status: postStatus,
         moderationNote,
       },
     });
@@ -614,7 +623,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       post: updatedPost,
-      message: 'Your post has been submitted for review',
+      status: postStatus,
+      message: postStatus === 'approved'
+        ? 'Your post is now live!'
+        : 'Your post has been submitted for review',
     });
   } catch (error) {
     logger.error('ugc/posts', 'Failed to create post', error);

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing, radius } from '@/theme';
 
@@ -13,6 +13,7 @@ interface RecapCardProps {
   currentStreak?: number;
   focusAreas?: string[];
   isPersonalBest?: boolean;
+  imageUrl?: string | null;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -81,19 +82,12 @@ export function RecapCard({
   currentStreak = 0,
   focusAreas = [],
   isPersonalBest = false,
+  imageUrl,
 }: RecapCardProps) {
   const streakMilestone = getStreakMilestone(currentStreak);
 
-  return (
-    <View style={styles.cardOuter}>
-      <View style={styles.card}>
-      <LinearGradient
-        colors={['#262820', '#1e2018', '#2a2c22', '#1a1b15']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
+  const cardContent = (
+    <>
       {/* Decorative radial light - premium glow */}
       <View style={styles.radialDecor} />
       <View style={styles.radialDecorBottom} />
@@ -199,7 +193,32 @@ export function RecapCard({
           <Text style={styles.brandSub}>TRIBE</Text>
         </View>
       </View>
-      </View>
+    </>
+  );
+
+  return (
+    <View style={styles.cardOuter}>
+      {imageUrl ? (
+        <ImageBackground
+          source={{ uri: imageUrl }}
+          style={styles.card}
+          imageStyle={styles.cardImageStyle}
+        >
+          <View style={styles.imageOverlay}>
+            {cardContent}
+          </View>
+        </ImageBackground>
+      ) : (
+        <View style={styles.card}>
+          <LinearGradient
+            colors={['#262820', '#1e2018', '#2a2c22', '#1a1b15']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          {cardContent}
+        </View>
+      )}
     </View>
   );
 }
@@ -222,6 +241,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: 'rgba(246, 237, 221, 0.15)',
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 24,
+    justifyContent: 'space-between',
+  },
+  cardImageStyle: {
+    borderRadius: radius.lg,
   },
   radialDecor: {
     position: 'absolute',

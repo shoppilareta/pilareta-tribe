@@ -1,4 +1,3 @@
-import { prisma } from '@/lib/db';
 import { SHOPIFY_CUSTOMER_API_VERSION } from '@/lib/shopify/client';
 
 const SHOP_ID = process.env.SHOPIFY_SHOP_ID || '';
@@ -35,19 +34,13 @@ interface ShopifyOrder {
   statusPageUrl: string;
 }
 
-export async function getCustomerOrders(userId: string): Promise<ShopifyOrder[]> {
+export async function getCustomerOrders(accessToken: string): Promise<ShopifyOrder[]> {
   if (!SHOP_ID) {
     console.error('SHOPIFY_SHOP_ID environment variable is not set');
     throw new Error('Shop configuration error');
   }
 
-  // Get the user's active session with access token
-  const session = await prisma.session.findFirst({
-    where: { userId, expiresAt: { gt: new Date() } },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (!session?.accessToken) {
+  if (!accessToken) {
     throw new Error('No active session found');
   }
 
@@ -96,7 +89,7 @@ export async function getCustomerOrders(userId: string): Promise<ShopifyOrder[]>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': session.accessToken,
+        'Authorization': accessToken,
       },
       body: JSON.stringify({ query }),
     }
