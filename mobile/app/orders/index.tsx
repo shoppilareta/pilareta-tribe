@@ -143,17 +143,26 @@ export default function OrdersScreen() {
       ) : orders.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>
-            {apiError === 'no_shopify_account'
+            {apiError === 'session_expired'
+              ? 'Session expired'
+              : apiError === 'no_shopify_account'
               ? 'No Pilareta account linked'
               : 'No orders yet'}
           </Text>
           <Text style={styles.emptyText}>
-            {apiError === 'no_shopify_account'
+            {apiError === 'session_expired'
+              ? 'Your session has expired. Please sign in again to view your orders.'
+              : apiError === 'no_shopify_account'
               ? 'Sign in with your Pilareta account to view your order history.'
               : apiError === 'orders_not_configured'
               ? 'Order tracking is not available yet. Check back soon!'
               : 'Your order history will appear here after your first purchase.'}
           </Text>
+          {apiError === 'session_expired' && (
+            <Pressable onPress={() => router.push('/auth/login')} style={styles.retryButton}>
+              <Text style={styles.retryText}>Sign In Again</Text>
+            </Pressable>
+          )}
           {apiError === 'no_shopify_account' && (
             <Pressable onPress={() => router.push('/(tabs)/shop')} style={styles.retryButton}>
               <Text style={styles.retryText}>Browse Shop</Text>
