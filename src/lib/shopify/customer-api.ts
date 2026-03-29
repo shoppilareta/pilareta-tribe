@@ -98,14 +98,20 @@ export async function getCustomerOrders(accessToken: string): Promise<ShopifyOrd
   if (!response.ok) {
     const text = await response.text();
     console.error('Customer API error:', response.status, text);
-    throw new Error(`Customer API error: ${response.status}`);
+    console.error('Customer API request details:', {
+      url: `https://shopify.com/${SHOP_ID}/account/customer/api/${SHOPIFY_CUSTOMER_API_VERSION}/graphql`,
+      tokenPrefix: accessToken.slice(0, 10) + '...',
+      responseStatus: response.status,
+      responseHeaders: Object.fromEntries(response.headers.entries()),
+    });
+    throw new Error(`Customer API error: ${response.status} - ${text.slice(0, 200)}`);
   }
 
   const data = await response.json();
 
   if (data.errors) {
-    console.error('Customer API GraphQL errors:', data.errors);
-    throw new Error('Failed to fetch orders');
+    console.error('Customer API GraphQL errors:', JSON.stringify(data.errors, null, 2));
+    throw new Error(`Customer API GraphQL error: ${JSON.stringify(data.errors)}`);
   }
 
   return data.data?.customer?.orders?.nodes || [];

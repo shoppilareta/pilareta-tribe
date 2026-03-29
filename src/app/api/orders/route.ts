@@ -49,15 +49,13 @@ export async function GET(request: NextRequest) {
     if (message === 'No active session found') {
       return NextResponse.json({ error: 'session_expired', orders: [] }, { status: 200 });
     }
-    if (message.startsWith('Customer API error:')) {
-      const hasAnySession = await prisma.session.findFirst({
-        where: { userId: session.userId },
-        select: { id: true },
-      });
-      if (hasAnySession) {
-        return NextResponse.json({ error: 'session_expired', orders: [] }, { status: 200 });
-      }
-      return NextResponse.json({ error: 'no_shopify_account', orders: [] }, { status: 200 });
+    if (message.startsWith('Customer API error:') || message.startsWith('Customer API GraphQL error:')) {
+      // Shopify Customer API rejected the token or returned errors.
+      // This typically means the Shopify-issued token has expired or the
+      // Customer Account API is not configured for this store. Instead of
+      // showing "session expired" (which confuses users into re-logging),
+      // return a specific error so the mobile app can show a helpful message.
+      return NextResponse.json({ error: 'shopify_token_expired', orders: [] }, { status: 200 });
     }
 
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });

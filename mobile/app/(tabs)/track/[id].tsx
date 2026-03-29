@@ -11,8 +11,16 @@ import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card } from '@/components/ui';
 import { getLog, getStats, deleteLog, unshareLog, shareLog } from '@/api/track';
+import { API_BASE } from '@/api/client';
 import { QuickLogForm } from '@/components/track/QuickLogForm';
 import { RecapCard } from '@/components/track/RecapCard';
+
+/** Resolve a possibly-relative upload URL to a full URL for image loading */
+function resolveImageUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
+}
 
 const WORKOUT_TYPE_LABELS: Record<string, string> = {
   reformer: 'Reformer',
@@ -274,7 +282,7 @@ export default function LogDetail() {
               sessionName={log.session?.name}
               currentStreak={streak}
               focusAreas={log.focusAreas ?? []}
-              imageUrl={log.imageUrl}
+              imageUrl={resolveImageUrl(log.imageUrl)}
             />
           </ViewShot>
 

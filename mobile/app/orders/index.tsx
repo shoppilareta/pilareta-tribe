@@ -145,6 +145,8 @@ export default function OrdersScreen() {
           <Text style={styles.emptyTitle}>
             {apiError === 'session_expired'
               ? 'Session expired'
+              : apiError === 'shopify_token_expired'
+              ? 'View orders on pilareta.com'
               : apiError === 'no_shopify_account'
               ? 'No Pilareta account linked'
               : 'No orders yet'}
@@ -152,6 +154,8 @@ export default function OrdersScreen() {
           <Text style={styles.emptyText}>
             {apiError === 'session_expired'
               ? 'Your session has expired. Please sign in again to view your orders.'
+              : apiError === 'shopify_token_expired'
+              ? 'Your order history is available on the Pilareta website. Tap below to view your orders.'
               : apiError === 'no_shopify_account'
               ? 'Sign in with your Pilareta account to view your order history.'
               : apiError === 'orders_not_configured'
@@ -161,6 +165,11 @@ export default function OrdersScreen() {
           {apiError === 'session_expired' && (
             <Pressable onPress={() => router.push('/auth/login')} style={styles.retryButton}>
               <Text style={styles.retryText}>Sign In Again</Text>
+            </Pressable>
+          )}
+          {apiError === 'shopify_token_expired' && (
+            <Pressable onPress={() => Linking.openURL('https://pilareta.com/orders')} style={styles.retryButton}>
+              <Text style={styles.retryText}>View on pilareta.com</Text>
             </Pressable>
           )}
           {apiError === 'no_shopify_account' && (

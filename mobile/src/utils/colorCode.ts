@@ -100,6 +100,8 @@ const COLOR_MAP: Record<string, string> = {
   'dark red': '#8b0000',
 
   // Greens
+  'greenish grey': '#8a9a7b',
+  'greenish gray': '#8a9a7b',
   'dark green': '#1a472a',
   'forest': '#228b22',
   'sage': '#9caf88',
@@ -122,6 +124,7 @@ const COLOR_MAP: Record<string, string> = {
   'charcoal': '#374151',
   'ivory': '#fffff0',
   'khaki': '#c3b091',
+  'khakhi': '#c3b091',
   'peach': '#ffcba4',
   'sand': '#c2b280',
   'silver': '#c0c0c0',
