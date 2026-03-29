@@ -540,6 +540,7 @@ export default function ExercisesAdminPage() {
                       Delete
                     </button>
                   </div>
+                  </div>
                 </div>
               ))}
               {exercises.length === 0 && (
