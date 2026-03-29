@@ -443,7 +443,7 @@ export default function ExercisesAdminPage() {
           />
 
           {exercises.length > 0 && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedIds.size === exercises.length} onChange={toggleSelectAll} style={{ accentColor: '#64b5f6' }} />
               <span style={{ fontSize: 12, color: mutedColor }}>Select all ({exercises.length})</span>
             </label>
@@ -592,7 +592,7 @@ export default function ExercisesAdminPage() {
               />
 
               {/* Verified toggle */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 20 }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 20 }}>
                 <input
                   type="checkbox"
                   checked={isVerified}
