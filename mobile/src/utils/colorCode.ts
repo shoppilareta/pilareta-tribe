@@ -42,11 +42,11 @@ const COLOR_MAP: Record<string, string> = {
   'raspberry': '#e30b5c',
 
   // Pinks (specific shades)
-  'powder pink': '#f4c2c2',
+  'powder pink': '#fce4ec',
   'baby pink': '#f4c2c2',
-  'light pink': '#ffb6c1',
+  'light pink': '#fbb6ce',
   'hot pink': '#ff69b4',
-  'dark pink': '#e75480',
+  'dark pink': '#9d174d',
   'pastel pink': '#ffd1dc',
   'bubblegum': '#ffc1cc',
   'flamingo': '#fc8eac',
@@ -63,6 +63,7 @@ const COLOR_MAP: Record<string, string> = {
   'petal': '#f8d7e0',
 
   // Purples & Mauves (including misspellings)
+  'light purple': '#c4b5fd',
   'mauve': '#c9a0dc',
   'mouve': '#c9a0dc',
   'mouv': '#c9a0dc',
@@ -79,10 +80,12 @@ const COLOR_MAP: Record<string, string> = {
   'thistle': '#d8bfd8',
 
   // Blues
-  'dark blue': '#00008b',
+  'sky blue': '#7dd3fc',
+  'greyish blue': '#6b7fa0',
+  'dark blue': '#1e3a5f',
   'cobalt': '#0047ab',
   'sky': '#38bdf8',
-  'light blue': '#87ceeb',
+  'light blue': '#93c5fd',
   'royal blue': '#4169e1',
   'powder blue': '#b0e0e6',
   'baby blue': '#89cff0',
@@ -97,12 +100,20 @@ const COLOR_MAP: Record<string, string> = {
   'arctic': '#c5e8f0',
 
   // Reds (dark shades)
+  'brick red': '#9b2335',
   'dark red': '#8b0000',
 
   // Greens
   'greenish grey': '#8a9a7b',
   'greenish gray': '#8a9a7b',
+  'greenish brown': '#6b5e4c',
+  'greenish yellow': '#adbd4e',
   'dark green': '#1a472a',
+  'light green': '#86efac',
+  'olive green': '#556b2f',
+  'lime green': '#a3e635',
+  'fern green': '#4f7942',
+  'blue green': '#0d9488',
   'forest': '#228b22',
   'sage': '#9caf88',
   'moss': '#4a5e3a',
@@ -119,12 +130,14 @@ const COLOR_MAP: Record<string, string> = {
   'chartreuse': '#dfff00',
 
   // Neutrals
+  'dark grey': '#374151',
+  'dark gray': '#374151',
   'light gray': '#d1d5db',
   'light grey': '#d1d5db',
   'charcoal': '#374151',
   'ivory': '#fffff0',
-  'khaki': '#c3b091',
-  'khakhi': '#c3b091',
+  'khaki': '#bdb76b',
+  'khakhi': '#bdb76b',
   'peach': '#ffcba4',
   'sand': '#c2b280',
   'silver': '#c0c0c0',
@@ -141,7 +154,7 @@ const COLOR_MAP: Record<string, string> = {
   'fog': '#d7d0c5',
   'ash': '#b2beb5',
   'ivory white': '#fffff0',
-  'off white': '#faf9f6',
+  'off white': '#faf5ef',
   'ecru': '#c2b280',
   'linen': '#faf0e6',
   'alabaster': '#f2f0eb',
@@ -152,6 +165,8 @@ const COLOR_MAP: Record<string, string> = {
   'opal': '#a8c3bc',
 
   // Browns & Earth tones
+  'light brown': '#a67b5b',
+  'oat meal': '#d2c6a5',
   'rust': '#b7410e',
   'copper': '#b87333',
   'bronze': '#cd7f32',

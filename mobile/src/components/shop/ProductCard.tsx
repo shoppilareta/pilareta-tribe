@@ -45,7 +45,7 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
     const seen = new Map<string, string | undefined>();
     for (const v of product.variants ?? []) {
       for (const opt of v.selectedOptions ?? []) {
-        const isColor = opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'colour';
+        const isColor = opt.name.trim().toLowerCase() === 'color' || opt.name.trim().toLowerCase() === 'colour';
         if (isColor && !seen.has(opt.value)) {
           seen.set(opt.value, v.image?.url);
         }

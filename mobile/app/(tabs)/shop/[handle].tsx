@@ -508,7 +508,7 @@ export default function ProductDetailScreen() {
 
         {/* Options */}
         {options.map((option) => {
-          const isColor = option.name.toLowerCase() === 'color' || option.name.toLowerCase() === 'colour';
+          const isColor = option.name.trim().toLowerCase() === 'color' || option.name.trim().toLowerCase() === 'colour';
           return (
             <View key={option.name} style={styles.optionSection}>
               <View style={styles.optionHeader}>

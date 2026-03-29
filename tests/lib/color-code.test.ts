@@ -21,7 +21,7 @@ describe('getColorCode', () => {
 
     it('handles multi-word color names', () => {
       expect(getColorCode('dark green')).toBe('#1a472a');
-      expect(getColorCode('light pink')).toBe('#ffb6c1');
+      expect(getColorCode('light pink')).toBe('#fbb6ce');
       expect(getColorCode('rose gold')).toBe('#b76e79');
       expect(getColorCode('powder blue')).toBe('#b0e0e6');
     });
