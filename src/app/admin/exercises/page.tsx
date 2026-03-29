@@ -519,15 +519,43 @@ export default function ExercisesAdminPage() {
                 {detail.description.length > 300 ? detail.description.slice(0, 300) + '...' : detail.description}
               </p>
 
-              {/* Video URL */}
-              <label style={labelStyle}>Video URL</label>
-              <input
-                type="text"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=... or direct video URL"
-                style={{ ...inputStyle, marginBottom: 16 }}
-              />
+              {/* Video */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 11, color: mutedColor, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Video
+                </label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="YouTube URL or uploaded video"
+                    style={{ flex: 1, ...inputStyle }}
+                  />
+                  <label style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${borderColor}`, background: cardBg, color: textColor, cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>
+                    Upload
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 100 * 1024 * 1024) { alert('Video too large (max 100MB)'); return; }
+                        const form = new FormData();
+                        form.append('video', file);
+                        try {
+                          const res = await fetch(`/api/admin/exercises/${selectedId}/video`, { method: 'POST', body: form });
+                          const data = await res.json();
+                          if (data.videoUrl) { setVideoUrl(data.videoUrl); alert('Video uploaded!'); }
+                          else alert(data.error || 'Upload failed');
+                        } catch { alert('Upload failed'); }
+                      }}
+                    />
+                  </label>
+                </div>
+                {videoUrl && <p style={{ fontSize: 11, color: mutedColor, marginTop: 4 }}>Current: {videoUrl}</p>}
+              </div>
 
               {/* Video preview */}
               {videoUrl && (

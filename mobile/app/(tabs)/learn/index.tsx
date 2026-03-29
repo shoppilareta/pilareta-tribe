@@ -60,6 +60,8 @@ export default function LearnScreen() {
     return lower.includes(searchLower) || lower.replace(/[^a-z0-9\s]/g, '').includes(searchNormalized);
   };
 
+  const difficultyOrder: Record<string, number> = { 'beginner': 0, 'intermediate': 1, 'advanced': 2 };
+
   const filteredExercises = exercises.filter((ex) => {
     if (difficultyFilter && ex.difficulty !== difficultyFilter) return false;
     if (focusFilter && !ex.focusAreas.includes(focusFilter)) return false;
@@ -67,7 +69,7 @@ export default function LearnScreen() {
       return matchesSearch(ex.name) || matchesSearch(ex.description);
     }
     return true;
-  });
+  }).sort((a, b) => (difficultyOrder[a.difficulty?.toLowerCase()] ?? 1) - (difficultyOrder[b.difficulty?.toLowerCase()] ?? 1));
 
   // 2C: Search also filters programs
   const filteredPrograms = search

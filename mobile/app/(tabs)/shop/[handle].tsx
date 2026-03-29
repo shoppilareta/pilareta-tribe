@@ -501,6 +501,9 @@ export default function ProductDetailScreen() {
               </Text>
             );
           })()}
+          {selectedVariant && !selectedVariant.availableForSale && (
+            <Text style={{ color: colors.error, fontSize: 13, fontWeight: '600', marginTop: 4 }}>Sold Out</Text>
+          )}
           {selectedVariant?.quantityAvailable != null && selectedVariant.quantityAvailable > 0 && selectedVariant.quantityAvailable < 5 && (
             <Text style={styles.stockUrgency}>Only {selectedVariant.quantityAvailable} left in stock!</Text>
           )}

@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl, TextInput, Image, Dimensions } from 'react-native';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, RefreshControl, TextInput, Image, Dimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { colors, typography, spacing, radius } from '@/theme';
 import { PostCard } from '@/components/community';
 import { CommunityFeedSkeleton } from '@/components/ui';
 import { getFeed, getTags, getMyPosts, getFeatured } from '@/api/community';
-import { API_BASE } from '@/api/client';
+import { API_BASE, apiFetch } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
 import type { UgcPost } from '@shared/types';
 
@@ -26,8 +26,15 @@ export default function CommunityFeed() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [activeFeed, setActiveFeed] = useState<FeedType>('discover');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken);
+
+  // Debounce search query for people search API calls
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,6 +75,13 @@ export default function CommunityFeed() {
   });
 
   const trendingPosts = trendingData?.posts ?? [];
+
+  // People search when search is active
+  const { data: usersData } = useQuery({
+    queryKey: ['user-search', debouncedSearch],
+    queryFn: () => apiFetch<{ users: { id: string; firstName: string | null; lastName: string | null; displayName: string; avatarUrl: string | null; followersCount: number; isFollowing: boolean }[] }>(`/api/users/search?q=${encodeURIComponent(debouncedSearch)}&limit=5`),
+    enabled: !!debouncedSearch && debouncedSearch.length >= 2 && isLoggedIn,
+  });
 
   const posts = feedQuery.data?.pages.flatMap((p) => p.posts) ?? [];
   const tags = tagsData?.tags ?? [];
@@ -165,7 +179,30 @@ export default function CommunityFeed() {
     );
   }, []);
 
+  // People search results component
+  const PeopleResults = useMemo(() => {
+    if (!debouncedSearch || !usersData?.users?.length) return null;
+    return (
+      <View style={styles.peopleSection}>
+        <Text style={styles.peopleSectionTitle}>People</Text>
+        {usersData.users.map((user: { id: string; firstName: string | null; lastName: string | null; displayName: string; avatarUrl: string | null; followersCount: number }) => (
+          <Pressable key={user.id} onPress={() => router.push(`/community-profile/${user.id}`)} style={styles.userRow}>
+            <View style={styles.userAvatar}>
+              <Text style={styles.userAvatarText}>{user.firstName?.[0]?.toUpperCase() || '?'}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.userName}>{user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'}</Text>
+              <Text style={styles.userMeta}>{user.followersCount || 0} followers</Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    );
+  }, [debouncedSearch, usersData]);
+
   const ListHeader = useMemo(() => {
+    // When searching, show people results as header
+    if (debouncedSearch && PeopleResults) return PeopleResults;
     if (activeFeed !== 'discover' || trendingPosts.length === 0) return null;
     return (
       <View style={styles.trendingSection}>
@@ -180,7 +217,7 @@ export default function CommunityFeed() {
         />
       </View>
     );
-  }, [activeFeed, trendingPosts, renderTrendingItem]);
+  }, [activeFeed, trendingPosts, renderTrendingItem, debouncedSearch, PeopleResults]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -299,10 +336,13 @@ export default function CommunityFeed() {
         </View>
       ) : filteredPosts.length === 0 ? (
         searchQuery.trim() ? (
-          <View style={styles.centered}>
-            <Text style={styles.emptyTitle}>No results</Text>
-            <Text style={styles.emptyText}>No posts matching "{searchQuery}"</Text>
-          </View>
+          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+            {PeopleResults}
+            <View style={styles.centered}>
+              <Text style={styles.emptyTitle}>No posts found</Text>
+              <Text style={styles.emptyText}>No posts matching "{searchQuery}"</Text>
+            </View>
+          </ScrollView>
         ) : (
           renderEmptyState()
         )
@@ -378,4 +418,12 @@ const styles = StyleSheet.create({
   trendingName: { fontSize: 11, color: 'white', fontWeight: typography.weights.semibold },
   trendingLikes: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   trendingLikesText: { fontSize: 10, color: 'white' },
+  // People search
+  peopleSection: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
+  peopleSectionTitle: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.primary, marginBottom: spacing.sm },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border.default },
+  userAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.cream10, alignItems: 'center', justifyContent: 'center' },
+  userAvatarText: { fontSize: typography.sizes.base, fontWeight: typography.weights.semibold, color: colors.fg.tertiary },
+  userName: { fontSize: typography.sizes.sm, fontWeight: typography.weights.medium, color: colors.fg.primary },
+  userMeta: { fontSize: 11, color: colors.fg.tertiary, marginTop: 1 },
 });

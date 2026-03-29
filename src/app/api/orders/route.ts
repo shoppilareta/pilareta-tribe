@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getCustomerOrders } from '@/lib/shopify/customer-api';
+import { getCustomerOrders, getOrdersViaAdminApi, isAdminApiConfigured } from '@/lib/shopify/customer-api';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -36,25 +36,49 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'session_expired', orders: [] }, { status: 200 });
   }
 
+  // Look up the user's email for Admin API fallback
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { email: true },
+  });
+
   try {
     const orders = await getCustomerOrders(shopifyAccessToken);
     return NextResponse.json({ orders });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('orders', 'Failed to fetch orders', error);
+    logger.error('orders', 'Customer API failed, checking fallbacks', error);
 
     if (message === 'Shop configuration error') {
+      // If Admin API is configured, try that as fallback
+      if (isAdminApiConfigured() && user?.email) {
+        try {
+          const orders = await getOrdersViaAdminApi(user.email);
+          return NextResponse.json({ orders });
+        } catch (adminError) {
+          logger.error('orders', 'Admin API fallback also failed', adminError);
+        }
+      }
       return NextResponse.json({ error: 'orders_not_configured', orders: [] }, { status: 200 });
     }
     if (message === 'No active session found') {
       return NextResponse.json({ error: 'session_expired', orders: [] }, { status: 200 });
     }
     if (message.startsWith('Customer API error:') || message.startsWith('Customer API GraphQL error:')) {
-      // Shopify Customer API rejected the token or returned errors.
-      // This typically means the Shopify-issued token has expired or the
-      // Customer Account API is not configured for this store. Instead of
-      // showing "session expired" (which confuses users into re-logging),
-      // return a specific error so the mobile app can show a helpful message.
+      // Customer API returned an error (404, auth failure, etc.).
+      // Try Admin API as fallback if configured.
+      if (isAdminApiConfigured() && user?.email) {
+        try {
+          logger.info('orders', 'Falling back to Admin API for order fetch');
+          const orders = await getOrdersViaAdminApi(user.email);
+          return NextResponse.json({ orders });
+        } catch (adminError) {
+          logger.error('orders', 'Admin API fallback also failed', adminError);
+        }
+      }
+
+      // No fallback available — return a specific error so the mobile app
+      // can show a helpful message (e.g., "View on pilareta.com").
       return NextResponse.json({ error: 'shopify_token_expired', orders: [] }, { status: 200 });
     }
 
