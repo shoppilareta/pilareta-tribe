@@ -462,34 +462,32 @@ export default function ExercisesAdminPage() {
               {exercises.map((ex) => (
                 <div
                   key={ex.id}
+                  onClick={() => setSelectedId(ex.id)}
                   style={{
                     padding: '10px 12px',
                     borderRadius: 8,
                     background: selectedId === ex.id ? 'rgba(246,237,221,0.08)' : 'transparent',
-                    marginBottom: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
+                    marginBottom: 4,
+                    cursor: 'pointer',
+                    borderBottom: '1px solid rgba(246,237,221,0.05)',
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(ex.id)}
-                    onChange={() => toggleBulkSelect(ex.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ accentColor: '#64b5f6', flexShrink: 0 }}
-                  />
-                  <div
-                    onClick={() => setSelectedId(ex.id)}
-                    style={{ flex: 1, cursor: 'pointer' }}
-                  >
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#f6eddd' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(ex.id)}
+                      onChange={() => toggleBulkSelect(ex.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ accentColor: '#64b5f6' }}
+                    />
+                    <span style={{ fontSize: 14, fontWeight: 500, color: '#f6eddd' }}>
                       {ex.name || '(Unnamed)'}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'rgba(246,237,221,0.5)', marginTop: 2 }}>
-                      {ex.equipment || 'no equipment'} · {ex.difficulty || 'no level'}
-                    </div>
+                    </span>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 26 }}>
+                    <span style={{ fontSize: 11, color: 'rgba(246,237,221,0.5)' }}>
+                      {ex.equipment || 'no equipment'} · {ex.difficulty || 'no level'}
+                    </span>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                     {hasVideo(ex) && (
                       <span style={{
