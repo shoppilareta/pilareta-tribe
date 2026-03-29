@@ -423,7 +423,7 @@ export default function ExercisesAdminPage() {
 
       <div style={{ display: 'flex', gap: 24 }}>
         {/* Left: Exercise list */}
-        <div style={{ flex: selectedId ? '0 0 420px' : '1 1 100%' }}>
+        <div style={selectedId ? { width: 420, flexShrink: 0 } : { flex: 1 }}>
           <input
             type="text"
             placeholder="Search exercises..."
@@ -442,111 +442,63 @@ export default function ExercisesAdminPage() {
             }}
           />
 
-          {/* Select All */}
           {exercises.length > 0 && (
-            <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={selectedIds.size === exercises.length && exercises.length > 0}
-                onChange={toggleSelectAll}
-                style={{ accentColor: '#64b5f6' }}
-              />
-              <span style={{ fontSize: 12, color: mutedColor }}>Select all</span>
-            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={selectedIds.size === exercises.length} onChange={toggleSelectAll} style={{ accentColor: '#64b5f6' }} />
+              <span style={{ fontSize: 12, color: mutedColor }}>Select all ({exercises.length})</span>
+            </label>
           )}
 
           {loading ? (
             <p style={{ color: mutedColor, fontSize: 13 }}>Loading...</p>
           ) : (
             <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              {exercises.map((ex) => (
-                <div
-                  key={ex.id}
-                  onClick={() => setSelectedId(ex.id)}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    background: selectedId === ex.id ? 'rgba(246,237,221,0.08)' : 'transparent',
-                    marginBottom: 4,
-                    cursor: 'pointer',
-                    borderBottom: '1px solid rgba(246,237,221,0.05)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(ex.id)}
-                      onChange={() => toggleBulkSelect(ex.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ accentColor: '#64b5f6' }}
-                    />
-                    <span style={{ fontSize: 14, fontWeight: 500, color: '#f6eddd' }}>
-                      {ex.name || '(Unnamed)'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 26 }}>
-                    <span style={{ fontSize: 11, color: 'rgba(246,237,221,0.5)' }}>
-                      {ex.equipment || 'no equipment'} · {ex.difficulty || 'no level'}
-                    </span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                    {hasVideo(ex) && (
-                      <span style={{
-                        fontSize: 10,
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        background: 'rgba(129,199,132,0.15)',
-                        color: '#81c784',
-                      }}>
-                        Video
-                      </span>
-                    )}
-                    {ex.isVerified && (
-                      <span style={{
-                        fontSize: 10,
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        background: 'rgba(100,181,246,0.15)',
-                        color: '#64b5f6',
-                      }}>
-                        Verified
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }}
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${borderColor}` }}>
+                    <th style={{ width: 30, padding: '6px 8px' }} />
+                    <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, color: mutedColor, fontWeight: 400 }}>Name</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, color: mutedColor, fontWeight: 400 }}>Equipment</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, color: mutedColor, fontWeight: 400 }}>Level</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, color: mutedColor, fontWeight: 400 }}>Status</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 11, color: mutedColor, fontWeight: 400 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exercises.map((ex) => (
+                    <tr
+                      key={ex.id}
+                      onClick={() => setSelectedId(ex.id)}
                       style={{
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        border: `1px solid ${borderColor}`,
-                        background: 'transparent',
-                        color: mutedColor,
-                        fontSize: 11,
                         cursor: 'pointer',
+                        background: selectedId === ex.id ? 'rgba(246,237,221,0.06)' : 'transparent',
+                        borderBottom: '1px solid rgba(246,237,221,0.04)',
                       }}
+                      onMouseEnter={(e) => { if (selectedId !== ex.id) e.currentTarget.style.background = 'rgba(246,237,221,0.03)'; }}
+                      onMouseLeave={(e) => { if (selectedId !== ex.id) e.currentTarget.style.background = 'transparent'; }}
                     >
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(ex.id, ex.name); }}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        border: '1px solid rgba(229,115,115,0.3)',
-                        background: 'transparent',
-                        color: '#e57373',
-                        fontSize: 11,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  </div>
-                </div>
-              ))}
+                      <td style={{ padding: '8px', verticalAlign: 'middle' }}>
+                        <input type="checkbox" checked={selectedIds.has(ex.id)} onChange={() => toggleBulkSelect(ex.id)} onClick={(e) => e.stopPropagation()} style={{ accentColor: '#64b5f6' }} />
+                      </td>
+                      <td style={{ padding: '8px', fontSize: 13, fontWeight: 500, color: '#f6eddd' }}>{ex.name}</td>
+                      <td style={{ padding: '8px', fontSize: 12, color: mutedColor, textTransform: 'capitalize' }}>{ex.equipment}</td>
+                      <td style={{ padding: '8px', fontSize: 12, color: mutedColor, textTransform: 'capitalize' }}>{ex.difficulty}</td>
+                      <td style={{ padding: '8px' }}>
+                        <span style={{ display: 'inline-flex', gap: 4 }}>
+                          {hasVideo(ex) && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(129,199,132,0.15)', color: '#81c784' }}>Video</span>}
+                          {ex.isVerified && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(100,181,246,0.15)', color: '#64b5f6' }}>Verified</span>}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }} style={{ padding: '3px 10px', borderRadius: 4, border: `1px solid ${borderColor}`, background: 'transparent', color: mutedColor, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Edit</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(ex.id, ex.name); }} style={{ padding: '3px 10px', borderRadius: 4, border: '1px solid rgba(229,115,115,0.3)', background: 'transparent', color: '#e57373', fontSize: 11, cursor: 'pointer' }}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
               {exercises.length === 0 && (
-                <p style={{ color: mutedColor, fontSize: 13, textAlign: 'center', padding: 20 }}>
-                  No exercises found
-                </p>
+                <p style={{ color: mutedColor, fontSize: 13, textAlign: 'center', padding: 20 }}>No exercises found</p>
               )}
             </div>
           )}
