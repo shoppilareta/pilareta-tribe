@@ -421,9 +421,9 @@ export default function ExercisesAdminPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 24 }}>
         {/* Left: Exercise list */}
-        <div style={{ width: '100%', maxWidth: 500 }}>
+        <div style={{ flex: selectedId ? '0 0 420px' : '1 1 100%' }}>
           <input
             type="text"
             placeholder="Search exercises..."
