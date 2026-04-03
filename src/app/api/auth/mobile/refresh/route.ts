@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkAppVersion } from '@/lib/version-check';
 
 /**
  * POST /api/auth/mobile/refresh
@@ -15,6 +16,10 @@ import { logger } from '@/lib/logger';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Check if app version meets minimum requirement
+    const versionError = await checkAppVersion(request);
+    if (versionError) return versionError;
+
     let body: { refreshToken?: string };
     try {
       body = await request.json();

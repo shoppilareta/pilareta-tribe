@@ -1,8 +1,13 @@
 import { useAuthStore } from '@/stores/authStore';
+import Constants from 'expo-constants';
 
 const API_BASE = __DEV__
   ? 'http://localhost:3000'
   : 'https://tribe.pilareta.com';
+
+const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
+import { Platform } from 'react-native';
+const APP_PLATFORM = Platform.OS; // 'ios' | 'android'
 
 class ApiError extends Error {
   constructor(
@@ -28,6 +33,16 @@ class NetworkError extends Error {
   }
 }
 
+class UpdateRequiredError extends Error {
+  constructor(
+    public minVersion: string,
+    public currentVersion: string
+  ) {
+    super('Please update the Pilareta Tribe app to continue.');
+    this.name = 'UpdateRequiredError';
+  }
+}
+
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshTokenIfNeeded(): Promise<string | null> {
@@ -48,7 +63,11 @@ async function doRefresh(): Promise<string | null> {
   try {
     const response = await fetch(`${API_BASE}/api/auth/mobile/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-App-Version': APP_VERSION,
+        'X-App-Platform': APP_PLATFORM,
+      },
       body: JSON.stringify({ refreshToken }),
     });
 
@@ -92,6 +111,8 @@ export async function apiFetch<T>(
   const { skipAuth, ...fetchOptions } = options || {};
 
   const headers: Record<string, string> = {
+    'X-App-Version': APP_VERSION,
+    'X-App-Platform': APP_PLATFORM,
     ...(fetchOptions?.headers as Record<string, string>),
   };
 
@@ -154,6 +175,15 @@ export async function apiFetch<T>(
       throw new AuthError();
     }
 
+    // Handle force-update response
+    if (response.status === 426) {
+      const data = await response.json().catch(() => ({}));
+      throw new UpdateRequiredError(
+        (data as any).minVersion || 'unknown',
+        (data as any).currentVersion || APP_VERSION
+      );
+    }
+
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       throw new ApiError(response.status, data);
@@ -177,4 +207,4 @@ export async function apiFetch<T>(
   }
 }
 
-export { API_BASE, ApiError, AuthError, NetworkError };
+export { API_BASE, ApiError, AuthError, NetworkError, UpdateRequiredError };

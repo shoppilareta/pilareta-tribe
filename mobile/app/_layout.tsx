@@ -114,10 +114,12 @@ function DeferredServices() {
     const { useNotifications } = require('@/hooks/useNotifications');
     const { useDeepLinks } = require('@/hooks/useDeepLinks');
     const { usePushNotifications } = require('@/hooks/usePushNotifications');
+    const { useOtaUpdates } = require('@/hooks/useAppUpdates');
     useOfflineSync();
     useNotifications();
     useDeepLinks();
     usePushNotifications();
+    useOtaUpdates();
   } catch {}
 
   // Load cart on mount for badge count

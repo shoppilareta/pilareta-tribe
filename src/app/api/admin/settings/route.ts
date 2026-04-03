@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { logAdminAction } from '@/lib/admin/audit';
+import { resetVersionCache } from '@/lib/version-check';
 
 // GET /api/admin/settings — Get all config + system health (admin only)
 export async function GET(request: NextRequest) {
@@ -86,6 +87,11 @@ export async function PATCH(request: NextRequest) {
         })
       )
     );
+
+    // Reset version cache if min_app_version was changed
+    if ('min_app_version' in updates) {
+      resetVersionCache();
+    }
 
     await logAdminAction(session.userId, 'update', 'settings', 'config', {
       keys: Object.keys(updates),
