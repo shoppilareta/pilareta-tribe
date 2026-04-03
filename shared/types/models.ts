@@ -199,11 +199,38 @@ export interface UgcPost {
 export interface UgcComment {
   id: string;
   content: string;
+  parentCommentId: string | null;
   createdAt: string;
   user: {
+    id: string;
     firstName: string | null;
     lastName: string | null;
   };
+  replies?: UgcComment[];
+}
+
+export interface Achievement {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: string;
+  iconUrl: string | null;
+  threshold: number;
+  metric: string;
+  earned: boolean;
+  earnedAt: string | null;
+}
+
+export interface InAppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
 }
 
 export interface UgcTag {

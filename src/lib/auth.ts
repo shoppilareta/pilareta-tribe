@@ -35,12 +35,18 @@ export async function getSession(request?: NextRequest): Promise<AuthSession | n
               firstName: true,
               lastName: true,
               isAdmin: true,
+              deactivated: true,
+              bannedAt: true,
             },
           },
         },
       });
 
       if (dbSession) {
+        // Deny access if user is banned or deactivated
+        if (dbSession.user.deactivated || dbSession.user.bannedAt) {
+          return null;
+        }
         return {
           userId: dbSession.user.id,
           email: dbSession.user.email,
@@ -61,18 +67,23 @@ export async function getSession(request?: NextRequest): Promise<AuthSession | n
     return null;
   }
 
-  // Get admin status from database
+  // Get admin status and check banned/deactivated from database
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { isAdmin: true },
+    select: { isAdmin: true, deactivated: true, bannedAt: true },
   });
+
+  // Deny access if user is banned or deactivated
+  if (!user || user.deactivated || user.bannedAt) {
+    return null;
+  }
 
   return {
     userId: session.userId,
     email: session.email,
     firstName: session.firstName,
     lastName: session.lastName,
-    isAdmin: user?.isAdmin || false,
+    isAdmin: user.isAdmin,
   };
 }
 

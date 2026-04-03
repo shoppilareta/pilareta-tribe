@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     // Generate new tokens (token rotation)
     const newAccessToken = crypto.randomBytes(32).toString('hex');
     const newRefreshToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
     // Update the session with new tokens
     await prisma.session.update({

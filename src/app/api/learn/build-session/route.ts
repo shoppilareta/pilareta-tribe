@@ -7,8 +7,11 @@ interface BuildSessionRequest {
   goal: string;
   duration: number;
   level: string;
+  equipment?: string;
   constraints: string[];
 }
+
+const VALID_EQUIPMENT = ['reformer', 'mat'];
 
 const VALID_GOALS = ['core_stability', 'glutes', 'legs', 'posture', 'mobility', 'full_body'];
 const VALID_LEVELS = ['beginner', 'intermediate', 'advanced'];
@@ -41,7 +44,16 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
-    const { goal, duration, level, constraints } = body;
+    const { goal, duration, level, equipment: requestedEquipment, constraints } = body;
+
+    // Validate equipment (default to reformer for backward compatibility)
+    const equipment = requestedEquipment || 'reformer';
+    if (!VALID_EQUIPMENT.includes(equipment)) {
+      return NextResponse.json(
+        { error: `Invalid equipment. Must be one of: ${VALID_EQUIPMENT.join(', ')}` },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!goal || typeof goal !== 'string') {
@@ -92,10 +104,14 @@ export async function POST(request: NextRequest) {
     // Get focus areas for this goal
     const focusAreas = GOAL_FOCUS_AREAS[goal] || ['core'];
 
-    // Fetch all reformer exercises
+    // Fetch exercises matching the selected equipment
+    const equipmentFilter = equipment === 'mat'
+      ? ['mat', 'both']
+      : ['reformer', 'both'];
+
     const allExercises = await prisma.exercise.findMany({
       where: {
-        equipment: { in: ['reformer', 'both'] },
+        equipment: { in: equipmentFilter },
       },
     });
 
@@ -253,9 +269,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         name: sessionName,
-        description: `A personalized ${duration}-minute reformer session targeting ${goalLabel.toLowerCase()}.`,
+        description: `A personalized ${duration}-minute ${equipment} session targeting ${goalLabel.toLowerCase()}.`,
         goal,
-        equipment: 'reformer',
+        equipment,
         level,
         durationMinutes: duration,
         focusAreas,

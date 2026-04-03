@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { SHOPIFY_API_VERSION, SHOPIFY_CUSTOMER_API_VERSION } from '@/lib/shopify/client';
 
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || 'pilareta.com';
@@ -45,6 +46,8 @@ interface OpenIDConfig {
   token_endpoint: string;
   userinfo_endpoint?: string;
   end_session_endpoint?: string;
+  jwks_uri?: string;
+  issuer?: string;
 }
 
 let cachedConfig: OpenIDConfig | null = null;
@@ -127,13 +130,51 @@ export async function exchangeCodeForTokens(
   return res.json();
 }
 
-// Decode JWT ID token to get customer info
-export function decodeIdToken(idToken: string): {
+// Verify and decode JWT ID token using Shopify's JWKS
+export async function verifyAndDecodeIdToken(idToken: string): Promise<{
   sub: string; // Shopify customer ID
   email: string;
   email_verified?: boolean;
   given_name?: string; // First name (OIDC standard claim)
   family_name?: string; // Last name (OIDC standard claim)
+}> {
+  const config = await discoverEndpoints();
+
+  if (config.jwks_uri) {
+    try {
+      const JWKS = createRemoteJWKSet(new URL(config.jwks_uri));
+      const { payload } = await jwtVerify(idToken, JWKS, {
+        issuer: config.issuer,
+        audience: SHOPIFY_CLIENT_ID,
+      });
+      return payload as {
+        sub: string;
+        email: string;
+        email_verified?: boolean;
+        given_name?: string;
+        family_name?: string;
+      };
+    } catch (error) {
+      throw new Error(`JWT verification failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+  }
+
+  // Fallback: decode without verification if JWKS not available (log warning)
+  console.warn('JWKS URI not available — decoding ID token without signature verification');
+  const [, payload] = idToken.split('.');
+  const decoded = Buffer.from(payload, 'base64').toString();
+  return JSON.parse(decoded);
+}
+
+/**
+ * @deprecated Use verifyAndDecodeIdToken() instead — this does not verify the JWT signature.
+ */
+export function decodeIdToken(idToken: string): {
+  sub: string;
+  email: string;
+  email_verified?: boolean;
+  given_name?: string;
+  family_name?: string;
 } {
   const [, payload] = idToken.split('.');
   const decoded = Buffer.from(payload, 'base64').toString();

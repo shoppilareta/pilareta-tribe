@@ -11,6 +11,8 @@ import type {
   Program,
   PilatesSession,
   ShopifyProduct,
+  Achievement,
+  InAppNotification,
 } from './models';
 
 // --- Auth ---
@@ -49,6 +51,7 @@ export interface MobileRefreshResponse {
 export interface TrackStatsResponse {
   stats: WorkoutStats;
   weeklyProgress: boolean[];
+  focusAreaRecommendation: string | null;
 }
 
 export interface TrackLogsResponse {
@@ -147,6 +150,7 @@ export interface BuildSessionRequest {
   goal: string;
   duration: number;
   level: string;
+  equipment?: string;
   constraints: string[];
 }
 
@@ -201,6 +205,28 @@ export interface ShopCartResponse {
     discountCodes?: { code: string; applicable: boolean }[];
     discountAllocations?: { discountedAmount: { amount: string; currencyCode: string } }[];
   };
+}
+
+// --- Achievements ---
+
+export interface AchievementsResponse {
+  achievements: Achievement[];
+  totalEarned: number;
+  totalAvailable: number;
+}
+
+// --- Notifications ---
+
+export interface NotificationsResponse {
+  notifications: InAppNotification[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  unreadCount: number;
+}
+
+export interface MarkNotificationsReadRequest {
+  notificationIds?: string[];
+  markAllRead?: boolean;
 }
 
 // --- Pagination ---

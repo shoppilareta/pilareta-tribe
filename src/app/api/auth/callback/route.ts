@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { getSession } from '@/lib/session';
-import { exchangeCodeForTokens, decodeIdToken, fetchCustomerFromAccountApi } from '@/lib/shopify-auth';
+import { exchangeCodeForTokens, verifyAndDecodeIdToken, fetchCustomerFromAccountApi } from '@/lib/shopify-auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -65,8 +65,8 @@ export async function GET(request: NextRequest) {
     // Exchange code for tokens
     const tokens = await exchangeCodeForTokens(code, codeVerifier);
 
-    // Decode ID token to get customer info
-    const customerInfo = decodeIdToken(tokens.id_token);
+    // Verify and decode ID token to get customer info
+    const customerInfo = await verifyAndDecodeIdToken(tokens.id_token);
 
     // Ensure shopifyId is a string (Shopify may return it as a number)
     const shopifyId = String(customerInfo.sub);

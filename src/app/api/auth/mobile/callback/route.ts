@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/db';
 import {
   exchangeCodeForTokens,
-  decodeIdToken,
+  verifyAndDecodeIdToken,
   fetchCustomerFromAccountApi,
 } from '@/lib/shopify-auth';
 import { logger } from '@/lib/logger';
@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     // Exchange authorization code for tokens
     const tokens = await exchangeCodeForTokens(code, codeVerifier);
 
-    // Decode the ID token to get customer info
-    const customerInfo = decodeIdToken(tokens.id_token);
+    // Verify and decode the ID token to get customer info
+    const customerInfo = await verifyAndDecodeIdToken(tokens.id_token);
 
     // Ensure shopifyId is a string (Shopify JWT sub claim may be a number)
     const shopifyId = String(customerInfo.sub);

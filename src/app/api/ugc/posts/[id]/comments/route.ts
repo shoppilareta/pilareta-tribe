@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { moderateContent } from '@/lib/moderation';
 import { validateCsrf } from '@/lib/csrf';
 import { logger } from '@/lib/logger';
+import { notifyComment } from '@/lib/social-notifications';
 
 // GET /api/ugc/posts/[id]/comments - Get comments
 export async function GET(
@@ -128,6 +129,9 @@ export async function POST(
         data: { commentsCount: { increment: 1 } },
       }),
     ]);
+
+    // Fire-and-forget: notify post owner
+    notifyComment(post.userId, session.userId, postId, content.trim());
 
     return NextResponse.json({ success: true, comment });
   } catch (error) {

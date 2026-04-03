@@ -41,6 +41,8 @@ model User {
   restockAlerts         RestockAlert[]
   studioFavorites       StudioFavorite[]
   auditLogs             AdminAuditLog[]          @relation("auditLogs")
+  achievements          UserAchievement[]
+  notifications         InAppNotification[]
 }
 
 model Session {
@@ -141,18 +143,25 @@ model UgcLike {
 }
 
 model UgcComment {
-  id        String   @id @default(cuid())
-  postId    String
-  post      UgcPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String   @db.Text
-  isHidden  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  deletedAt DateTime? // Soft-delete: null = active, set = deleted
+  id              String       @id @default(cuid())
+  postId          String
+  post            UgcPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content         String       @db.Text
+  isHidden        Boolean      @default(false)
+
+  // Threading
+  parentCommentId String?
+  parentComment   UgcComment?  @relation("CommentThread", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         UgcComment[] @relation("CommentThread")
+
+  createdAt       DateTime     @default(now())
+  deletedAt       DateTime?    // Soft-delete: null = active, set = deleted
 
   @@index([postId])
   @@index([userId])
+  @@index([parentCommentId])
   @@index([deletedAt])
 }
 
@@ -819,6 +828,58 @@ model AdminNotification {
   sentAt         DateTime  @default(now())
   sentBy         String
   recipientCount Int       @default(0)
+}
+
+// ============================================
+// ACHIEVEMENTS / BADGES
+// ============================================
+
+model Achievement {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  category    String   // "workout" | "streak" | "community" | "program" | "studio" | "milestone"
+  iconUrl     String?
+  threshold   Int      // e.g., 10 for "10th Workout", 30 for "30-Day Streak"
+  metric      String   // "total_workouts" | "current_streak" | "longest_streak" | "ugc_posts" | "programs_completed" | "studios_visited" | "total_minutes" | "focus_areas_covered"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  earnedAt      DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+}
+
+// ============================================
+// IN-APP NOTIFICATIONS
+// ============================================
+
+model InAppNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    // "like" | "comment" | "follow" | "achievement" | "streak_warning" | "mention" | "system"
+  title     String
+  body      String
+  data      Json?     // { postId?, userId?, achievementId?, screen?, etc. }
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 // ============================================

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { validateCsrf } from '@/lib/csrf';
 import { logger } from '@/lib/logger';
+import { notifyLike } from '@/lib/social-notifications';
 
 // POST /api/ugc/posts/[id]/like - Like a post
 export async function POST(
@@ -57,6 +58,9 @@ export async function POST(
         data: { likesCount: { increment: 1 } },
       }),
     ]);
+
+    // Fire-and-forget: notify post owner
+    notifyLike(post.userId, session.userId, postId);
 
     return NextResponse.json({ success: true, liked: true });
   } catch (error) {

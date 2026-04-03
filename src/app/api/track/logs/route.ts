@@ -8,6 +8,7 @@ import { saveWorkoutImage } from '@/lib/track/upload';
 import { checkUserStorageLimit } from '@/lib/upload-limits';
 import { validateCsrf } from '@/lib/csrf';
 import { logger } from '@/lib/logger';
+import { checkAndAwardAchievements } from '@/lib/achievements';
 
 // GET /api/track/logs - List user's workout logs
 export async function GET(request: NextRequest) {
@@ -405,6 +406,9 @@ export async function POST(request: NextRequest) {
 
     // Update user stats (streak, totals, etc.)
     await updateUserStats(session.userId);
+
+    // Fire-and-forget: check for newly earned achievements
+    checkAndAwardAchievements(session.userId);
 
     return NextResponse.json({
       success: true,

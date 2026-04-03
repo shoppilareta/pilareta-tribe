@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { logger } from '@/lib/logger';
+import { notifyFollow } from '@/lib/social-notifications';
 
 // POST /api/users/[id]/follow - Follow a user
 export async function POST(
@@ -63,6 +64,9 @@ export async function POST(
         followingId: targetUserId,
       },
     });
+
+    // Fire-and-forget: notify the followed user
+    notifyFollow(targetUserId, session.userId);
 
     return NextResponse.json({ success: true, following: true });
   } catch (error) {

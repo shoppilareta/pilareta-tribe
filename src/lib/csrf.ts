@@ -63,3 +63,21 @@ export function validateCsrf(request: NextRequest): boolean {
     return false;
   }
 }
+
+/**
+ * Require CSRF validation on a request. Returns a 403 NextResponse if
+ * validation fails, or null if the request is allowed to proceed.
+ *
+ * Usage in API routes:
+ *   const csrfError = requireCsrf(request);
+ *   if (csrfError) return csrfError;
+ */
+export function requireCsrf(request: NextRequest): Response | null {
+  if (!validateCsrf(request)) {
+    return Response.json(
+      { error: 'Invalid or missing CSRF token' },
+      { status: 403 }
+    );
+  }
+  return null;
+}

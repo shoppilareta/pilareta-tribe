@@ -144,6 +144,40 @@ export async function GET(request: NextRequest) {
       bestStreak: stats.longestStreak,
     };
 
+    // --- Focus Area Balance Recommendation ---
+    const focusCounts = (stats.focusAreaCounts || {}) as Record<string, number>;
+    const allFocusAreas = ['core', 'glutes', 'legs', 'arms', 'back', 'posture', 'mobility'];
+    let focusAreaRecommendation: string | null = null;
+
+    if (stats.totalWorkouts >= 5) {
+      const totalTagged = Object.values(focusCounts).reduce((a, b) => a + b, 0);
+      if (totalTagged > 0) {
+        // Find the most neglected focus area
+        let minArea = '';
+        let minCount = Infinity;
+        for (const area of allFocusAreas) {
+          const count = focusCounts[area] || 0;
+          if (count < minCount) {
+            minCount = count;
+            minArea = area;
+          }
+        }
+
+        // Find the most popular area for comparison
+        const maxCount = Math.max(...allFocusAreas.map((a) => focusCounts[a] || 0));
+
+        // Recommend if there's a significant imbalance (3x+ difference or zero)
+        if (maxCount > 0 && (minCount === 0 || maxCount / minCount >= 3)) {
+          const areaLabel = minArea.charAt(0).toUpperCase() + minArea.slice(1);
+          if (minCount === 0) {
+            focusAreaRecommendation = `You haven't targeted ${areaLabel.toLowerCase()} yet — try adding it to your next session for better balance.`;
+          } else {
+            focusAreaRecommendation = `Your ${areaLabel.toLowerCase()} focus area is underrepresented (${minCount} vs ${maxCount} sessions). Consider balancing your routine.`;
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       stats: {
         currentStreak: stats.currentStreak,
@@ -166,6 +200,7 @@ export async function GET(request: NextRequest) {
         personalRecords,
       },
       weeklyProgress,
+      focusAreaRecommendation,
     });
   } catch (error) {
     logger.error('track/stats', 'Failed to fetch workout stats', error);
