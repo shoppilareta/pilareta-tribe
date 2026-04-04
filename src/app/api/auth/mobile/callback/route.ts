@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
         accessToken: tokens.access_token,
         refreshToken,
         platform,
-        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year (ignore Shopify's short expires_in)
       },
     });
 

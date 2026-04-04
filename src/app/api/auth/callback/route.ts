@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       data: {
         userId: user.id,
         accessToken: tokens.access_token,
-        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year (ignore Shopify's short expires_in)
       },
     });
 
