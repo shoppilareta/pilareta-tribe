@@ -222,12 +222,12 @@ export default function ExerciseDetailPage() {
 
         {/* Video Player (if available) */}
         {exercise.videoUrl && (
-          <div style={{ marginBottom: '1.5rem', borderRadius: '0.5rem', overflow: 'hidden' }}>
+          <div style={{ marginBottom: '1.5rem', borderRadius: '0.5rem', overflow: 'hidden', maxHeight: '60vh' }}>
             <video
               controls
               preload="metadata"
               poster={exercise.imageUrl || undefined}
-              style={{ width: '100%', display: 'block', borderRadius: '0.5rem' }}
+              style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', display: 'block', borderRadius: '0.5rem', background: '#000' }}
             >
               <source
                 src={exercise.videoUrl}
