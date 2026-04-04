@@ -20,7 +20,7 @@ import Svg, { Path } from 'react-native-svg';
 
 type ViewMode = 'dashboard' | 'calendar';
 
-const logo = require('@/../../assets/images/logo.png');
+const logo = require('../../../assets/images/logo.png');
 
 export default function TrackDashboard() {
   const { isAuthenticated, user } = useAuthStore();
