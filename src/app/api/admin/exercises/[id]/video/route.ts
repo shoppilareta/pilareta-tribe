@@ -3,10 +3,8 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-
-// TODO: Add ffmpeg compression for uploaded videos to optimize file size and
-// ensure consistent codec (H.264/AAC). For now, videos are stored as-is and
-// the browser/mobile player handles codec compatibility.
+import { getExerciseVideosPath } from '@/lib/uploads';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession(request);
@@ -15,6 +13,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const { id } = await params;
+
+  // Verify exercise exists
+  const exercise = await prisma.exercise.findUnique({ where: { id } });
+  if (!exercise) {
+    return NextResponse.json({ error: 'Exercise not found' }, { status: 404 });
+  }
+
   const formData = await request.formData();
   const video = formData.get('video') as File;
 
@@ -33,23 +38,33 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Video too large (max 100MB)' }, { status: 400 });
   }
 
-  // Save to uploads directory
-  const uploadsDir = '/var/data/pilareta-uploads/exercises/videos';
-  await mkdir(uploadsDir, { recursive: true });
+  try {
+    const uploadsDir = getExerciseVideosPath();
+    await mkdir(uploadsDir, { recursive: true });
 
-  const ext = video.name.split('.').pop() || 'mp4';
-  const filename = `${id}.${ext}`;
-  const filepath = path.join(uploadsDir, filename);
+    const ext = video.name.split('.').pop()?.toLowerCase() || 'mp4';
+    const filename = `${id}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
 
-  const buffer = Buffer.from(await video.arrayBuffer());
-  await writeFile(filepath, buffer);
+    const buffer = Buffer.from(await video.arrayBuffer());
+    await writeFile(filepath, buffer);
 
-  // Update exercise with video URL
-  const videoUrl = `/uploads/exercises/videos/${filename}`;
-  await prisma.exercise.update({
-    where: { id },
-    data: { videoUrl },
-  });
+    // Store URL with /api/uploads/ prefix so the serving route handles it
+    const videoUrl = `/api/uploads/exercises/videos/${filename}`;
+    await prisma.exercise.update({
+      where: { id },
+      data: { videoUrl },
+    });
 
-  return NextResponse.json({ videoUrl });
+    logger.info('admin/exercises/video', `Video uploaded for exercise ${exercise.slug}`, {
+      size: video.size,
+      type: video.type,
+      filename,
+    });
+
+    return NextResponse.json({ videoUrl });
+  } catch (error) {
+    logger.error('admin/exercises/video', 'Video upload failed', error);
+    return NextResponse.json({ error: 'Video upload failed' }, { status: 500 });
+  }
 }

@@ -24,3 +24,7 @@ export function getUgcUploadsPath(): string {
 export function getTrackUploadsPath(): string {
   return path.join(getUploadsBasePath(), 'track');
 }
+
+export function getExerciseVideosPath(): string {
+  return path.join(getUploadsBasePath(), 'exercises/videos');
+}

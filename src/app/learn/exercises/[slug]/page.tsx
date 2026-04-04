@@ -225,10 +225,14 @@ export default function ExerciseDetailPage() {
           <div style={{ marginBottom: '1.5rem', borderRadius: '0.5rem', overflow: 'hidden' }}>
             <video
               controls
+              preload="metadata"
               poster={exercise.imageUrl || undefined}
               style={{ width: '100%', display: 'block', borderRadius: '0.5rem' }}
             >
-              <source src={exercise.videoUrl} type="video/mp4" />
+              <source
+                src={exercise.videoUrl}
+                type={exercise.videoUrl.endsWith('.webm') ? 'video/webm' : exercise.videoUrl.endsWith('.mov') ? 'video/quicktime' : 'video/mp4'}
+              />
             </video>
           </div>
         )}

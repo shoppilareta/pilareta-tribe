@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile, stat } from 'fs/promises';
+import { open, stat } from 'fs/promises';
 import path from 'path';
 import { getUploadsBasePath } from '@/lib/uploads';
 import { logger } from '@/lib/logger';
@@ -11,9 +11,12 @@ const MIME_TYPES: Record<string, string> = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
   '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
   '.mov': 'video/quicktime',
   '.webm': 'video/webm',
 };
+
+const VIDEO_EXTENSIONS = new Set(['.mp4', '.m4v', '.mov', '.webm']);
 
 export async function GET(
   request: NextRequest,
@@ -49,27 +52,70 @@ export async function GET(
     }
 
     // Check if file exists and is a regular file (not directory or symlink)
+    let fileSize: number;
     try {
       const fileStat = await stat(absolutePath);
       if (!fileStat.isFile()) {
         return NextResponse.json({ error: 'File not found' }, { status: 404 });
       }
+      fileSize = fileStat.size;
     } catch {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // Read the file
-    const fileBuffer = await readFile(absolutePath);
-
-    // Determine content type
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const isVideo = VIDEO_EXTENSIONS.has(ext);
 
-    // Return the file with appropriate headers
+    // Handle Range requests for video streaming (seeking, progressive playback)
+    const rangeHeader = request.headers.get('range');
+    if (isVideo && rangeHeader) {
+      const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+      if (match) {
+        const start = parseInt(match[1], 10);
+        const end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+
+        if (start >= fileSize || end >= fileSize || start > end) {
+          return new NextResponse(null, {
+            status: 416,
+            headers: { 'Content-Range': `bytes */${fileSize}` },
+          });
+        }
+
+        const chunkSize = end - start + 1;
+        const fileHandle = await open(absolutePath, 'r');
+        const buffer = Buffer.alloc(chunkSize);
+        await fileHandle.read(buffer, 0, chunkSize, start);
+        await fileHandle.close();
+
+        return new NextResponse(buffer, {
+          status: 206,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Content-Length': String(chunkSize),
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=86400',
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
+      }
+    }
+
+    // Full file response
+    const fileHandle = await open(absolutePath, 'r');
+    const fileBuffer = Buffer.alloc(fileSize);
+    await fileHandle.read(fileBuffer, 0, fileSize, 0);
+    await fileHandle.close();
+
     return new NextResponse(fileBuffer, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Length': String(fileSize),
+        ...(isVideo ? { 'Accept-Ranges': 'bytes' } : {}),
+        'Cache-Control': isVideo
+          ? 'public, max-age=86400'  // 1 day for videos (can be re-uploaded)
+          : 'public, max-age=31536000, immutable',  // 1 year for images
         'X-Content-Type-Options': 'nosniff',
       },
     });

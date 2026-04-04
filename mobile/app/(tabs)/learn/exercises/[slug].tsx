@@ -10,6 +10,13 @@ import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Badge } from '@/components/ui';
 import { getExercise, getExerciseCompletionStats } from '@/api/learn';
+import { API_BASE } from '@/api/client';
+
+function resolveUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
+}
 
 const FAVORITES_KEY = 'pilareta_favorite_exercises';
 
@@ -154,8 +161,8 @@ export default function ExerciseDetail() {
           <View style={styles.videoContainer}>
             <Video
               ref={videoRef}
-              source={{ uri: ex.videoUrl }}
-              posterSource={ex.imageUrl ? { uri: ex.imageUrl } : undefined}
+              source={{ uri: resolveUrl(ex.videoUrl)! }}
+              posterSource={ex.imageUrl ? { uri: resolveUrl(ex.imageUrl)! } : undefined}
               usePoster={!!ex.imageUrl}
               style={styles.video}
               useNativeControls
@@ -168,7 +175,7 @@ export default function ExerciseDetail() {
           </View>
         ) : videoError && ex.imageUrl ? (
           <View style={styles.videoContainer}>
-            <Image source={{ uri: ex.imageUrl }} style={styles.video} resizeMode="cover" />
+            <Image source={{ uri: resolveUrl(ex.imageUrl)! }} style={styles.video} resizeMode="cover" />
             <View style={styles.videoErrorOverlay}>
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={1.5}>
                 <Path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
@@ -184,7 +191,7 @@ export default function ExerciseDetail() {
             <Text style={styles.videoErrorText}>Video unavailable</Text>
           </View>
         ) : ex.imageUrl ? (
-          <Image source={{ uri: ex.imageUrl }} style={styles.heroImage} resizeMode="cover" />
+          <Image source={{ uri: resolveUrl(ex.imageUrl)! }} style={styles.heroImage} resizeMode="cover" />
         ) : null}
 
         {/* Color-coded difficulty badge */}
