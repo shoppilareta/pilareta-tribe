@@ -18,6 +18,11 @@ function resolveUrl(url: string | null): string | null {
   return `${API_BASE}${url}`;
 }
 
+/** Format snake_case to Title Case: "erector_spinae" → "Erector Spinae" */
+function formatLabel(s: string): string {
+  return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 const FAVORITES_KEY = 'pilareta_favorite_exercises';
 
 async function getFavorites(): Promise<string[]> {
@@ -321,13 +326,13 @@ export default function ExerciseDetail() {
             {primaryMuscles.length > 0 && (
               <View style={styles.muscleRow}>
                 <Text style={styles.muscleLabel}>Primary: </Text>
-                <Text style={styles.muscleValue}>{primaryMuscles.join(', ')}</Text>
+                <Text style={styles.muscleValue}>{primaryMuscles.map(formatLabel).join(', ')}</Text>
               </View>
             )}
             {secondaryMuscles.length > 0 && (
               <View style={styles.muscleRow}>
                 <Text style={styles.muscleLabel}>Secondary: </Text>
-                <Text style={styles.muscleSecondary}>{secondaryMuscles.join(', ')}</Text>
+                <Text style={styles.muscleSecondary}>{secondaryMuscles.map(formatLabel).join(', ')}</Text>
               </View>
             )}
           </CollapsibleSection>
@@ -337,7 +342,7 @@ export default function ExerciseDetail() {
           <CollapsibleSection title="Safety">
             {ex.safetyNotes ? <Text style={styles.safetyText}>{ex.safetyNotes}</Text> : null}
             {contraindications.map((c, i) => (
-              <Text key={i} style={styles.mistakeText}>{'\u26A0\uFE0F'} {c}</Text>
+              <Text key={i} style={styles.mistakeText}>{'\u26A0\uFE0F'} {formatLabel(c)}</Text>
             ))}
           </CollapsibleSection>
         )}

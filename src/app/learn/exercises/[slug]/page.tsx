@@ -394,7 +394,7 @@ export default function ExerciseDetailPage() {
                   background: 'rgba(246, 237, 221, 0.15)',
                   borderRadius: '9999px',
                   fontSize: '0.8125rem'
-                }}>{muscle.replace('_', ' ')}</span>
+                }}>{muscle.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
               ))}
             </div>
           </div>
@@ -408,7 +408,7 @@ export default function ExerciseDetailPage() {
                   borderRadius: '9999px',
                   fontSize: '0.8125rem',
                   color: 'rgba(246, 237, 221, 0.7)'
-                }}>{muscle.replace('_', ' ')}</span>
+                }}>{muscle.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
               ))}
             </div>
           </div>
@@ -436,7 +436,7 @@ export default function ExerciseDetailPage() {
                       background: 'rgba(255, 150, 100, 0.2)',
                       borderRadius: '9999px',
                       fontSize: '0.8125rem'
-                    }}>{c.replace('_', ' ')}</span>
+                    }}>{c.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}</span>
                   ))}
                 </div>
               </div>
