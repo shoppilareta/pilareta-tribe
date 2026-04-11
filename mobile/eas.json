@@ -4,6 +4,20 @@
     "appVersionSource": "remote",
     "promptToConfigurePushNotifications": false
   },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6761653062",
+        "ascApiKeyPath": "../AuthKey_UC22J9XHC2.p8",
+        "ascApiKeyIssuerId": "209b9d16-868d-4a81-b01a-f4e87e60d519",
+        "ascApiKeyId": "UC22J9XHC2"
+      },
+      "android": {
+        "serviceAccountKeyPath": "../pilareta-tribe-39d229ff2a7b.json",
+        "track": "production"
+      }
+    }
+  },
   "build": {
     "monorepo": {
       "pnpm": "10.28.0",
