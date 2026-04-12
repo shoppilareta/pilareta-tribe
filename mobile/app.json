@@ -108,7 +108,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Pilareta Tribe uses your location to find nearby pilates studios."
+          "locationAlwaysAndWhenInUsePermission": "Pilareta Tribe uses your location to show Pilates studios near you on the studio finder map. For example, when you tap 'Near Me' on the Studios tab, your location is used to display studios sorted by distance."
         }
       ],
       [
