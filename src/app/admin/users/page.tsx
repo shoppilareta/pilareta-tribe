@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { adminFetch } from '@/lib/admin-fetch';
 
 interface UserListItem {
   id: string;
@@ -118,7 +119,7 @@ export default function AdminUsersPage() {
 
     setTogglingAdmin(userId);
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+      const res = await adminFetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isAdmin: !currentIsAdmin }),
@@ -149,7 +150,7 @@ export default function AdminUsersPage() {
 
     setActionLoading(userId);
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+      const res = await adminFetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deactivated: !currentlyDeactivated }),
@@ -180,7 +181,7 @@ export default function AdminUsersPage() {
 
     setActionLoading(userId);
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+      const res = await adminFetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bannedAt: currentlyBanned ? null : new Date().toISOString() }),
@@ -230,7 +231,7 @@ export default function AdminUsersPage() {
 
     setBulkLoading(true);
     try {
-      const res = await fetch('/api/admin/bulk-operations', {
+      const res = await adminFetch('/api/admin/bulk-operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, entityType: 'users', ids }),

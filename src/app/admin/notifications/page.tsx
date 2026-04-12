@@ -1,5 +1,6 @@
 'use client';
 
+import { adminFetch } from '@/lib/admin-fetch';
 import { useState, useEffect, useCallback } from 'react';
 
 interface AdminNotification {
@@ -40,7 +41,7 @@ export default function AdminNotificationsPage() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/notifications');
+      const res = await adminFetch('/api/admin/notifications');
       if (res.status === 401 || res.status === 403) {
         window.location.href = '/';
         return;
@@ -89,7 +90,7 @@ export default function AdminNotificationsPage() {
         payload.scheduledFor = new Date(scheduledFor).toISOString();
       }
 
-      const res = await fetch('/api/admin/notifications', {
+      const res = await adminFetch('/api/admin/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -124,7 +125,7 @@ export default function AdminNotificationsPage() {
     setActionLoading(notificationId);
     setError(null);
     try {
-      const res = await fetch('/api/admin/notifications', {
+      const res = await adminFetch('/api/admin/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationId, action }),

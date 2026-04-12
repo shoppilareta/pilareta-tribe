@@ -1,5 +1,6 @@
 'use client';
 
+import { adminFetch } from '@/lib/admin-fetch';
 import { useEffect, useState, useCallback } from 'react';
 
 interface Banner {
@@ -52,7 +53,7 @@ export default function AdminShopPage() {
 
   const fetchBanners = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/banners');
+      const res = await adminFetch('/api/admin/banners');
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setBanners(data.banners);
@@ -109,12 +110,12 @@ export default function AdminShopPage() {
       };
 
       const res = editingId
-        ? await fetch(`/api/admin/banners/${editingId}`, {
+        ? await adminFetch(`/api/admin/banners/${editingId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           })
-        : await fetch('/api/admin/banners', {
+        : await adminFetch('/api/admin/banners', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -136,7 +137,7 @@ export default function AdminShopPage() {
     if (!confirm('Are you sure you want to delete this banner?')) return;
     setDeleting(id);
     try {
-      const res = await fetch(`/api/admin/banners/${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/banners/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed');
       await fetchBanners();
     } catch {
@@ -148,7 +149,7 @@ export default function AdminShopPage() {
 
   const toggleActive = async (banner: Banner) => {
     try {
-      const res = await fetch(`/api/admin/banners/${banner.id}`, {
+      const res = await adminFetch(`/api/admin/banners/${banner.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !banner.isActive }),

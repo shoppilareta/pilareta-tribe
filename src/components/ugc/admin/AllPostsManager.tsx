@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { adminFetch } from '@/lib/admin-fetch';
 
 interface AdminPost {
   id: string;
@@ -99,7 +100,7 @@ export function AllPostsManager() {
     }
 
     try {
-      const response = await fetch(`/api/ugc/posts/${postId}`, {
+      const response = await adminFetch(`/api/ugc/posts/${postId}`, {
         method: 'DELETE',
       });
 
@@ -122,7 +123,7 @@ export function AllPostsManager() {
 
   const handleToggleFeatured = async (postId: string, currentFeatured: boolean) => {
     try {
-      const response = await fetch(`/api/ugc/admin/moderate/${postId}`, {
+      const response = await adminFetch(`/api/ugc/admin/moderate/${postId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isFeatured: !currentFeatured }),
@@ -154,7 +155,7 @@ export function AllPostsManager() {
 
   const handleSaveCaption = async (postId: string) => {
     try {
-      const response = await fetch(`/api/ugc/posts/${postId}`, {
+      const response = await adminFetch(`/api/ugc/posts/${postId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ caption: editCaption }),
@@ -215,7 +216,7 @@ export function AllPostsManager() {
 
     setBulkLoading(true);
     try {
-      const res = await fetch('/api/admin/bulk-operations', {
+      const res = await adminFetch('/api/admin/bulk-operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, entityType: 'posts', ids }),

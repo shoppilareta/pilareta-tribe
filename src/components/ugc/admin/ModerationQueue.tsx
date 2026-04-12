@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { adminFetch } from '@/lib/admin-fetch';
 import { ModerationCard } from './ModerationCard';
 
 interface ModerationPost {
@@ -65,7 +66,7 @@ export function ModerationQueue() {
   const handleModerate = useCallback(
     async (postId: string, action: 'approve' | 'reject', feature?: boolean, note?: string) => {
       try {
-        const response = await fetch(`/api/ugc/admin/moderate/${postId}`, {
+        const response = await adminFetch(`/api/ugc/admin/moderate/${postId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action, feature, note }),

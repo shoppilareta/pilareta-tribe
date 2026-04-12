@@ -1,5 +1,6 @@
 'use client';
 
+import { adminFetch } from '@/lib/admin-fetch';
 import { useEffect, useState } from 'react';
 
 interface SettingsData {
@@ -65,7 +66,7 @@ export default function AdminSettingsPage() {
   async function fetchSettings() {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/settings');
+      const res = await adminFetch('/api/admin/settings');
       if (!res.ok) throw new Error('Failed to fetch settings');
       const result = await res.json();
       setData(result);
@@ -99,7 +100,7 @@ export default function AdminSettingsPage() {
         updates[ft.key] = featureValues[ft.key] ? 'true' : 'false';
       }
 
-      const res = await fetch('/api/admin/settings', {
+      const res = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates }),

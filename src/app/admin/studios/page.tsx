@@ -1,5 +1,6 @@
 'use client';
 
+import { adminFetch } from '@/lib/admin-fetch';
 import { useEffect, useState, useCallback } from 'react';
 
 interface Studio {
@@ -133,7 +134,7 @@ export default function AdminStudiosPage() {
     if (!confirm(`Are you sure you want to ${action} ${ids.length} studio(s)?`)) return;
     setBulkLoading(true);
     try {
-      const res = await fetch('/api/admin/bulk-operations', {
+      const res = await adminFetch('/api/admin/bulk-operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, entityType: 'studios', ids }),
@@ -163,7 +164,7 @@ export default function AdminStudiosPage() {
     try {
       const params = new URLSearchParams();
       if (query) params.set('search', query);
-      const res = await fetch(`/api/admin/studios?${params}`);
+      const res = await adminFetch(`/api/admin/studios?${params}`);
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setStudios(data.studios);
@@ -177,7 +178,7 @@ export default function AdminStudiosPage() {
   const fetchClaims = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/studios/claims');
+      const res = await adminFetch('/api/admin/studios/claims');
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setClaims(data.claims);
@@ -191,7 +192,7 @@ export default function AdminStudiosPage() {
   const fetchEditSuggestions = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/studios/edit-suggestions');
+      const res = await adminFetch('/api/admin/studios/edit-suggestions');
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       setEditSuggestions(data.suggestions);
@@ -217,7 +218,7 @@ export default function AdminStudiosPage() {
     if (status === 'rejected' && !window.confirm('Are you sure you want to reject this claim?')) return;
     setActionLoading(claimId);
     try {
-      const res = await fetch(`/api/admin/studios/claims/${claimId}`, {
+      const res = await adminFetch(`/api/admin/studios/claims/${claimId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -236,7 +237,7 @@ export default function AdminStudiosPage() {
     if (status === 'rejected' && !window.confirm('Are you sure you want to reject this suggestion?')) return;
     setActionLoading(suggestionId);
     try {
-      const res = await fetch(`/api/admin/studios/edit-suggestions/${suggestionId}`, {
+      const res = await adminFetch(`/api/admin/studios/edit-suggestions/${suggestionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -254,7 +255,7 @@ export default function AdminStudiosPage() {
   const toggleVerified = async (studioId: string, currentVerified: boolean) => {
     setActionLoading(studioId);
     try {
-      const res = await fetch(`/api/admin/studios/${studioId}`, {
+      const res = await adminFetch(`/api/admin/studios/${studioId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verified: !currentVerified }),
@@ -272,7 +273,7 @@ export default function AdminStudiosPage() {
     if (!window.confirm(`Are you sure you want to delete "${studioName}"? This cannot be undone.`)) return;
     setActionLoading(studioId);
     try {
-      const res = await fetch(`/api/admin/studios/${studioId}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/studios/${studioId}`, { method: 'DELETE' });
       if (res.ok) {
         alert('Studio deleted successfully');
         fetchStudios(search);
@@ -299,7 +300,7 @@ export default function AdminStudiosPage() {
     setEditingStudioId(studio.id);
     // Fetch full details for the studio
     try {
-      const res = await fetch(`/api/admin/studios/${studio.id}`, { method: 'GET' });
+      const res = await adminFetch(`/api/admin/studios/${studio.id}`, { method: 'GET' });
       // The studio [id] route doesn't have a GET handler yet, so use what we have from the list
       // and set additional fields
       setStudioForm({
@@ -353,7 +354,7 @@ export default function AdminStudiosPage() {
     try {
       const url = editingStudioId ? `/api/admin/studios/${editingStudioId}` : '/api/admin/studios';
       const method = editingStudioId ? 'PATCH' : 'POST';
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

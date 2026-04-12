@@ -1,5 +1,6 @@
 'use client';
 
+import { adminFetch } from '@/lib/admin-fetch';
 import { useState, useEffect } from 'react';
 
 interface ExerciseSummary {
@@ -127,7 +128,7 @@ export default function ExercisesAdminPage() {
     setLoading(true);
     try {
       const params = search ? `?search=${encodeURIComponent(search)}` : '';
-      const res = await fetch(`/api/admin/exercises${params}`);
+      const res = await adminFetch(`/api/admin/exercises${params}`);
       const data = await res.json();
       setExercises(data.exercises || []);
     } catch {
@@ -139,7 +140,7 @@ export default function ExercisesAdminPage() {
 
   async function fetchDetail(id: string) {
     try {
-      const res = await fetch(`/api/admin/exercises/${id}`);
+      const res = await adminFetch(`/api/admin/exercises/${id}`);
       const data = await res.json();
       if (data.exercise) {
         setDetail(data.exercise);
@@ -158,7 +159,7 @@ export default function ExercisesAdminPage() {
     setSaving(true);
     setMessage('');
     try {
-      const res = await fetch(`/api/admin/exercises/${selectedId}`, {
+      const res = await adminFetch(`/api/admin/exercises/${selectedId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -185,7 +186,7 @@ export default function ExercisesAdminPage() {
   async function handleDelete(id: string, name: string) {
     if (!window.confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`/api/admin/exercises/${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/exercises/${id}`, { method: 'DELETE' });
       if (res.ok) {
         alert('Exercise deleted successfully');
         if (selectedId === id) {
@@ -212,7 +213,7 @@ export default function ExercisesAdminPage() {
   async function openEditModal(id: string) {
     setModalMessage('');
     try {
-      const res = await fetch(`/api/admin/exercises/${id}`);
+      const res = await adminFetch(`/api/admin/exercises/${id}`);
       const data = await res.json();
       if (data.exercise) {
         const ex = data.exercise;
@@ -274,7 +275,7 @@ export default function ExercisesAdminPage() {
     try {
       const url = editingId ? `/api/admin/exercises/${editingId}` : '/api/admin/exercises';
       const method = editingId ? 'PATCH' : 'POST';
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -318,7 +319,7 @@ export default function ExercisesAdminPage() {
     if (!window.confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} ${selectedIds.size} selected exercise(s)?`)) return;
     setBulkVerifying(true);
     try {
-      const res = await fetch('/api/admin/bulk-operations', {
+      const res = await adminFetch('/api/admin/bulk-operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, entityType: 'exercises', ids: Array.from(selectedIds) }),
@@ -545,7 +546,7 @@ export default function ExercisesAdminPage() {
                         const form = new FormData();
                         form.append('video', file);
                         try {
-                          const res = await fetch(`/api/admin/exercises/${selectedId}/video`, { method: 'POST', body: form });
+                          const res = await adminFetch(`/api/admin/exercises/${selectedId}/video`, { method: 'POST', body: form });
                           const data = await res.json();
                           if (data.videoUrl) { setVideoUrl(data.videoUrl); alert('Video uploaded!'); }
                           else alert(data.error || 'Upload failed');

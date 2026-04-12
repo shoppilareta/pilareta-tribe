@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { adminFetch } from '@/lib/admin-fetch';
 
 interface Comment {
   id: string;
@@ -51,7 +52,7 @@ export function CommentsManager() {
     setDeleting(commentId);
     setError(null);
     try {
-      const res = await fetch('/api/admin/comments', {
+      const res = await adminFetch('/api/admin/comments', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commentId }),
