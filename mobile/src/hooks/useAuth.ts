@@ -62,11 +62,13 @@ export function useAuth() {
   const logout = useCallback(async () => {
     try {
       if (accessToken) {
-        const result = await logoutMobile(accessToken);
-        // Optionally open Shopify logout URL to clear their session
-        if (result.logoutUrl) {
-          await WebBrowser.openBrowserAsync(result.logoutUrl);
-        }
+        // Tell the server to delete the session; we deliberately don't
+        // open Shopify's end_session_endpoint here because we don't store
+        // the original id_token on mobile sessions, so Shopify rejects it
+        // with "Invalid id_token". The local logout is enough — Shopify's
+        // session will expire naturally and the OAuth flow will run fresh
+        // on the next login.
+        await logoutMobile(accessToken);
       }
     } catch {
       // Server logout failed - still clear local state

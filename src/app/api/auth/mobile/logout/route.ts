@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { discoverEndpoints } from '@/lib/shopify-auth';
 import { logger } from '@/lib/logger';
 
 /**
  * POST /api/auth/mobile/logout
  *
  * Logs out a mobile session by deleting the session record.
- * Returns the Shopify logout URL if available, so the mobile app
- * can optionally clear the Shopify session too.
+ * We don't return Shopify's end_session_endpoint here because mobile
+ * sessions don't store the original id_token, so Shopify would reject
+ * the logout call with "Invalid id_token". Instead, we rely on the
+ * local session deletion + Shopify's natural session expiry.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -33,21 +34,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Optionally return Shopify logout URL
-    let logoutUrl: string | undefined;
-    try {
-      const config = await discoverEndpoints();
-      if (config.end_session_endpoint) {
-        logoutUrl = config.end_session_endpoint;
-      }
-    } catch {
-      // Not critical if we can't get the logout URL
-    }
-
-    return NextResponse.json({
-      success: true,
-      logoutUrl,
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     logger.error('auth/mobile/logout', 'Mobile logout failed', error);
     return NextResponse.json(

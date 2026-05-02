@@ -5,7 +5,6 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
-import Constants from 'expo-constants';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Button } from '@/components/ui';
 import { ImageZoomModal } from '@/components/ui/ImageZoomModal';
@@ -14,12 +13,7 @@ import { getStudio, getNearbyStudios } from '@/api/studios';
 import { getFeed } from '@/api/community';
 import { useStudioFavorites } from '@/hooks/useStudioFavorites';
 import { useAuthStore } from '@/stores/authStore';
-import { apiFetch } from '@/api/client';
-
-const GOOGLE_MAPS_KEY = Constants.expoConfig?.ios?.config?.googleMapsApiKey
-  ?? (Constants.expoConfig?.android?.config?.googleMaps as { apiKey?: string })?.apiKey
-  ?? (Constants.expoConfig?.extra as Record<string, unknown>)?.googleMapsApiKey as string
-  ?? '';
+import { apiFetch, API_BASE } from '@/api/client';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PHOTO_HEIGHT = 200;
@@ -214,8 +208,10 @@ function formatOpeningHours(openingHours: unknown): string[] {
 }
 
 function photoRefToUrl(ref: string, maxWidth = 600): string | null {
-  if (!GOOGLE_MAPS_KEY) return null;
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${ref}&key=${GOOGLE_MAPS_KEY}`;
+  if (!ref) return null;
+  // Proxy through our backend so the API key isn't exposed and isn't
+  // restricted to the mobile app's bundle id.
+  return `${API_BASE}/api/studios/photo?ref=${encodeURIComponent(ref)}&w=${maxWidth}`;
 }
 
 function extractPhotoUrl(item: unknown, maxWidth = 600): string | null {

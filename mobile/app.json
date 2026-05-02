@@ -123,7 +123,14 @@
         {
           "backgroundColor": "#202219",
           "image": "./assets/images/pilareta-logo-full.png",
-          "imageWidth": 300
+          "imageWidth": 280,
+          "resizeMode": "contain",
+          "android": {
+            "image": "./assets/images/adaptive-icon.png",
+            "imageWidth": 200,
+            "resizeMode": "contain",
+            "backgroundColor": "#202219"
+          }
         }
       ],
       "expo-sqlite",

@@ -2,8 +2,8 @@ import { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import Constants from 'expo-constants';
 import { Card } from '@/components/ui';
+import { API_BASE } from '@/api/client';
 import { colors, typography, spacing, radius } from '@/theme';
 import type { Studio } from '@shared/types';
 
@@ -67,10 +67,6 @@ function isStudioOpenNow(openingHours: unknown): boolean | null {
   return false;
 }
 
-const GOOGLE_MAPS_KEY = Constants.expoConfig?.ios?.config?.googleMapsApiKey
-  ?? (Constants.expoConfig?.android?.config?.googleMaps as { apiKey?: string })?.apiKey
-  ?? '';
-
 function getStudioPhotoUrl(studio: Studio): string | null {
   if (!studio.photos || !Array.isArray(studio.photos) || studio.photos.length === 0) return null;
   const first = studio.photos[0];
@@ -78,10 +74,11 @@ function getStudioPhotoUrl(studio: Studio): string | null {
   const p = first as { reference?: string; photo_reference?: string; url?: string };
   // If the photo already has a full URL, use it directly
   if (typeof p.url === 'string' && p.url.length > 0) return p.url;
-  // DB stores as "reference", Google API returns "photo_reference" — handle both
+  // DB stores as "reference", Google API returns "photo_reference" — handle both.
+  // Proxy through our backend so the API key isn't exposed.
   const ref = p?.reference || p?.photo_reference;
-  if (!ref || !GOOGLE_MAPS_KEY) return null;
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=120&photo_reference=${encodeURIComponent(ref)}&key=${GOOGLE_MAPS_KEY}`;
+  if (!ref) return null;
+  return `${API_BASE}/api/studios/photo?ref=${encodeURIComponent(ref)}&w=240`;
 }
 
 export { isStudioOpenNow };

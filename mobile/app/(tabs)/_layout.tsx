@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, Pressable, StyleSheet, View, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { colors, typography } from '@/theme';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
@@ -87,12 +88,22 @@ function AnimatedTabBarButton(props: any) {
 
 export default function TabLayout() {
   const cartItemCount = useCartStore((s) => s.lines.reduce((sum, line) => sum + line.quantity, 0));
+  const insets = useSafeAreaInsets();
+
+  // Honour the device's bottom safe-area inset so the tab bar doesn't sit
+  // behind the system gesture/navigation area on Android & modern iPhones.
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 28 : 12);
+  const dynamicTabBarStyle = {
+    ...styles.tabBar,
+    height: 56 + bottomInset,
+    paddingBottom: bottomInset,
+  };
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: dynamicTabBarStyle,
         tabBarActiveTintColor: colors.tabBar.active,
         tabBarInactiveTintColor: colors.tabBar.inactive,
         tabBarLabelStyle: styles.tabBarLabel,
@@ -151,9 +162,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tabBar.bg,
     borderTopColor: colors.tabBar.border,
     borderTopWidth: 1,
-    height: Platform.OS === 'ios' ? 88 : 64,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
   },
   tabBarLabel: {
     fontFamily: typography.fontFamily,

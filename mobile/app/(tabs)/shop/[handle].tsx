@@ -30,7 +30,7 @@ function parseHtmlTable(tableHtml: string): string[][] {
     const cellRegex = /<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi;
     let cellMatch;
     while ((cellMatch = cellRegex.exec(trMatch[1])) !== null) {
-      cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
+      cells.push(decodeHtmlEntities(cellMatch[1].replace(/<[^>]+>/g, '')).trim());
     }
     if (cells.length > 0) rows.push(cells);
   }
@@ -44,6 +44,20 @@ type DescriptionBlock =
   | { type: 'bullet'; text: string }
   | { type: 'table'; rows: string[][] };
 
+/** Decode common HTML entities (&amp; &lt; &gt; &quot; &#39; &nbsp; numeric refs) */
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_m, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_m, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
 /** Parse descriptionHtml into structured blocks preserving formatting */
 function parseDescriptionHtml(html: string): { blocks: DescriptionBlock[] } {
   const blocks: DescriptionBlock[] = [];
@@ -52,8 +66,8 @@ function parseDescriptionHtml(html: string): { blocks: DescriptionBlock[] } {
   // Work through the HTML sequentially, extracting blocks in order
   let remaining = html;
 
-  // Helper: strip tags from a fragment, preserving inner text
-  const stripTags = (s: string) => s.replace(/<[^>]+>/g, '').trim();
+  // Helper: strip tags from a fragment, preserving inner text and decoding entities
+  const stripTags = (s: string) => decodeHtmlEntities(s.replace(/<[^>]+>/g, '')).trim();
 
   // Process the HTML by splitting on block-level elements
   // First, normalize <br> and <br/> to newlines so they create line breaks
@@ -82,7 +96,7 @@ function parseDescriptionHtml(html: string): { blocks: DescriptionBlock[] } {
 
 /** Parse non-table HTML into heading, paragraph, and bullet blocks */
 function parseTextBlocks(html: string, blocks: DescriptionBlock[]) {
-  const stripTags = (s: string) => s.replace(/<[^>]+>/g, '').trim();
+  const stripTags = (s: string) => decodeHtmlEntities(s.replace(/<[^>]+>/g, '')).trim();
 
   // Extract headings
   const headingRegex = /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
@@ -632,7 +646,7 @@ export default function ProductDetailScreen() {
         <View style={styles.trustSection}>
           {[
             { icon: 'M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l4-2 4 2 4-2 4 2V6a1 1 0 00-1-1h-2', title: 'Free Shipping', subtitle: 'Free delivery across India' },
-            { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', title: 'Easy Returns', subtitle: '30-day hassle-free returns' },
+            { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', title: 'Easy Returns', subtitle: '14-day hassle-free returns' },
             { icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', title: '100% Authentic', subtitle: 'Genuine Pilareta products' },
             { icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', title: 'Secure Payments', subtitle: 'Cards, UPI & wallets accepted' },
           ].map((item) => (

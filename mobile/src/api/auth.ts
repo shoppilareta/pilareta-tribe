@@ -16,7 +16,7 @@ export async function exchangeCode(params: MobileCallbackRequest): Promise<Mobil
   });
 }
 
-export async function logoutMobile(accessToken: string): Promise<{ success: boolean; logoutUrl?: string }> {
+export async function logoutMobile(accessToken: string): Promise<{ success: boolean }> {
   return apiFetch('/api/auth/mobile/logout', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
