@@ -27,6 +27,30 @@ interface OnboardingPage {
   description: string;
 }
 
+const pageStyles = StyleSheet.create({
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: colors.cream10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandText: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: colors.fg.primary,
+    letterSpacing: 2,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
 const PAGES: OnboardingPage[] = [
   {
     id: 'welcome',
@@ -246,30 +270,6 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
   const value = await SecureStore.getItemAsync(ONBOARDING_KEY);
   return value === 'true';
 }
-
-const pageStyles = StyleSheet.create({
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: colors.cream10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandText: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: colors.fg.primary,
-    letterSpacing: 2,
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
 
 const styles = StyleSheet.create({
   container: {

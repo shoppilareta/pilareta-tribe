@@ -27,9 +27,10 @@ export default function LogWorkout() {
         return;
       }
 
-      // Check calorie goal
-      const dailyTarget = stats?.profile?.dailyCalorieTarget;
-      const todayCal = stats?.todayCalories;
+      // Check calorie goal — fields may be absent on response
+      const statsAny = stats as unknown as { profile?: { dailyCalorieTarget?: number }; todayCalories?: number };
+      const dailyTarget = statsAny?.profile?.dailyCalorieTarget;
+      const todayCal = statsAny?.todayCalories;
       if (
         dailyTarget != null &&
         dailyTarget > 0 &&

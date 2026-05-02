@@ -5,11 +5,18 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Button } from '@/components/ui';
 import { getSession } from '@/api/learn';
+import { API_BASE } from '@/api/client';
 import type { PilatesSessionItem } from '@shared/types';
+
+function resolveUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
+}
 
 const SECTION_COLORS: Record<string, string> = {
   warmup: 'rgba(255, 200, 100, 0.3)',
@@ -45,7 +52,6 @@ export default function SessionPlayer() {
   const elapsedOffsetRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const videoRef = useRef<Video>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['learn-session', id],
@@ -108,25 +114,29 @@ export default function SessionPlayer() {
     setVideoError(false);
   }, [currentIndex]);
 
+  const videoUri = currentItem?.exercise?.videoUrl ? resolveUrl(currentItem.exercise.videoUrl) : null;
+  const player = useVideoPlayer(videoUri || null, (p) => {
+    p.loop = true;
+    p.muted = true;
+  });
+
+  useEffect(() => {
+    if (!player) return;
+    const sub = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'error' || error) setVideoError(true);
+    });
+    return () => sub.remove();
+  }, [player]);
+
   // Auto-play/pause video with rest state and exercise changes
   useEffect(() => {
-    if (!currentItem?.exercise?.videoUrl || videoError) return;
+    if (!player || !currentItem?.exercise?.videoUrl || videoError) return;
     if (isResting) {
-      videoRef.current?.pauseAsync();
+      try { player.pause(); } catch {}
     } else {
-      videoRef.current?.playAsync();
+      try { player.play(); } catch {}
     }
-  }, [isResting, currentIndex, currentItem?.exercise?.videoUrl, videoError]);
-
-  const handleVideoError = useCallback(() => {
-    setVideoError(true);
-  }, []);
-
-  const handleVideoStatus = useCallback((status: AVPlaybackStatus) => {
-    if ('error' in status && status.error) {
-      setVideoError(true);
-    }
-  }, []);
+  }, [isResting, currentIndex, currentItem?.exercise?.videoUrl, videoError, player]);
 
   const handleNext = useCallback(() => {
     if (!currentItem) return;
@@ -276,23 +286,17 @@ export default function SessionPlayer() {
           {/* Video with error fallback */}
           {currentItem.exercise.videoUrl && !videoError ? (
             <View style={styles.sessionVideoContainer}>
-              <Video
-                ref={videoRef}
-                source={{ uri: currentItem.exercise.videoUrl }}
-                posterSource={currentItem.exercise.imageUrl ? { uri: currentItem.exercise.imageUrl } : undefined}
-                usePoster={!!currentItem.exercise.imageUrl}
+              <VideoView
+                player={player}
                 style={styles.sessionVideo}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                isLooping
-                shouldPlay={!isResting}
-                onError={handleVideoError}
-                onPlaybackStatusUpdate={handleVideoStatus}
+                contentFit="contain"
+                nativeControls
+                allowsFullscreen
               />
             </View>
           ) : videoError && currentItem.exercise.imageUrl ? (
             <View style={styles.sessionVideoContainer}>
-              <Image source={{ uri: currentItem.exercise.imageUrl }} style={styles.sessionVideo} resizeMode="cover" />
+              <Image source={{ uri: resolveUrl(currentItem.exercise.imageUrl)! }} style={styles.sessionVideo} resizeMode="cover" />
               <View style={styles.videoErrorOverlay}>
                 <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={1.5}>
                   <Path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
@@ -309,7 +313,7 @@ export default function SessionPlayer() {
             </View>
           ) : currentItem.exercise.imageUrl ? (
             <View style={styles.sessionVideoContainer}>
-              <Image source={{ uri: currentItem.exercise.imageUrl }} style={styles.sessionVideo} resizeMode="cover" />
+              <Image source={{ uri: resolveUrl(currentItem.exercise.imageUrl)! }} style={styles.sessionVideo} resizeMode="cover" />
             </View>
           ) : null}
 

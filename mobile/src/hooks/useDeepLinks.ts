@@ -45,8 +45,12 @@ function handleDeepLink(url: string) {
     // Auth callback is handled by the auth flow — skip here
     if (path.startsWith('auth/')) return;
 
-    // Map web paths to app routes
-    const route = mapWebPathToAppRoute(path, parsed.queryParams || {});
+    // Map web paths to app routes — coerce array params to string (last value)
+    const queryParams: Record<string, string | undefined> = {};
+    for (const [k, v] of Object.entries(parsed.queryParams || {})) {
+      queryParams[k] = Array.isArray(v) ? v[v.length - 1] : v;
+    }
+    const route = mapWebPathToAppRoute(path, queryParams);
     if (route) {
       // Small delay to ensure navigation is ready
       setTimeout(() => {

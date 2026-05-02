@@ -125,7 +125,9 @@
           "image": "./assets/images/pilareta-logo-full.png",
           "imageWidth": 300
         }
-      ]
+      ],
+      "expo-sqlite",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

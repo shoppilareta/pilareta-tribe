@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import Svg, { Path } from 'react-native-svg';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { colors, typography, spacing, radius } from '@/theme';
 import { Card, Badge } from '@/components/ui';
 import { getExercise, getExerciseCompletionStats } from '@/api/learn';
@@ -70,7 +70,6 @@ export default function ExerciseDetail() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const [isFavorite, setIsFavorite] = useState(false);
   const [videoError, setVideoError] = useState(false);
-  const videoRef = useRef<Video>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['learn-exercise', slug],
@@ -102,15 +101,19 @@ export default function ExerciseDetail() {
     setIsFavorite(!isFavorite);
   }, [slug, isFavorite]);
 
-  const handleVideoError = useCallback(() => {
-    setVideoError(true);
-  }, []);
+  const videoUri = data?.exercise?.videoUrl ? resolveUrl(data.exercise.videoUrl) : null;
+  const player = useVideoPlayer(videoUri || null, (p) => {
+    p.loop = true;
+    p.muted = false;
+  });
 
-  const handleVideoStatus = useCallback((status: AVPlaybackStatus) => {
-    if ('error' in status && status.error) {
-      setVideoError(true);
-    }
-  }, []);
+  useEffect(() => {
+    if (!player) return;
+    const sub = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'error' || error) setVideoError(true);
+    });
+    return () => sub.remove();
+  }, [player]);
 
   if (isLoading) {
     return (
@@ -164,18 +167,12 @@ export default function ExerciseDetail() {
         {/* Video with error fallback / Hero image */}
         {ex.videoUrl && !videoError ? (
           <View style={styles.videoContainer}>
-            <Video
-              ref={videoRef}
-              source={{ uri: resolveUrl(ex.videoUrl)! }}
-              posterSource={ex.imageUrl ? { uri: resolveUrl(ex.imageUrl)! } : undefined}
-              usePoster={!!ex.imageUrl}
+            <VideoView
+              player={player}
               style={styles.video}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              isLooping
-              shouldPlay={false}
-              onError={handleVideoError}
-              onPlaybackStatusUpdate={handleVideoStatus}
+              contentFit="contain"
+              nativeControls
+              allowsFullscreen
             />
           </View>
         ) : videoError && ex.imageUrl ? (

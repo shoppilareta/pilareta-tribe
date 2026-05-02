@@ -5,7 +5,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import ViewShot from 'react-native-view-shot';
 import Svg, { Path } from 'react-native-svg';
 import { colors, typography, spacing, radius } from '@/theme';

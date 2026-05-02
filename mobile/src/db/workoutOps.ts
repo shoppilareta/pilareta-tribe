@@ -67,6 +67,13 @@ export function localLogToWorkoutLog(local: LocalWorkoutLog): WorkoutLog {
     customStudioName: local.customStudioName,
     isShared: local.isShared,
     sharedPostId: null,
+    distanceKm: null,
+    incline: null,
+    pace: null,
+    laps: null,
+    totalSets: null,
+    totalReps: null,
+    weightKg: null,
     createdAt: local.createdAt,
     updatedAt: local.updatedAt,
   };

@@ -54,3 +54,6 @@ mobile/dist/
 *.key
 *.mobileprovision
 *.orig.*
+
+# Google Play service account keys
+pilareta-tribe-*.json

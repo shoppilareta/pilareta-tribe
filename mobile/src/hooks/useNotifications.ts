@@ -31,8 +31,8 @@ export function useNotifications() {
     streakReminderEnabled: false,
     permissionGranted: false,
   });
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => {
     // Configure notification handler lazily (not at module level)
@@ -40,7 +40,8 @@ export function useNotifications() {
       notificationHandlerSet = true;
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
-          shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
           shouldPlaySound: true,
           shouldSetBadge: false,
         }),
@@ -83,12 +84,8 @@ export function useNotifications() {
     );
 
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, []);
 

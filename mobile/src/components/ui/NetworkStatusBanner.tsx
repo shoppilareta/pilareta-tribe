@@ -13,7 +13,7 @@ export function NetworkStatusBanner() {
   const [wasOffline, setWasOffline] = useState(false);
   const translateY = useRef(new Animated.Value(-60)).current;
   const insets = useSafeAreaInsets();
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {

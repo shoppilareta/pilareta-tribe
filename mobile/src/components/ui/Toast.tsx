@@ -28,7 +28,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const translateY = useRef(new Animated.Value(100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const idRef = useRef(0);
   const insets = useSafeAreaInsets();
 
