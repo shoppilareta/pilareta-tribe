@@ -34,6 +34,15 @@ export async function quickSearch(q: string, limit = 10): Promise<{ studios: Stu
   return apiFetch(`/api/studios/search?q=${encodeURIComponent(q)}&limit=${limit}`, { skipAuth: true });
 }
 
+export interface CityPrediction {
+  placeId: string;
+  description: string;
+}
+
+export async function autocompleteCities(input: string): Promise<{ predictions: CityPrediction[] }> {
+  return apiFetch(`/api/studios/autocomplete?input=${encodeURIComponent(input)}`, { skipAuth: true });
+}
+
 export async function getStudio(id: string): Promise<{ studio: Studio }> {
   return apiFetch(`/api/studios/${id}`, { skipAuth: true });
 }

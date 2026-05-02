@@ -10,12 +10,26 @@ import { router, useFocusEffect } from 'expo-router';
 import { colors, typography, spacing, radius } from '@/theme';
 import { StudioCard, isStudioOpenNow } from '@/components/studios';
 import { StudioListSkeleton } from '@/components/ui/Skeleton';
-import { getNearbyStudios, searchStudios, geocode, quickSearch } from '@/api/studios';
+import { getNearbyStudios, searchStudios, geocode, quickSearch, autocompleteCities } from '@/api/studios';
+import type { CityPrediction } from '@/api/studios';
 import { useStudioFavorites } from '@/hooks/useStudioFavorites';
 import { useAuthStore } from '@/stores/authStore';
 import type { Studio } from '@shared/types';
 
 const AMENITY_OPTIONS = ['Reformer', 'Mat', 'Showers', 'Parking', 'WiFi', 'AC'] as const;
+
+// Common Indian Pilates cities — surfaced as quick-pick chips so the user
+// can jump cities without typing. Order = approximate Pilates studio density.
+const POPULAR_CITIES = [
+  { name: 'Mumbai', lat: 19.076, lng: 72.8777 },
+  { name: 'Delhi NCR', lat: 28.6139, lng: 77.2090 },
+  { name: 'Bangalore', lat: 12.9716, lng: 77.5946 },
+  { name: 'Pune', lat: 18.5204, lng: 73.8567 },
+  { name: 'Hyderabad', lat: 17.3850, lng: 78.4867 },
+  { name: 'Chennai', lat: 13.0827, lng: 80.2707 },
+  { name: 'Kolkata', lat: 22.5726, lng: 88.3639 },
+  { name: 'Ahmedabad', lat: 23.0225, lng: 72.5714 },
+] as const;
 
 type SortOption = 'nearest' | 'rating';
 
@@ -47,8 +61,11 @@ export default function StudiosScreen() {
   const [filters, setFilters] = useState<Filters>({ openNow: false, amenities: [] });
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('nearest');
-  const [suggestions, setSuggestions] = useState<{ name: string; placeId: string }[]>([]);
+  const [studioSuggestions, setStudioSuggestions] = useState<{ name: string; placeId: string }[]>([]);
+  const [citySuggestions, setCitySuggestions] = useState<CityPrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Display label for the active location ("Near you" or city name)
+  const [searchedCityLabel, setSearchedCityLabel] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
 
   const isAuthenticated = !!useAuthStore((s) => s.accessToken);
@@ -60,8 +77,10 @@ export default function StudiosScreen() {
       return () => {
         setSearchQuery('');
         setSearchLocation(null);
+        setSearchedCityLabel(null);
         setShowSuggestions(false);
-        setSuggestions([]);
+        setStudioSuggestions([]);
+        setCitySuggestions([]);
       };
     }, [])
   );
@@ -102,29 +121,38 @@ export default function StudiosScreen() {
     })();
   }, []);
 
-  // Debounced autocomplete suggestions
+  // Debounced autocomplete: fetch both DB studios AND Google Places city
+  // suggestions in parallel so the user can pick either an existing studio
+  // or any city worldwide.
   useEffect(() => {
     const q = searchQuery.trim();
     if (q.length < 2) {
-      setSuggestions([]);
+      setStudioSuggestions([]);
+      setCitySuggestions([]);
       setShowSuggestions(false);
       return;
     }
 
     const timer = setTimeout(async () => {
       try {
-        const result = await quickSearch(q, 5);
-        const mapped = (result.studios ?? []).map((s) => ({
-          name: s.name + (s.city ? ` - ${s.city}` : ''),
+        const [studiosResult, citiesResult] = await Promise.all([
+          quickSearch(q, 4).catch(() => ({ studios: [] })),
+          autocompleteCities(q).catch(() => ({ predictions: [] })),
+        ]);
+        const studios = (studiosResult.studios ?? []).map((s) => ({
+          name: s.name + (s.city ? ` — ${s.city}` : ''),
           placeId: s.id,
         }));
-        setSuggestions(mapped);
-        setShowSuggestions(mapped.length > 0);
+        const cities = (citiesResult.predictions ?? []).slice(0, 5);
+        setStudioSuggestions(studios);
+        setCitySuggestions(cities);
+        setShowSuggestions(studios.length > 0 || cities.length > 0);
       } catch {
-        setSuggestions([]);
+        setStudioSuggestions([]);
+        setCitySuggestions([]);
         setShowSuggestions(false);
       }
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -185,49 +213,71 @@ export default function StudiosScreen() {
     }
   };
 
+  // Move the map + active-location to a given (lat, lng) and label.
+  const goToCoords = useCallback((lat: number, lng: number, label: string | null) => {
+    setSearchLocation({ lat, lng });
+    setSearchedCityLabel(label);
+    const newRegion = { latitude: lat, longitude: lng, latitudeDelta: 0.05, longitudeDelta: 0.05 };
+    setRegion(newRegion);
+    mapRef.current?.animateToRegion(newRegion, 500);
+  }, []);
+
   const handleSearch = async () => {
     const q = searchQuery.trim();
     setShowSuggestions(false);
-    setSuggestions([]);
+    setStudioSuggestions([]);
+    setCitySuggestions([]);
     if (!q) {
       setSearchLocation(null);
+      setSearchedCityLabel(null);
       return;
     }
 
     try {
       const result = await geocode(q);
-      setSearchLocation({ lat: result.lat, lng: result.lng });
-      setRegion({
-        latitude: result.lat,
-        longitude: result.lng,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
-      mapRef.current?.animateToRegion({
-        latitude: result.lat,
-        longitude: result.lng,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
+      goToCoords(result.lat, result.lng, result.formattedAddress || q);
     } catch {
-      Alert.alert('Location not found', 'Try a different search term.');
+      Alert.alert('Location not found', 'Try a different city or studio name.');
     }
   };
 
-  const handleSuggestionTap = (suggestion: { name: string; placeId: string }) => {
-    // Extract studio name without city suffix for search
-    const name = suggestion.name.split(' - ')[0];
+  const handleStudioSuggestionTap = (suggestion: { name: string; placeId: string }) => {
+    const name = suggestion.name.split(' — ')[0];
     setSearchQuery(name);
     setShowSuggestions(false);
-    setSuggestions([]);
-    // Navigate directly to the studio detail
+    setStudioSuggestions([]);
+    setCitySuggestions([]);
     router.push(`/(tabs)/studios/${suggestion.placeId}`);
   };
 
+  const handleCitySuggestionTap = async (suggestion: CityPrediction) => {
+    setSearchQuery(suggestion.description);
+    setShowSuggestions(false);
+    setStudioSuggestions([]);
+    setCitySuggestions([]);
+    try {
+      const result = await geocode(suggestion.description);
+      goToCoords(result.lat, result.lng, suggestion.description);
+    } catch {
+      Alert.alert('Location not found', 'Try a different city.');
+    }
+  };
+
+  const handleQuickCityTap = useCallback((city: typeof POPULAR_CITIES[number]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSearchQuery('');
+    setShowSuggestions(false);
+    setStudioSuggestions([]);
+    setCitySuggestions([]);
+    goToCoords(city.lat, city.lng, city.name);
+  }, [goToCoords]);
+
   const handleMyLocation = () => {
     if (!userLocation) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSearchQuery('');
     setSearchLocation(null);
+    setSearchedCityLabel(null);
     const newRegion = {
       latitude: userLocation.lat,
       longitude: userLocation.lng,
@@ -235,7 +285,7 @@ export default function StudiosScreen() {
       longitudeDelta: 0.05,
     };
     setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion);
+    mapRef.current?.animateToRegion(newRegion, 500);
   };
 
   // Determine which empty state to show
@@ -331,7 +381,7 @@ export default function StudiosScreen() {
               onSubmitEditing={handleSearch}
             />
             {searchQuery.length > 0 && (
-              <Pressable onPress={() => { setSearchQuery(''); setSearchLocation(null); setShowSuggestions(false); setSuggestions([]); }} hitSlop={8}>
+              <Pressable onPress={() => { setSearchQuery(''); setSearchLocation(null); setSearchedCityLabel(null); setShowSuggestions(false); setStudioSuggestions([]); setCitySuggestions([]); }} hitSlop={8}>
                 <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
                   <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
@@ -348,33 +398,93 @@ export default function StudiosScreen() {
               </View>
             )}
           </Pressable>
-          {userLocation && (
-            <Pressable onPress={handleMyLocation} style={styles.myLocationButton} hitSlop={8}>
-              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.fg.primary} strokeWidth={1.5}>
-                <Path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" />
-              </Svg>
-            </Pressable>
-          )}
         </View>
 
-        {/* Autocomplete suggestions dropdown */}
-        {showSuggestions && suggestions.length > 0 && (
+        {/* Autocomplete suggestions dropdown — studios first, then cities */}
+        {showSuggestions && (studioSuggestions.length > 0 || citySuggestions.length > 0) && (
           <ScrollView style={styles.suggestionsDropdown} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-            {suggestions.map((s, i) => (
+            {studioSuggestions.length > 0 && (
+              <View style={styles.suggestionGroupHeader}>
+                <Text style={styles.suggestionGroupHeaderText}>Studios</Text>
+              </View>
+            )}
+            {studioSuggestions.map((s, i) => (
               <Pressable
-                key={`${s.placeId}-${i}`}
-                style={[styles.suggestionItem, i < suggestions.length - 1 && styles.suggestionBorder]}
-                onPress={() => handleSuggestionTap(s)}
+                key={`studio-${s.placeId}-${i}`}
+                style={[styles.suggestionItem, styles.suggestionBorder]}
+                onPress={() => handleStudioSuggestionTap(s)}
               >
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
-                  <Path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M12 7a3 3 0 100 6 3 3 0 000-6z" />
                 </Svg>
                 <Text style={styles.suggestionText} numberOfLines={1}>{s.name}</Text>
+              </Pressable>
+            ))}
+            {citySuggestions.length > 0 && (
+              <View style={styles.suggestionGroupHeader}>
+                <Text style={styles.suggestionGroupHeaderText}>Cities</Text>
+              </View>
+            )}
+            {citySuggestions.map((s, i) => (
+              <Pressable
+                key={`city-${s.placeId}-${i}`}
+                style={[styles.suggestionItem, i < citySuggestions.length - 1 && styles.suggestionBorder]}
+                onPress={() => handleCitySuggestionTap(s)}
+              >
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
+                  <Path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9v.01M9 12v.01M9 15v.01M9 18v.01" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text style={styles.suggestionText} numberOfLines={1}>{s.description}</Text>
               </Pressable>
             ))}
           </ScrollView>
         )}
       </View>
+
+      {/* Location context bar — shows current focus and lets the user
+          easily jump back to "near me" or pick a popular city */}
+      <View style={styles.locationBar}>
+        <View style={styles.locationBarLabel}>
+          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.fg.tertiary} strokeWidth={1.5}>
+            <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" strokeLinecap="round" strokeLinejoin="round" />
+            <Path d="M12 7a3 3 0 100 6 3 3 0 000-6z" />
+          </Svg>
+          <Text style={styles.locationBarText} numberOfLines={1}>
+            {searchedCityLabel
+              ? searchedCityLabel
+              : userLocation ? 'Near you' : 'Pick a city'}
+          </Text>
+        </View>
+        {searchedCityLabel && userLocation && (
+          <Pressable onPress={handleMyLocation} style={styles.backToMyLocBtn} hitSlop={6}>
+            <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={colors.bg.primary} strokeWidth={2.2}>
+              <Path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" fill={colors.bg.primary} />
+            </Svg>
+            <Text style={styles.backToMyLocBtnText}>Near me</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Quick-pick city chips — horizontal scroll, only show before any
+          searched location is set so they're not redundant */}
+      {!searchedCityLabel && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.cityChipsRow}
+        >
+          {POPULAR_CITIES.map((city) => (
+            <Pressable
+              key={city.name}
+              style={styles.cityChip}
+              onPress={() => handleQuickCityTap(city)}
+            >
+              <Text style={styles.cityChipText}>{city.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Location permission denied banner */}
       {permissionDenied && (
@@ -558,8 +668,54 @@ const styles = StyleSheet.create({
   searchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
   searchInputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default, paddingHorizontal: spacing.sm, gap: spacing.xs },
   searchInput: { flex: 1, paddingVertical: spacing.sm, fontSize: typography.sizes.sm, color: colors.fg.primary },
-  myLocationButton: { padding: spacing.sm, backgroundColor: colors.bg.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border.default },
   map: { width: SCREEN_WIDTH, height: MAP_HEIGHT },
+  locationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+  },
+  locationBarLabel: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  locationBarText: { flex: 1, fontSize: typography.sizes.sm, color: colors.fg.secondary, fontWeight: typography.weights.medium },
+  backToMyLocBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    backgroundColor: colors.fg.primary,
+    borderRadius: radius.sm,
+  },
+  backToMyLocBtnText: { fontSize: 12, fontWeight: typography.weights.semibold, color: colors.bg.primary },
+  cityChipsRow: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.xs,
+  },
+  cityChip: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    marginRight: spacing.xs,
+  },
+  cityChipText: { fontSize: 12, color: colors.fg.secondary, fontWeight: typography.weights.medium },
+  suggestionGroupHeader: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(70,74,60,0.4)',
+  },
+  suggestionGroupHeaderText: {
+    fontSize: 11,
+    color: colors.fg.muted,
+    fontWeight: typography.weights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
   permissionBanner: {
     flexDirection: 'row',
     alignItems: 'center',

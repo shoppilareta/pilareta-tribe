@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, SectionList, Pressable, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -125,6 +126,21 @@ export default function ShopScreen() {
   useEffect(() => {
     recentlyViewed.loadFromStorage();
   }, []);
+
+  // Prefetch all product thumbnails into the disk cache so the grid
+  // and any subsequent product detail openings render instantly even
+  // on poor connections. expo-image dedupes prefetches per URL.
+  useEffect(() => {
+    if (!data?.products) return;
+    const urls: string[] = [];
+    for (const product of data.products) {
+      const first = product.images?.[0]?.url;
+      if (first) urls.push(first);
+    }
+    if (urls.length > 0) {
+      ExpoImage.prefetch(urls, { cachePolicy: 'memory-disk' });
+    }
+  }, [data?.products]);
 
   // I7: Cart expiry check on shop load
   useEffect(() => {

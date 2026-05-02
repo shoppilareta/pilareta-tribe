@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   Pressable,
   Dimensions,
   Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
 import { colors, typography, spacing, radius } from '@/theme';
 import { apiFetch } from '@/api/client';
@@ -114,7 +114,14 @@ export function BannerCarousel() {
         })}
         renderItem={({ item }) => (
           <Pressable onPress={() => handlePress(item)} style={styles.bannerCard} accessibilityLabel={`${item.title}${item.subtitle ? `, ${item.subtitle}` : ''}`} accessibilityRole="button">
-            <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} resizeMode="cover" />
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.bannerImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+              recyclingKey={item.imageUrl}
+            />
             <View style={styles.overlay} />
             <View style={styles.bannerContent}>
               <Text style={styles.bannerTitle} numberOfLines={2}>

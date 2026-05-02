@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, FlatList, Image, Pressable, StyleSheet } from 'react-native';
+import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { colors, typography, spacing, radius } from '@/theme';
 import { formatPrice } from '@/utils/formatPrice';
@@ -36,7 +37,14 @@ export function RecentlyViewedCarousel({ products, handles }: Props) {
             accessibilityRole="button"
           >
             {item.images?.[0] ? (
-              <Image source={{ uri: item.images[0].url }} style={styles.image} resizeMode="cover" />
+              <Image
+                source={{ uri: item.images[0].url }}
+                style={styles.image}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={120}
+                recyclingKey={item.images[0].url}
+              />
             ) : (
               <View style={[styles.image, styles.imagePlaceholder]} />
             )}

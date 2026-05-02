@@ -1,5 +1,6 @@
 import { memo, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
@@ -96,7 +97,14 @@ export const ProductCard = memo(function ProductCard({ product, isWishlisted, on
       <Card style={styles.card}>
         <View style={styles.imageContainer}>
           {image ? (
-            <Image source={{ uri: image.url }} style={styles.image} resizeMode="cover" />
+            <Image
+              source={{ uri: image.url }}
+              style={styles.image}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={120}
+              recyclingKey={image.url}
+            />
           ) : (
             <View style={[styles.image, styles.imagePlaceholder]}>
               <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={colors.fg.muted} strokeWidth={1.5}>
