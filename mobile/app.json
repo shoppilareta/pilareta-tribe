@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "pilareta",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "owner": "shoppilareta",
     "runtimeVersion": {
       "policy": "appVersion"
